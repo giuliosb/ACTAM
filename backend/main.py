@@ -1,109 +1,69 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import FileResponse
+import tempfile
 import librosa
 import soundfile as sf
 import os
-import uuid
 
-app = FastAPI(title="Music Accompaniment API")
+app = FastAPI(title="Audio Processor API")
 
-# Allow frontend dev server access (e.g. localhost:5173)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Directories
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-PROCESSED_DIR = os.path.join(BASE_DIR, "processed")
-PRESETS_DIR = os.path.join(BASE_DIR, "presets")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(PROCESSED_DIR, exist_ok=True)
-os.makedirs(PRESETS_DIR, exist_ok=True)
-
-# Serve processed files (audio renderings)
-app.mount("/processed", StaticFiles(directory=PROCESSED_DIR), name="processed")
+# --- GLOBAL TEMP FILE ---
+CURRENT_FILE_PATH = None
 
 
-# Pydantic models
-class TimeStretchRequest(BaseModel):
-    filename: str
-    rate: float  # Rate: new_bpm / old_bpm
-
-
-class Preset(BaseModel):
-    name: str
-    data: dict
-
-
-# Routes
 @app.get("/")
-async def root():
-    return {"message": "Music Accompaniment Backend is running!"}
+def root():
+    return {"message": "Audio Processor Backend is running!"}
 
 
 @app.post("/upload")
 async def upload_audio(file: UploadFile = File(...)):
-    if not file.content_type.startswith("audio/"):
-        raise HTTPException(status_code=400, detail="Invalid file type")
+    """Upload one audio file temporarily."""
+    global CURRENT_FILE_PATH
 
-    ext = os.path.splitext(file.filename)[1]
-    dest = f"{uuid.uuid4().hex}{ext}"
-    file_path = os.path.join(UPLOAD_DIR, dest)
-
-    with open(file_path, "wb") as f:
+    suffix = os.path.splitext(file.filename)[1]
+    temp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    with open(temp.name, "wb") as f:
         f.write(await file.read())
 
-    return {"filename": dest, "url": f"/uploads/{dest}"}
+    CURRENT_FILE_PATH = temp.name
+    return {"message": "File uploaded successfully", "path": CURRENT_FILE_PATH}
 
 
-@app.post("/analyze/bpm")
-async def analyze_bpm(filename: str):
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+@app.post("/process")
+async def process_audio(
+    speed_factor: float = Form(1.0),  # e.g., 1.2 = 20% faster
+    pitch_shift: float = Form(0.0),   # in semitones (e.g., +2 or -3)
+):
+    """Process the uploaded file — change speed or pitch."""
+    global CURRENT_FILE_PATH
+    if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
+        return {"error": "No audio file uploaded yet."}
 
-    y, sr = librosa.load(file_path, sr=None)
-    bpm, beats = librosa.beat.beat_track(y=y, sr=sr)
-    beat_times = librosa.frames_to_time(beats, sr=sr)
+    y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
 
-    return {"bpm": float(bpm), "beat_times": beat_times.tolist()}
+    # Apply pitch shift
+    if pitch_shift != 0:
+        y = librosa.effects.pitch_shift(y, sr, n_steps=pitch_shift)
 
+    # Apply time-stretch
+    if speed_factor != 1.0:
+        y = librosa.effects.time_stretch(y, rate=speed_factor)
 
-@app.post("/process/time-stretch")
-async def time_stretch(req: TimeStretchRequest):
-    in_path = os.path.join(UPLOAD_DIR, req.filename)
-    if not os.path.exists(in_path):
-        raise HTTPException(status_code=404, detail="Input file not found")
+    # Save processed output
+    out_path = CURRENT_FILE_PATH.replace(".", "_processed.")
+    sf.write(out_path, y, sr)
 
-    y, sr = librosa.load(in_path, sr=None)
-    y_stretched = librosa.effects.time_stretch(y, req.rate)
-
-    out_name = f"{uuid.uuid4().hex}.wav"
-    out_path = os.path.join(PROCESSED_DIR, out_name)
-    sf.write(out_path, y_stretched, sr)
-
-    return {"processed_file": out_name, "url": f"/processed/{out_name}"}
+    return FileResponse(out_path, filename="processed.wav", media_type="audio/wav")
 
 
-@app.post("/presets")
-async def save_preset(preset: Preset):
-    file_path = os.path.join(PRESETS_DIR, preset.name + ".json")
-    with open(file_path, "w") as f:
-        f.write(preset.data.json())
-    return {"message": "Preset saved", "filename": file_path}
 
-
-@app.get("/presets/{name}")
-async def load_preset(name: str):
-    file_path = os.path.join(PRESETS_DIR, name + ".json")
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Preset not found")
-    with open(file_path, "r") as f:
-        return f.read()
+@app.post("/clear")
+def clear_temp():
+    """Delete the current temporary file."""
+    global CURRENT_FILE_PATH
+    if CURRENT_FILE_PATH and os.path.exists(CURRENT_FILE_PATH):
+        os.remove(CURRENT_FILE_PATH)
+        CURRENT_FILE_PATH = None
+        return {"message": "Temporary file cleared"}
+    return {"message": "No file to clear"}
