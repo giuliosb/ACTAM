@@ -1,4 +1,4 @@
-Start Backend:
+START BACKEND:
 
 
 cd backend
@@ -11,9 +11,9 @@ pip install -r requirements.txt
 
 uvicorn backend.main:app --reload
 
+---------------------------------------
 
-
-Start Frontend:
+START FRONTEND:
 
 
 cd frontend
