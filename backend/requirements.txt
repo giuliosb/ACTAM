@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+librosa
+soundfile
+pydantic
+python-multipart
