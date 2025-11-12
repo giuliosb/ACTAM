@@ -1,0 +1,51 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.egg-info/
+*.log
+
+# Virtual environments
+venv/
+.env/
+ENV/
+.venv/
+
+# Temporary files
+uploads/
+processed/
+temp_audio/
+tmp/
+*.tmp
+*.wav
+*.mp3
+
+# --- Node / Frontend ---
+node_modules/
+dist/
+build/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- IDEs / Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Python virtual environment (absolute fallback) ---
+backend/venv/
+backend/.venv/
+
+# --- Environment files ---
+.env
