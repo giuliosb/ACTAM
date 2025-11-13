@@ -32,29 +32,38 @@ async def upload_audio(file: UploadFile = File(...)):
 
 @app.post("/process")
 async def process_audio(
-    speed_factor: float = Form(1.0),  # e.g., 1.2 = 20% faster
-    pitch_shift: float = Form(0.0),   # in semitones (e.g., +2 or -3)
+    file: UploadFile = File(...),
+    speed_factor: float = Form(1.0)  # e.g., 0.5 = half speed, 2.0 = double speed
 ):
-    """Process the uploaded file — change speed or pitch."""
-    global CURRENT_FILE_PATH
-    if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
-        return {"error": "No audio file uploaded yet."}
+    """Receives an audio file and a speed factor, returns time-stretched audio."""
 
-    y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
+    # Create a temporary directory to safely handle files
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = os.path.join(tmpdir, file.filename)
+        output_path = os.path.join(tmpdir, "processed.wav")
 
-    # Apply pitch shift
-    if pitch_shift != 0:
-        y = librosa.effects.pitch_shift(y, sr, n_steps=pitch_shift)
+        # Save uploaded file
+        with open(input_path, "wb") as f:
+            f.write(await file.read())
 
-    # Apply time-stretch
-    if speed_factor != 1.0:
-        y = librosa.effects.time_stretch(y, rate=speed_factor)
+        try:
+            # Load audio
+            y, sr = librosa.load(input_path, sr=None)
 
-    # Save processed output
-    out_path = CURRENT_FILE_PATH.replace(".", "_processed.")
-    sf.write(out_path, y, sr)
+            # Apply time stretch
+            if speed_factor <= 0:
+                return JSONResponse({"error": "Speed factor must be > 0"}, status_code=400)
 
-    return FileResponse(out_path, filename="processed.wav", media_type="audio/wav")
+            y_stretched = librosa.effects.time_stretch(y, rate=speed_factor)
+
+            # Save processed output
+            sf.write(output_path, y_stretched, sr)
+
+            # Return file as downloadable response
+            return FileResponse(output_path, filename="processed.wav", media_type="audio/wav")
+
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
 
 
 
@@ -67,3 +76,12 @@ def clear_temp():
         CURRENT_FILE_PATH = None
         return {"message": "Temporary file cleared"}
     return {"message": "No file to clear"}
+
+
+@app.get("/temp/audio")
+def get_temp_audio():
+    """Get the current temporary audio file"""
+    global CURRENT_FILE_PATH
+    if CURRENT_FILE_PATH and os.path.exists(CURRENT_FILE_PATH):
+        return FileResponse(CURRENT_FILE_PATH, filename="temp.wav", media_type="audio/wav")
+    return {"error": "No audio file uploaded yet"}
