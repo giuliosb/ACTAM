@@ -25,10 +25,12 @@ const EXTENSIONS = {
 
 export default function ChordBuilder() {
   const [a4Frequency, setA4Frequency] = useState(440);
+  const [bpm, setBpm] = useState(120);
   const [rootNote, setRootNote] = useState("C");
   const [octave, setOctave] = useState(4);
   const [triad, setTriad] = useState("Major");
   const [extension, setExtension] = useState("");
+  const [durationInBeats, setDurationInBeats] = useState(1); // durata in quarti
   const [chords, setChords] = useState([]);
 
   const noteFrequency = (note, octave) => {
@@ -51,7 +53,8 @@ export default function ChordBuilder() {
 
   const addChord = () => {
     const chordNotes = buildChordNotes();
-    setChords(prev => [...prev, { root: rootNote, triad, extension, notes: chordNotes }]);
+    const durationInSeconds = (60 / bpm) * durationInBeats;
+    setChords(prev => [...prev, { root: rootNote, triad, extension, notes: chordNotes, duration: durationInSeconds }]);
   };
 
   const clearChords = () => setChords([]);
@@ -68,6 +71,11 @@ export default function ChordBuilder() {
       <div>
         <label>A4 Frequency (Hz): </label>
         <input type="number" value={a4Frequency} onChange={e => setA4Frequency(Number(e.target.value) || 0)} className="ml-2 border p-1" />
+      </div>
+
+      <div>
+        <label>BPM (beats per minute): </label>
+        <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value) || 0)} className="ml-2 border p-1" />
       </div>
 
       <div>
@@ -89,6 +97,11 @@ export default function ChordBuilder() {
         <select value={extension} onChange={e => setExtension(e.target.value)} className="border p-1 ml-2">
           {Object.keys(EXTENSIONS).map(ext => <option key={ext} value={ext}>{ext || "None"}</option>)}
         </select>
+      </div>
+
+      <div>
+        <label>Duration (in beats, can be decimal): </label>
+        <input type="number" step="0.1" value={durationInBeats} onChange={e => setDurationInBeats(Number(e.target.value) || 1)} className="ml-2 border p-1" />
       </div>
 
       <div>
