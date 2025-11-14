@@ -1,43 +1,62 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import "./Sequencer.css";
 
 export default function Sequencer({ chords = [], onSequenceChange }) {
   const STEPS = 16;
   const [sequence, setSequence] = useState(Array(STEPS).fill([]));
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragChord, setDragChord] = useState(null);
-  const dragStartStep = useRef(null);
 
   useEffect(() => {
-    // Aggiorna la sequenza se cambiano gli accordi
     setSequence(prev => prev.map(step => step.filter(s => s.chordIndex < chords.length)));
   }, [chords]);
 
-  const handleMouseDown = (stepIndex, chordIndex) => {
-    setIsDragging(true);
-    setDragChord(chordIndex);
-    dragStartStep.current = stepIndex;
-  };
-
-  const handleMouseOver = (stepIndex) => {
-    if (!isDragging || dragChord === null) return;
-
-    const start = dragStartStep.current;
-    const end = stepIndex;
-    const from = Math.min(start, end);
-    const to = Math.max(start, end);
-
+  const addChordAtStep = (stepIndex, chordIndex) => {
     setSequence(prev => {
       const newSeq = [...prev];
+      newSeq[stepIndex] = [...newSeq[stepIndex], { chordIndex, sustain: 1, start: true }];
+      if (onSequenceChange) onSequenceChange(newSeq);
+      return newSeq;
+    });
+  };
 
-      // Rimuovi eventuali precedenti dello stesso accordo
-      newSeq.forEach((s, i) => {
-        newSeq[i] = s.filter(obj => obj.chordIndex !== dragChord);
-      });
+  const removeSustainAtStep = (stepIndex, chordIndex) => {
+    setSequence(prev => {
+      const newSeq = [...prev];
+      let startStep = null;
+      for (let i = 0; i < STEPS; i++) {
+        const obj = newSeq[i].find(o => o.chordIndex === chordIndex && o.start);
+        if (obj && stepIndex >= i && stepIndex < i + obj.sustain) {
+          startStep = i;
+          break;
+        }
+      }
+      if (startStep !== null) {
+        const sustainObj = newSeq[startStep].find(o => o.chordIndex === chordIndex && o.start);
+        for (let i = startStep; i < startStep + sustainObj.sustain && i < STEPS; i++) {
+          newSeq[i] = newSeq[i].filter(o => !(o.chordIndex === chordIndex && (i === startStep ? o.start : !o.start)));
+        }
+      }
+      if (onSequenceChange) onSequenceChange(newSeq);
+      return newSeq;
+    });
+  };
 
-      // Aggiungi sustain sull'intervallo
-      for (let i = from; i <= to; i++) {
-        newSeq[i].push({ chordIndex: dragChord, sustain: to - i + 1 });
+  const changeSustain = (startStep, chordIndex, delta) => {
+    setSequence(prev => {
+      const newSeq = [...prev];
+      const startObj = newSeq[startStep].find(o => o.chordIndex === chordIndex && o.start);
+      if (!startObj) return newSeq;
+      const newLength = Math.max(1, startObj.sustain + delta);
+      startObj.sustain = newLength;
+
+      // aggiunge solo le celle di sustain (escluso l'inizio)
+      for (let i = startStep + 1; i < startStep + newLength && i < STEPS; i++) {
+        if (!newSeq[i].some(o => o.chordIndex === chordIndex)) {
+          newSeq[i].push({ chordIndex, start: false });
+        }
+      }
+      // rimuove eventuali vecchie celle in eccesso
+      for (let i = startStep + newLength; i < STEPS; i++) {
+        newSeq[i] = newSeq[i].filter(o => !(o.chordIndex === chordIndex && !o.start));
       }
 
       if (onSequenceChange) onSequenceChange(newSeq);
@@ -45,18 +64,10 @@ export default function Sequencer({ chords = [], onSequenceChange }) {
     });
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setDragChord(null);
-    dragStartStep.current = null;
-  };
-
   return (
-    <div className="sequencer-container" onMouseUp={handleMouseUp}>
+    <div className="sequencer-container">
       <h2>Chord Sequencer</h2>
-
       <div className="grid">
-        {/* Header colonne */}
         <div className="grid-row header">
           <div className="grid-cell header-cell"></div>
           {Array.from({ length: STEPS }).map((_, i) => (
@@ -64,30 +75,33 @@ export default function Sequencer({ chords = [], onSequenceChange }) {
           ))}
         </div>
 
-        {/* Righe accordi */}
         {chords.map((chord, chordIndex) => (
           <div key={chordIndex} className="grid-row">
-            <div className="grid-cell chord-name">
-              {chord.root} {chord.triad} {chord.extension}
-            </div>
+            <div className="grid-cell chord-name">{chord.root} {chord.triad} {chord.extension}</div>
 
             {Array.from({ length: STEPS }).map((_, stepIndex) => {
-              const cellActive = sequence[stepIndex]?.some(obj => obj.chordIndex === chordIndex);
+              const cellObj = sequence[stepIndex]?.find(obj => obj.chordIndex === chordIndex);
+              const isActive = !!cellObj;
+              const isStart = cellObj?.start;
+              const style = isActive ? { backgroundColor: isStart ? "#4caf50" : "#a5d6a7" } : {};
+
               return (
-                <div
-                  key={stepIndex}
-                  className={`grid-cell step-cell ${cellActive ? "active" : ""}`}
-                  onMouseDown={() => handleMouseDown(stepIndex, chordIndex)}
-                  onMouseOver={() => handleMouseOver(stepIndex)}
-                />
+                <div key={stepIndex} className={`grid-cell step-cell`} style={style}>
+                  {!isActive && <button onClick={() => addChordAtStep(stepIndex, chordIndex)}>+</button>}
+                  {isStart && (
+                    <>
+                      <button onClick={() => changeSustain(stepIndex, chordIndex, 1)}>+</button>
+                      <button onClick={() => changeSustain(stepIndex, chordIndex, -1)}>-</button>
+                      <button onClick={() => removeSustainAtStep(stepIndex, chordIndex)}>x</button>
+                    </>
+                  )}
+                </div>
               );
             })}
           </div>
         ))}
       </div>
-
       <div className="debug-box">
-        <h3>Sequence Data:</h3>
         <pre>{JSON.stringify(sequence, null, 2)}</pre>
       </div>
     </div>
