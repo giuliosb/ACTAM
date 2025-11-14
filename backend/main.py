@@ -18,15 +18,12 @@ CURRENT_TUNING = 440
 
 class ProcessRequest(BaseModel):
     stretch_rate: float
-
-class PitchShiftRequest(BaseModel):
     target_tuning: float  # Target A4 frequency in Hz
 
 
 @app.get("/")
 def root():
     return {"message": "Audio Processor Backend is running!"}
-
 
 @app.post("/upload")
 async def upload_audio(file: UploadFile = File(...)):
@@ -71,51 +68,6 @@ async def upload_audio(file: UploadFile = File(...)):
             "tuning_detection_error": str(e)
         }
 
-@app.post("/time-stretch")
-async def process_audio(req: ProcessRequest):
-    """
-    Time-stretch audio file using librosa.
-    
-    Args:
-        stretch_rate: Time stretch factor (0.5 = slower, 2.0 = faster)
-    
-    Returns:
-        Processed audio file
-    """
-    stretch_rate = req.stretch_rate
-    global CURRENT_FILE_PATH
-    
-    # Check if file exists
-    if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
-        raise HTTPException(status_code=400, detail="No file uploaded yet")
-    
-    try:
-        # Load audio file
-        y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
-        
-        # Apply time stretching
-        y_stretched = librosa.effects.time_stretch(y, rate=stretch_rate)
-        
-        # Create temporary output file
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-        output_path = temp_file.name
-        temp_file.close()
-        
-        # Save stretched audio
-        sf.write(output_path, y_stretched, sr)
-        
-        # Return the audio file
-        return FileResponse(
-            output_path,
-            media_type="audio/wav",
-            filename=f"stretched_{stretch_rate}x.wav",
-            background=None
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
-
-
 @app.post("/clear")
 def clear_temp():
     """Delete the current temporary file."""
@@ -127,63 +79,108 @@ def clear_temp():
     return {"message": "No file to clear"}
 
 
-@app.get("/temp/audio")
-def get_temp_audio():
-    """Get the current temporary audio file"""
-    global CURRENT_FILE_PATH
-    if CURRENT_FILE_PATH and os.path.exists(CURRENT_FILE_PATH):
-        return FileResponse(CURRENT_FILE_PATH, filename="temp.wav", media_type="audio/wav")
-    return {"error": "No audio file uploaded yet"}
+class ProcessRequest(BaseModel):
+    stretch_rate: float
+    target_tuning: float  # Target A4 frequency in Hz (e.g., 440, 442)
 
 
-@app.get("/detect-tuning")
-def get_tuning():
+@app.post("/get-audio")
+async def get_and_process_audio(req: ProcessRequest):
     """
-    Detect the tuning reference (A4 frequency) of the currently uploaded audio.
-    
-    Returns:
-        Dictionary with the detected A4 frequency in Hz
-    """
-    global CURRENT_FILE_PATH
-    
-    if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
-        raise HTTPException(status_code=400, detail="No file uploaded yet")
-    
-    try:
-        tuning_freq = detect_tuning_reference(CURRENT_FILE_PATH)
-        return {
-            "tuning_reference": tuning_freq,
-            "message": f"Detected A4 at {tuning_freq} Hz"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error detecting tuning: {str(e)}")
-
-
-
-@app.post("/pitch-shift")
-async def pitch_shift_audio(req: PitchShiftRequest):
-    """
-    Pitch shift audio from its current tuning to a target tuning.
+    Process and return the audio file with optional time stretching and pitch shifting.
     
     Args:
-        target_tuning: Target A4 frequency in Hz (e.g., 440, 442)
+        stretch_rate: Time stretch factor (0 = no stretching, 0.5 = slower, 2.0 = faster)
+        target_tuning: Target A4 frequency in Hz (0 = no pitch shift, 440, 442, etc.)
     
     Returns:
-        Pitch-shifted audio file
+        Processed audio file
     """
     global CURRENT_FILE_PATH
+    global CURRENT_TUNING
     
     # Check if file exists
     if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
         raise HTTPException(status_code=400, detail="No file uploaded yet")
     
     try:
-        # Detect current tuning
+        # Process the audio 
+        try:
+            # Load audio file
+            y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
+
+            #____________Pitch_shift____________
+            
+            if req.target_tuning != 0:
+                # Use the global tuning
+                current_tuning = CURRENT_TUNING
+
+                # Calculate pitch shift in semitones
+                # Formula: semitones = 12 * log2(target_freq / current_freq)
+                semitones = 12 * np.log2(req.target_tuning / current_tuning)
+
+                # Apply pitch shifting
+                y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
+
+                y = y_shifted
+
+                # Update global tuning to the new target
+                CURRENT_TUNING = req.target_tuning
+
+            #___________Time_stretch____________
+            
+            if req.stretch_rate != 0:
+                # Apply time stretching
+                y_stretched = librosa.effects.time_stretch(y, rate=req.stretch_rate)
+                y = y_stretched
+
+        except Exception as e:
+            raise Exception(f"Error processing the audio: {str(e)}")
+
+
+        # Create temporary output file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+        output_path = temp_file.name
+        temp_file.close()
+        
+        # Save stretched audio
+        sf.write(output_path, y, sr)
+
+        # Return the processed audio file
+        return FileResponse(
+            output_path,
+            media_type="audio/wav",
+            filename="processed_audio.wav",
+            background=None
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
+
+
+# NOT API CALL FUNCTIONS:
+
+def apply_pitch_shift(target_tuning: float):
+    """
+    Pitch shift the current audio file to a target tuning and overwrite it.
+    
+    Args:
+        target_tuning: Target A4 frequency in Hz (e.g., 440, 442)
+    """
+    global CURRENT_FILE_PATH
+    global CURRENT_TUNING
+    
+    # Check if file exists
+    if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
+        raise Exception("No file uploaded yet")
+    
+    try:
+        # Use the global tuning
         current_tuning = CURRENT_TUNING
         
         # Calculate pitch shift in semitones
         # Formula: semitones = 12 * log2(target_freq / current_freq)
-        semitones = 12 * np.log2(req.target_tuning / current_tuning)
+        semitones = 12 * np.log2(target_tuning / current_tuning)
         
         # Load audio file
         y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
@@ -191,26 +188,99 @@ async def pitch_shift_audio(req: PitchShiftRequest):
         # Apply pitch shifting
         y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
         
-        # Create temporary output file
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-        output_path = temp_file.name
-        temp_file.close()
+        # Overwrite the current file with pitch-shifted audio
+        sf.write(CURRENT_FILE_PATH, y_shifted, sr)
         
-        # Save pitch-shifted audio
-        sf.write(output_path, y_shifted, sr)
+        # Update global tuning to the new target
+        CURRENT_TUNING = target_tuning
         
-        # Return the audio file
-        return FileResponse(
-            output_path,
-            media_type="audio/wav",
-            filename=f"pitch_shifted_{current_tuning}Hz_to_{req.target_tuning}Hz.wav",
-            background=None
-        )
+        print(f"Pitch shifted from {current_tuning}Hz to {target_tuning}Hz")
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error pitch shifting audio: {str(e)}")
+        raise Exception(f"Error pitch shifting audio: {str(e)}")
 
-# NOT API CALL FUNCTIONS:
+def apply_time_stretch(stretch_rate: float):
+    """
+    Time-stretch the current audio file and overwrite it.
+    
+    Args:
+        stretch_rate: Time stretch factor (0.5 = slower, 2.0 = faster)
+    """
+    global CURRENT_FILE_PATH
+    
+    # Check if file exists
+    if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
+        raise Exception("No file uploaded yet")
+    
+    try:
+        # Load audio file
+        y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
+        
+        # Apply time stretching
+        y_stretched = librosa.effects.time_stretch(y, rate=stretch_rate)
+        
+        # Overwrite the current file with stretched audio
+        sf.write(CURRENT_FILE_PATH, y_stretched, sr)
+        
+        print(f"Time stretched audio by factor {stretch_rate}x")
+        
+    except Exception as e:
+        raise Exception(f"Error time stretching audio: {str(e)}")
+
+
+
+def process_audio(target_tuning: float, stretch_rate: float):
+    """
+    Processing of the current audio file and overwrite it.
+    -Pitch shift the audio file to a target tuning.
+    -Time-stretch the audio file.
+    Args:
+        target_tuning: Target A4 frequency in Hz
+        stretch_rate: Time stretch factor 
+    """
+    global CURRENT_FILE_PATH
+    global CURRENT_TUNING
+    
+    # Check if file exists
+    if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
+        raise Exception("No file uploaded yet")
+    
+    try:
+        # Load audio file
+        y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
+
+        #____________Pitch_shift____________
+        
+        if target_tuning != 0:
+            # Use the global tuning
+            current_tuning = CURRENT_TUNING
+
+            # Calculate pitch shift in semitones
+            # Formula: semitones = 12 * log2(target_freq / current_freq)
+            semitones = 12 * np.log2(target_tuning / current_tuning)
+
+            # Apply pitch shifting
+            y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
+
+            y = y_shifted
+
+            # Update global tuning to the new target
+            CURRENT_TUNING = target_tuning
+
+            print(f"Pitch shifted from {current_tuning}Hz to {target_tuning}Hz")
+
+        #___________Time_stretch____________
+        
+        if stretch_rate != 0:
+            # Apply time stretching
+            y_stretched = librosa.effects.time_stretch(y, rate=stretch_rate)
+            y = y_stretched
+
+        # Overwrite the current file with pitch-shifted audio
+        sf.write(CURRENT_FILE_PATH, y, sr)
+        
+    except Exception as e:
+        raise Exception(f"Error pitch shifting audio: {str(e)}")
 
 def detect_tuning_reference(audio_path: str) -> float:
     """
@@ -262,7 +332,7 @@ def detect_tuning_reference(audio_path: str) -> float:
         implied_a4 = freq / (2 ** ((nearest_midi - 69) / 12))
         
         # Only keep reasonable A4 estimates (between 430-450 Hz)
-        if 430 <= implied_a4 <= 460:
+        if 430 <= implied_a4 <= 450:
             a4_estimates.append(implied_a4)
     
     if len(a4_estimates) == 0:
