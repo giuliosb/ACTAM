@@ -1,0 +1,62 @@
+.sequencer-container {
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  margin-top: 20px;
+  background: #fafafa;
+  overflow-x: auto;
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Righe della griglia */
+.grid-row {
+  display: grid;
+  grid-template-columns: 150px repeat(16, 40px);
+  gap: 4px;
+}
+
+/* Celle generiche */
+.grid-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #aaa;
+  background: #eee;
+  border-radius: 4px;
+  height: 40px;
+  cursor: pointer;
+}
+
+/* Header celle */
+.header-cell {
+  background: #ddd;
+  font-weight: bold;
+  cursor: default;
+}
+
+/* Nome accordo */
+.chord-name {
+  font-weight: bold;
+  background: #f4f4f4;
+  cursor: default;
+}
+
+/* Celle attive */
+.step-cell.active {
+  background: #4caf50;
+}
+
+/* Debug */
+.debug-box {
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px dashed #aaa;
+  background: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+}

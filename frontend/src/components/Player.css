@@ -1,0 +1,48 @@
+.chord-player {
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  margin-top: 20px;
+  background: #fafafa;
+}
+
+.controls {
+  margin-bottom: 15px;
+}
+
+.controls button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: #4caf50;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.controls button:hover {
+  background: #45a049;
+}
+
+.sequence-visual {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.step {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #aaa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 4px;
+  background: #eee;
+}
+
+.step.current {
+  background: #2196f3;
+  color: white;
+  border-color: #0b79d0;
+}
