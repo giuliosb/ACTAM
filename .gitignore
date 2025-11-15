@@ -49,3 +49,4 @@ backend/.venv/
 
 # --- Environment files ---
 .env
+frontend/package-lock.json

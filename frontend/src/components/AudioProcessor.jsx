@@ -1,5 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
+import AudioVisualizer from "./AudioVisualizer";
+
 
 const API = "http://127.0.0.1:8000";
 
@@ -12,6 +14,8 @@ export default function AudioProcessor() {
 
   const [processedAudioBlob, setProcessedAudioBlob] = useState(null);
   const [processedAudioURL, setProcessedAudioURL] = useState(null);
+
+  const [uploadedAudioBlob, setUploadedAudioBlob] = useState(null);
 
   const [logs, setLogs] = useState([]);
 
@@ -32,6 +36,8 @@ export default function AudioProcessor() {
     const form = new FormData();
     form.append("file", file);
 
+    setUploadedAudioBlob(file);
+
     try {
       const res = await axios.post(`${API}/upload`, form, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -47,6 +53,7 @@ export default function AudioProcessor() {
         tuning,
         error: tuning_detection_error || null,
       });
+
 
       setTuning(tuning);
       log(`🎵 Detected tuning: ${tuning}`);
@@ -155,6 +162,20 @@ export default function AudioProcessor() {
           <h3>Processed Audio</h3>
 
           <audio controls src={processedAudioURL} />
+
+          {uploadedAudioBlob && (
+            <div style={{ marginTop: "20px" }}>
+              <h3>Uploaded Audio Waveform</h3>
+              <AudioVisualizer audioFile={uploadedAudioBlob} />
+            </div>
+          )}
+
+          {processedAudioBlob && (
+            <div style={{ marginTop: "20px" }}>
+              <h3>Processed Audio Waveform</h3>
+              <AudioVisualizer audioFile={processedAudioBlob} />
+            </div>
+          )}
 
           {/* Download button */}
           <button
