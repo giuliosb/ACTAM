@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as Tone from "tone";
-import "./Sequencer.css"; // Assumo tu abbia già il CSS del sequencer
+import "./Sequencer.css";
 
 export default function SequencerPlayer({ sequence, chords, bpm = 120 }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -18,13 +18,10 @@ export default function SequencerPlayer({ sequence, chords, bpm = 120 }) {
     }).toDestination();
 
     Tone.Transport.bpm.value = bpm;
-    Tone.Transport.loop = true;
-    Tone.Transport.loopStart = 0;
-    Tone.Transport.loopEnd = "1m"; // 16 step = 1 misura
   }, [bpm]);
 
   const startPlayback = async () => {
-    // Catturo snapshot profondo al momento del Play
+    // Catturo snapshot fisso
     const snap = JSON.parse(JSON.stringify(sequence));
     setSnapshot(snap);
 
@@ -69,7 +66,7 @@ export default function SequencerPlayer({ sequence, chords, bpm = 120 }) {
     });
   };
 
-  // Funzione per determinare lo stile della cella
+  // Determina lo stile della cella (start = verde scuro, sustain = verde chiaro)
   const getCellStyle = (stepIndex, chordIndex) => {
     if (!snapshot) return {};
     const step = snapshot[stepIndex];
@@ -78,14 +75,13 @@ export default function SequencerPlayer({ sequence, chords, bpm = 120 }) {
     const obj = step.find(o => o.chordIndex === chordIndex);
     if (!obj) return {};
 
-    // Se è start o sustain
     if (obj.start) return { backgroundColor: "#4caf50" };
     return { backgroundColor: "#a5d6a7" };
   };
 
   return (
     <div className="sequencer-container">
-      <h2>Sequencer Player (Tone.js)</h2>
+      <h2>Sequencer Player</h2>
       <div className="flex gap-2 mb-4">
         {!isPlaying ? (
           <button onClick={startPlayback} className="border px-4 py-2">
@@ -98,18 +94,31 @@ export default function SequencerPlayer({ sequence, chords, bpm = 120 }) {
         )}
       </div>
 
-      {/* Sequencer visuale */}
-      {chords.map((chord, chordIndex) => (
-        <div key={chordIndex} className="grid-row">
-          <div className="grid-cell chord-name">{chord.root} {chord.triad} {chord.extension}</div>
-          {Array.from({ length: 16 }).map((_, stepIndex) => {
-            const style = getCellStyle(stepIndex, chordIndex);
-            // Evidenzia anche lo step corrente con bordo
-            if (stepIndex === currentStep) style.border = "2px solid yellow";
-            return <div key={stepIndex} className="grid-cell step-cell" style={style}></div>;
-          })}
+      <div className="grid">
+        <div className="grid-row header">
+          <div className="grid-cell header-cell">Step</div>
+          {chords.map((chord, idx) => (
+            <div key={idx} className="grid-cell header-cell">
+              {chord.root} {chord.triad} {chord.extension}
+            </div>
+          ))}
         </div>
-      ))}
+
+        {Array.from({ length: sequence.length }).map((_, stepIndex) => (
+          <div key={stepIndex} className="grid-row">
+            <div className="grid-cell step-name">{stepIndex + 1}</div>
+            {chords.map((_, chordIndex) => {
+              const style = getCellStyle(stepIndex, chordIndex);
+              // evidenzia lo step corrente con bordo giallo
+              if (stepIndex === currentStep) style.border = "2px solid yellow";
+
+              return (
+                <div key={chordIndex} className="grid-cell step-cell" style={style}></div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
