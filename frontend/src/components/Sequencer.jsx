@@ -3,63 +3,68 @@ import "./Sequencer.css";
 
 export default function Sequencer({ chords = [], onSequenceChange }) {
   const STEPS = 16;
-  const [sequence, setSequence] = useState(Array(STEPS).fill([]));
 
+  // Ogni step è un array di oggetti { chordIndex, start, sustain }
+  const [sequence, setSequence] = useState(Array.from({ length: STEPS }, () => []));
+
+  // Sincronizza la sequence con i nuovi accordi (rimuove riferimenti invalidi)
   useEffect(() => {
-    setSequence(prev => prev.map(step => step.filter(s => s.chordIndex < chords.length)));
+    setSequence(prev =>
+      prev.map(step =>
+        step.filter(obj => obj.chordIndex < chords.length)
+      )
+    );
   }, [chords]);
 
+  // Aggiunge un accordo a uno step
   const addChordAtStep = (stepIndex, chordIndex) => {
     setSequence(prev => {
-      const newSeq = [...prev];
-      newSeq[stepIndex] = [...newSeq[stepIndex], { chordIndex, sustain: 1, start: true }];
-      if (onSequenceChange) onSequenceChange(newSeq);
+      const newSeq = prev.map(arr => [...arr]);
+      if (!newSeq[stepIndex].some(o => o.chordIndex === chordIndex)) {
+        newSeq[stepIndex].push({ chordIndex, start: true, sustain: 1 });
+      }
+      onSequenceChange?.(newSeq);
       return newSeq;
     });
   };
 
-  const removeSustainAtStep = (stepIndex, chordIndex) => {
+  // Cambia il sustain di un accordo
+  const changeSustain = (stepIndex, chordIndex, delta) => {
+  setSequence(prev => {
+    // copia profonda per sicurezza
+    const newSeq = prev.map(step => step.map(obj => ({ ...obj })));
+
+    const startObj = newSeq[stepIndex].find(o => o.chordIndex === chordIndex && o.start);
+    if (!startObj) return prev;
+
+    const oldSustain = startObj.sustain;
+    const newSustain = Math.max(1, oldSustain + delta);
+    startObj.sustain = newSustain;
+
+    for (let i = stepIndex + 1; i < STEPS; i++) {
+      const stepArr = newSeq[i];
+      const sustainObjIndex = stepArr.findIndex(o => o.chordIndex === chordIndex && !o.start);
+
+      if (i < stepIndex + newSustain) {
+        // dentro la nuova lunghezza → aggiungi sustain se non c’è
+        if (sustainObjIndex === -1) stepArr.push({ chordIndex, start: false });
+      } else {
+        // oltre il sustain → rimuovi sustain
+        if (sustainObjIndex !== -1) stepArr.splice(sustainObjIndex, 1);
+      }
+    }
+
+    onSequenceChange?.(newSeq);
+    return newSeq;
+  });
+};
+
+
+  // Rimuove un accordo e tutto il suo sustain
+  const removeChordAtStep = (stepIndex, chordIndex) => {
     setSequence(prev => {
-      const newSeq = [...prev];
-      let startStep = null;
-      for (let i = 0; i < STEPS; i++) {
-        const obj = newSeq[i].find(o => o.chordIndex === chordIndex && o.start);
-        if (obj && stepIndex >= i && stepIndex < i + obj.sustain) {
-          startStep = i;
-          break;
-        }
-      }
-      if (startStep !== null) {
-        const sustainObj = newSeq[startStep].find(o => o.chordIndex === chordIndex && o.start);
-        for (let i = startStep; i < startStep + sustainObj.sustain && i < STEPS; i++) {
-          newSeq[i] = newSeq[i].filter(o => !(o.chordIndex === chordIndex && (i === startStep ? o.start : !o.start)));
-        }
-      }
-      if (onSequenceChange) onSequenceChange(newSeq);
-      return newSeq;
-    });
-  };
-
-  const changeSustain = (startStep, chordIndex, delta) => {
-    setSequence(prev => {
-      const newSeq = [...prev];
-      const startObj = newSeq[startStep].find(o => o.chordIndex === chordIndex && o.start);
-      if (!startObj) return newSeq;
-      const newLength = Math.max(1, startObj.sustain + delta);
-      startObj.sustain = newLength;
-
-      // aggiunge solo le celle di sustain (escluso l'inizio)
-      for (let i = startStep + 1; i < startStep + newLength && i < STEPS; i++) {
-        if (!newSeq[i].some(o => o.chordIndex === chordIndex)) {
-          newSeq[i].push({ chordIndex, start: false });
-        }
-      }
-      // rimuove eventuali vecchie celle in eccesso
-      for (let i = startStep + newLength; i < STEPS; i++) {
-        newSeq[i] = newSeq[i].filter(o => !(o.chordIndex === chordIndex && !o.start));
-      }
-
-      if (onSequenceChange) onSequenceChange(newSeq);
+      const newSeq = prev.map(step => step.filter(o => o.chordIndex !== chordIndex));
+      onSequenceChange?.(newSeq);
       return newSeq;
     });
   };
@@ -67,7 +72,9 @@ export default function Sequencer({ chords = [], onSequenceChange }) {
   return (
     <div className="sequencer-container">
       <h2>Chord Sequencer</h2>
+
       <div className="grid">
+        {/* Header */}
         <div className="grid-row header">
           <div className="grid-cell header-cell"></div>
           {Array.from({ length: STEPS }).map((_, i) => (
@@ -75,24 +82,26 @@ export default function Sequencer({ chords = [], onSequenceChange }) {
           ))}
         </div>
 
+        {/* Righe per accordi */}
         {chords.map((chord, chordIndex) => (
           <div key={chordIndex} className="grid-row">
             <div className="grid-cell chord-name">{chord.root} {chord.triad} {chord.extension}</div>
 
             {Array.from({ length: STEPS }).map((_, stepIndex) => {
-              const cellObj = sequence[stepIndex]?.find(obj => obj.chordIndex === chordIndex);
-              const isActive = !!cellObj;
-              const isStart = cellObj?.start;
-              const style = isActive ? { backgroundColor: isStart ? "#4caf50" : "#a5d6a7" } : {};
+              const obj = sequence[stepIndex].find(o => o.chordIndex === chordIndex);
+              const isStart = obj?.start;
+              const style = obj
+                ? { backgroundColor: isStart ? "#4caf50" : "#a5d6a7" }
+                : {};
 
               return (
-                <div key={stepIndex} className={`grid-cell step-cell`} style={style}>
-                  {!isActive && <button onClick={() => addChordAtStep(stepIndex, chordIndex)}>+</button>}
+                <div key={stepIndex} className="grid-cell step-cell" style={style}>
+                  {!obj && <button onClick={() => addChordAtStep(stepIndex, chordIndex)}>+</button>}
                   {isStart && (
                     <>
                       <button onClick={() => changeSustain(stepIndex, chordIndex, 1)}>+</button>
                       <button onClick={() => changeSustain(stepIndex, chordIndex, -1)}>-</button>
-                      <button onClick={() => removeSustainAtStep(stepIndex, chordIndex)}>x</button>
+                      <button onClick={() => removeChordAtStep(stepIndex, chordIndex)}>x</button>
                     </>
                   )}
                 </div>
@@ -101,6 +110,8 @@ export default function Sequencer({ chords = [], onSequenceChange }) {
           </div>
         ))}
       </div>
+
+      {/* Debug */}
       <div className="debug-box">
         <pre>{JSON.stringify(sequence, null, 2)}</pre>
       </div>
