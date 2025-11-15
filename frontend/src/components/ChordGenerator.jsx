@@ -138,10 +138,10 @@ export default function ChordGenerator({ onChordsChange }) {
         </button>
       </div>
 
-      <div className="mt-4">
+      {/*<div className="mt-4">
         <h3 className="font-semibold">Chords:</h3>
         <pre>{JSON.stringify(chords, null, 2)}</pre>
-      </div>
+      </div>*/}
     </div>
   );
 }
