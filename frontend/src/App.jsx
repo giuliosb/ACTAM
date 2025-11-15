@@ -1,54 +1,59 @@
 import { useState } from "react";
 import "./App.css";
 
-// Import componenti
-import ChordGenerator from "./components/ChordGenerator";
-import Sequencer from "./components/Sequencer";
-import ChordPlayer from "./components/Player";
-import AudioProcessor from "./components/AudioProcessor"; 
+import Menu from "./components/Menu";
+import GeneratedAccompaniment from "./components/GeneratedAccompaniment";
+import AudioProcessor from "./components/AudioProcessor";
 
 function App() {
-  const [chords, setChords] = useState([]);       // lista accordi
-  const [sequence, setSequence] = useState([]);   // sequenza per Sequencer
-  const [bpm, setBpm] = useState(120);
+  const [currentCard, setCurrentCard] = useState("menu"); // menu | generated | audio
 
-  // Callback per aggiornare la sequence dal Sequencer
-  const handleSequenceChange = (newSeq) => {
-    setSequence(newSeq);
+  const renderCard = () => {
+    switch (currentCard) {
+      case "generated":
+        return <GeneratedAccompaniment />;
+      case "audio":
+        return <AudioProcessor />;
+      case "menu":
+      default:
+        return <Menu onSelect={setCurrentCard} />;
+    }
   };
 
   return (
     <div className="App" style={{ padding: "20px", fontFamily: "sans-serif" }}>
-      {/* Chord Generator */}
-      { <ChordGenerator onChordsChange={setChords} /> }
-
-      {/* Sequencer */}
-      { <Sequencer
-        chords={chords}
-        onSequenceChange={handleSequenceChange}
-      /> }
-
-      {/* Player */}
-      {/* <ChordPlayer
-        chords={chords}
-        sequence={sequence}
-        bpm={bpm}
-      /> */}
-
-      {/* BPM Control */}
-      <div style={{ marginTop: "20px" }}>
-        <label>BPM: </label>
-        <input
-          type="number"
-          value={bpm}
-          onChange={(e) => setBpm(Number(e.target.value))}
-          style={{ marginLeft: "10px", padding: "5px", width: "60px" }}
-        />
+      {/* Card container */}
+      <div style={{ minHeight: "600px" }}>
+        {renderCard()}
       </div>
 
-
-      <AudioProcessor />
-      
+      {/* Always available navigation panel */}
+      {currentCard !== "menu" && (
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <button
+            onClick={() => setCurrentCard("menu")}
+            style={{ padding: "10px 20px", marginRight: "10px" }}
+          >
+            Back to Menu
+          </button>
+          {currentCard !== "generated" && (
+            <button
+              onClick={() => setCurrentCard("generated")}
+              style={{ padding: "10px 20px", marginRight: "10px" }}
+            >
+              Generated Accompaniment
+            </button>
+          )}
+          {currentCard !== "audio" && (
+            <button
+              onClick={() => setCurrentCard("audio")}
+              style={{ padding: "10px 20px" }}
+            >
+              Audio Accompaniment
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
