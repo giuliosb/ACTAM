@@ -4,7 +4,6 @@ import "./Sequencer.css";
 export default function Sequencer({ chords = [], onSequenceChange }) {
   const STEPS = 16;
 
-  // Ogni step è un array di oggetti { id, chordIndex, start, sustain }
   const [sequence, setSequence] = useState(
     Array.from({ length: STEPS }, () => [])
   );
@@ -82,15 +81,17 @@ export default function Sequencer({ chords = [], onSequenceChange }) {
       <div className="grid">
         <div className="grid-row header">
           <div className="grid-cell header-cell"></div>
-          {Array.from({ length: STEPS }).map((_, i) => (
-            <div key={i} className="grid-cell header-cell">{i + 1}</div>
+          {chords.map((chord, chordIndex) => (
+            <div key={chordIndex} className="grid-cell header-cell">
+              {chord.root} {chord.triad} {chord.extension}
+            </div>
           ))}
         </div>
 
-        {chords.map((chord, chordIndex) => (
-          <div key={chordIndex} className="grid-row">
-            <div className="grid-cell chord-name">{chord.root} {chord.triad} {chord.extension}</div>
-            {Array.from({ length: STEPS }).map((_, stepIndex) => {
+        {Array.from({ length: STEPS }).map((_, stepIndex) => (
+          <div key={stepIndex} className="grid-row">
+            <div className="grid-cell step-name">{stepIndex + 1}</div>
+            {chords.map((chord, chordIndex) => {
               const obj = sequence[stepIndex].find(o => o.chordIndex === chordIndex);
               const isStart = obj?.start;
               const style = obj
@@ -98,25 +99,23 @@ export default function Sequencer({ chords = [], onSequenceChange }) {
                 : {};
 
               return (
-                <div key={stepIndex} className="grid-cell step-cell" style={style}>
-                  {!obj && <button onClick={() => addChordAtStep(stepIndex, chordIndex)}>+</button>}
-                  {isStart && (
-                    <>
-                      <button onClick={() => changeSustain(stepIndex, chordIndex, 1)}>+</button>
-                      <button onClick={() => changeSustain(stepIndex, chordIndex, -1)}>-</button>
-                      <button onClick={() => removeChordAtStep(stepIndex, chordIndex)}>x</button>
-                    </>
-                  )}
+                <div key={chordIndex} className="grid-cell step-cell" style={style}>
+                  <div className="cell-buttons">
+                    {!obj && <button onClick={() => addChordAtStep(stepIndex, chordIndex)}>+</button>}
+                    {isStart && (
+                      <>
+                        <button onClick={() => changeSustain(stepIndex, chordIndex, 1)}>+</button>
+                        <button onClick={() => changeSustain(stepIndex, chordIndex, -1)}>-</button>
+                        <button onClick={() => removeChordAtStep(stepIndex, chordIndex)}>x</button>
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         ))}
       </div>
-
-      {/*<div className="debug-box">
-        <pre>{JSON.stringify(sequence, null, 2)}</pre>
-      </div>*/}
     </div>
   );
 }

@@ -1,44 +1,30 @@
 .grid {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.grid-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: 120px repeat(16, 40px); /* larghezza accordi + step uniforme */
+  gap: 2px;
 }
 
 .grid-cell {
-  border: 1px solid #ccc;
-  padding: 4px;
-  text-align: center;
-  min-width: 40px;
-  min-height: 30px;
   display: flex;
   justify-content: center;
   align-items: center;
+  height: 35px;
+  position: relative;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
 }
 
-.header-cell {
-  background: #ddd;
-  font-weight: bold;
+.step-cell {
+  cursor: pointer;
 }
 
-.chord-name {
-  min-width: 120px;
-  font-weight: bold;
-}
-
-.step-cell button {
-  padding: 2px 5px;
-}
-
-.debug-box {
-  margin-top: 20px;
-  background: #f5f5f5;
-  padding: 10px;
+.cell-buttons button {
+  display: none;
   font-size: 12px;
-  overflow-x: auto;
+  padding: 1px 3px;
+  margin: 0 1px;
+}
+
+.step-cell:hover .cell-buttons button {
+  display: inline-block;
 }
