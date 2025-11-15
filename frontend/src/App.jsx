@@ -5,6 +5,7 @@ import "./App.css";
 import ChordGenerator from "./components/ChordGenerator";
 import Sequencer from "./components/Sequencer";
 import ChordPlayer from "./components/Player";
+import AudioProcessor from "./components/AudioProcessor"; 
 
 function App() {
   const [chords, setChords] = useState([]);
@@ -15,23 +16,23 @@ function App() {
     <div className="App">
 
       {/* Chord Generator */}
-      <ChordGenerator onChordsChange={setChords} />
+      {/* <ChordGenerator onChordsChange={setChords} /> */}
 
       {/* Sequencer */}
-      <Sequencer
+      {/* <Sequencer
         chords={chords}
         onSequenceChange={setSequence}
-      />
+      /> */}
 
       {/* Player */}
-      <ChordPlayer
+      {/* <ChordPlayer
         chords={chords}
         sequence={sequence}
         bpm={bpm}
-      />
+      /> */}
 
       {/* BPM Control */}
-      <div style={{ marginTop: "20px" }}>
+      {/* <div style={{ marginTop: "20px" }}>
         <label>BPM: </label>
         <input
           type="number"
@@ -39,8 +40,11 @@ function App() {
           onChange={(e) => setBpm(Number(e.target.value))}
           style={{ marginLeft: "10px", padding: "5px" }}
         />
-      </div>
+      </div> */}
 
+
+      <AudioProcessor />
+      
     </div>
   );
 }
