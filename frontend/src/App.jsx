@@ -1,35 +1,48 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import "./App.css";
+
+// Import componenti
+import ChordGenerator from "./components/ChordGenerator";
+import Sequencer from "./components/Sequencer";
+import ChordPlayer from "./components/Player";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [chords, setChords] = useState([]);
+  const [sequence, setSequence] = useState([]);
+  const [bpm, setBpm] = useState(120);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="App">
+
+      {/* Chord Generator */}
+      <ChordGenerator onChordsChange={setChords} />
+
+      {/* Sequencer */}
+      <Sequencer
+        chords={chords}
+        onSequenceChange={setSequence}
+      />
+
+      {/* Player */}
+      <ChordPlayer
+        chords={chords}
+        sequence={sequence}
+        bpm={bpm}
+      />
+
+      {/* BPM Control */}
+      <div style={{ marginTop: "20px" }}>
+        <label>BPM: </label>
+        <input
+          type="number"
+          value={bpm}
+          onChange={(e) => setBpm(Number(e.target.value))}
+          style={{ marginLeft: "10px", padding: "5px" }}
+        />
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+
+    </div>
+  );
 }
 
-export default App
+export default App;
