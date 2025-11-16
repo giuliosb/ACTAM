@@ -1,51 +1,29 @@
 import { useState } from "react";
-import "./App.css";
+import MusicSequencer from "./components/MusicSequencer.jsx";
 
-// Import componenti
-import ChordGenerator from "./components/ChordGenerator";
-import Sequencer from "./components/Sequencer";
-import ChordPlayer from "./components/Player";
-
-function App() {
-  const [chords, setChords] = useState([]);       // lista accordi
-  const [sequence, setSequence] = useState([]);   // sequenza per Sequencer
-  const [bpm, setBpm] = useState(120);
-
-  // Callback per aggiornare la sequence dal Sequencer
-  const handleSequenceChange = (newSeq) => {
-    setSequence(newSeq);
-  };
+export default function App() {
+  const [chords, setChords] = useState([]);
+  const [sequence, setSequence] = useState([]);
 
   return (
-    <div className="App" style={{ padding: "20px", fontFamily: "sans-serif" }}>
-      {/* Chord Generator */}
+    <div style={{ padding: "20px" }}>
+      {/*<h1>Music Lab</h1>
+
       <ChordGenerator onChordsChange={setChords} />
 
-      {/* Sequencer */}
-      <Sequencer
+      <div style={{ height: "20px" }} />
+
+      <DrumMachine
         chords={chords}
-        onSequenceChange={handleSequenceChange}
+        onSequenceChange={setSequence}
       />
 
-      {/* Player */}
-      <ChordPlayer
-        chords={chords}
-        sequence={sequence}
-        bpm={bpm}
-      />
+      <h3>Debug chords:</h3>
+      <pre>{JSON.stringify(chords, null, 2)}</pre>
 
-      {/* BPM Control */}
-      <div style={{ marginTop: "20px" }}>
-        <label>BPM: </label>
-        <input
-          type="number"
-          value={bpm}
-          onChange={(e) => setBpm(Number(e.target.value))}
-          style={{ marginLeft: "10px", padding: "5px", width: "60px" }}
-        />
-      </div>
+      <h3>Debug sequence:</h3>
+      <pre>{JSON.stringify(sequence, null, 2)}</pre>*/}
+      <MusicSequencer/>
     </div>
   );
 }
-
-export default App;
