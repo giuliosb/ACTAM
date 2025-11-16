@@ -1,29 +1,38 @@
 import { useState } from "react";
 import MusicSequencer from "./components/MusicSequencer.jsx";
+import Player from "./components/Player.jsx";
 
 export default function App() {
+  // Sequenza di 16 step × eventi
+  const [sequence, setSequence] = useState(
+    Array.from({ length: 16 }, () => [])
+  );
+
+  // Lista accordi generati dal Chord Generator
   const [chords, setChords] = useState([]);
-  const [sequence, setSequence] = useState([]);
+
+  // Step corrente suonato dal Player (per highlight)
+  const [currentStep, setCurrentStep] = useState(-1);
 
   return (
     <div style={{ padding: "20px" }}>
-      {/*<h1>Music Lab</h1>
+      <h1>Music Sequencer</h1>
 
-      <ChordGenerator onChordsChange={setChords} />
-
-      <div style={{ height: "20px" }} />
-
-      <DrumMachine
+      {/* PLAYER / TRANSPORT */}
+      <Player
+        sequence={sequence}
         chords={chords}
-        onSequenceChange={setSequence}
+        onStep={setCurrentStep}
       />
 
-      <h3>Debug chords:</h3>
-      <pre>{JSON.stringify(chords, null, 2)}</pre>
-
-      <h3>Debug sequence:</h3>
-      <pre>{JSON.stringify(sequence, null, 2)}</pre>*/}
-      <MusicSequencer/>
+      {/* SEQUENCER GRID + CHORD GENERATOR */}
+      <MusicSequencer
+        sequence={sequence}
+        onSequenceChange={setSequence}
+        chords={chords}
+        onChordsChange={setChords}
+        currentStep={currentStep}
+      />
     </div>
   );
 }
