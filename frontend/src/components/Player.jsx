@@ -43,26 +43,43 @@ export default function Player({ sequence, chords, onStep }) {
   const playStep = (step, time) => {
     const events = sequence[step] || [];
 
-    events.forEach(ev => {
-        if (ev.type === "drum") {
-        if (ev.drum === "kick") kick.current?.triggerAttackRelease("C1", "8n", time);
-        if (ev.drum === "snare") snare.current?.triggerAttackRelease("8n", time);
-        if (ev.drum === "hihat") hihat.current?.triggerAttackRelease("16n", time);
-        }
+    const playStep = (step, time) => {
+        const events = sequence[step] || [];
 
-        if (ev.type === "chord" && ev.start) {
-        const chord = chords[ev.chordIndex];
-        if (chord) {
-            const freqs = chord.notes.map(n => n.freq);
+        // ----- DRUM -----
+        events.forEach(ev => {
+            if (ev.type === "drum") {
+            if (ev.drum === "kick") kick.current?.triggerAttackRelease("C1", "8n", time);
+            if (ev.drum === "snare") snare.current?.triggerAttackRelease("8n", time);
+            if (ev.drum === "hihat") hihat.current?.triggerAttackRelease("16n", time);
+            }
+        });
 
-            // SUSTAIN FIX
-            const stepDuration = 60 / bpm / 4;
-            const sustainSeconds = ev.sustain * stepDuration;
+  // ----- CHORD -----
+  for (const ev of events) {
 
-            poly.current?.triggerAttackRelease(freqs, sustainSeconds, time);
-        }
-        }
-    });
+    if (ev.type === "chord" && ev.start) {
+
+      // 1) prendi accordo
+      const chord = chords[ev.chordIndex];
+      if (!chord) break;
+
+      // 2) frequenze
+      const freqs = chord.notes.map(n => n.freq);
+
+      // 3) durata musicale minima
+      const stepDuration = 60 / bpm / 4;
+      const sustainSteps = Math.max(1, ev.sustain);
+      const sustainSeconds = Math.max(0.03, sustainSteps * stepDuration);
+
+      // 4) suona l'accordo
+      poly.current?.triggerAttackRelease(freqs, sustainSeconds, time);
+
+      break; // IMPORTANTISSIMO → evita doppio attacco nello stesso step
+    }
+  }
+};
+
     };
 
 
