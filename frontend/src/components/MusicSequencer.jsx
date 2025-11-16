@@ -1,261 +1,418 @@
 import { useState } from "react";
-import "./MusicSequencer.css";
-
-const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-const TRIADS = { Major:[0,4,7], Minor:[0,3,7], Dim:[0,3,6], Aug:[0,4,8] };
-const EXTENSIONS = {
-  "": null, "7":10, "Maj7":11, "m7":10, "6":9,
-  "9":14, "11":17, "13":21, "Add9":14, "Sus2":2, "Sus4":5
-};
 
 export default function MusicSequencer({
   sequence,
   onSequenceChange,
   chords,
   onChordsChange,
+  tracks,
+  onTracksChange,
   currentStep,
 }) {
   const STEPS = 16;
 
-  /* ---------------------------------------------
-     LOCAL STATE per il CHORD GENERATOR
-  ----------------------------------------------*/
-  const [a4Frequency] = useState(440);
-  const [rootNote, setRootNote] = useState("C");
-  const [octave, setOctave] = useState(4);
-  const [triad, setTriad] = useState("Major");
-  const [extension, setExtension] = useState("");
+  // 🔧 Track editor modal
+  const [openTrack, setOpenTrack] = useState(null);
+  // openTrack = { type: "drum", id: "kick" }
+  // openTrack = { type: "chord", index: 2 }
 
-  /* ---------------------------------------------
-     COSTRUZIONE ACCORDO
-  ----------------------------------------------*/
-  const noteFrequency = (note, octave) => {
-    const n = NOTES.indexOf(note) + (octave - 4) * 12 - 9;
-    return a4Frequency * Math.pow(2, n / 12);
+  // ------------------------------------------------------------
+  // TOGGLE CELL (drum or chord)
+  // ------------------------------------------------------------
+  const handleToggle = (step, event) => {
+    const newSeq = [...sequence];
+    const stepEvents = [...newSeq[step]];
+
+    // DRUM
+    if (event.type === "drum") {
+      const existing = stepEvents.find(
+        (ev) => ev.type === "drum" && ev.drum === event.drum
+      );
+
+      if (existing) {
+        newSeq[step] = stepEvents.filter(
+          (ev) => !(ev.type === "drum" && ev.drum === event.drum)
+        );
+      } else {
+        stepEvents.push({ type: "drum", drum: event.drum });
+        newSeq[step] = stepEvents;
+      }
+    }
+
+    // CHORD
+    else if (event.type === "chord") {
+      const existing = stepEvents.find(
+        (ev) =>
+          ev.type === "chord" && ev.chordIndex === event.chordIndex
+      );
+
+      if (existing) {
+        newSeq[step] = stepEvents.filter(
+          (ev) =>
+            !(ev.type === "chord" && ev.chordIndex === event.chordIndex)
+        );
+      } else {
+        stepEvents.push({
+          type: "chord",
+          chordIndex: event.chordIndex,
+          start: true,
+          sustain: 1,
+        });
+        newSeq[step] = stepEvents;
+      }
+    }
+
+    onSequenceChange(newSeq);
   };
 
-  const buildChordNotes = () => {
-    const rootIndex = NOTES.indexOf(rootNote);
-    const baseTriad = TRIADS[triad];
+  // ------------------------------------------------------------
+  // ADD CHORD ROW
+  // ------------------------------------------------------------
+  const addChordRow = () => {
+    const newChord = {
+      root: "C",
+      triad: "major",
+      extension: "",
+      notes: [
+        { name: "C4", freq: 261.63 },
+        { name: "E4", freq: 329.63 },
+        { name: "G4", freq: 392.0 },
+      ],
+    };
 
-    const chordIntervals =
-      extension && EXTENSIONS[extension] !== null
-        ? [...baseTriad, EXTENSIONS[extension]]
-        : baseTriad;
+    const newChords = [...chords, newChord];
 
-    return chordIntervals.map(interval => {
-      const noteIndex = rootIndex + interval;
-      const noteName = NOTES[noteIndex % 12];
-      const noteOct = octave + Math.floor(noteIndex / 12);
-      return {
-        note: noteName,
-        octave: noteOct,
-        freq: noteFrequency(noteName, noteOct)
-      };
+    onChordsChange(newChords);
+
+    onTracksChange((prev) => ({
+      ...prev,
+      chords: [
+        ...prev.chords,
+        {
+          volume: -8,
+          cutoff: 1500,
+          reverbMix: 0.3,
+          chorusMix: 0.5,
+          detune: 0,
+        },
+      ],
+    }));
+  };
+
+  // ------------------------------------------------------------
+  // CLEAR CHORD ROWS
+  // ------------------------------------------------------------
+  const clearChordRows = () => {
+    onChordsChange([]);
+
+    onTracksChange((prev) => ({
+      ...prev,
+      chords: [],
+    }));
+
+    const newSeq = sequence.map(() =>
+      []
+    );
+    onSequenceChange(newSeq);
+  };
+
+  // ------------------------------------------------------------
+  // UTILITY
+  // ------------------------------------------------------------
+  const isActive = (step, event) => {
+    return sequence[step]?.some((ev) => {
+      if (event.type === "drum") {
+        return ev.type === "drum" && ev.drum === event.drum;
+      }
+      if (event.type === "chord") {
+        return ev.type === "chord" && ev.chordIndex === event.chordIndex;
+      }
+      return false;
     });
   };
 
-  const addChord = () => {
-    const notes = buildChordNotes();
-    onChordsChange([
-      ...chords,
-      { root: rootNote, triad, extension, notes }
-    ]);
+  // Styles
+  const gridStyle = {
+    display: "grid",
+    gridTemplateColumns: `100px repeat(${STEPS}, 40px)`,
+    gap: "2px",
+    alignItems: "center",
   };
 
-  const clearChords = () => onChordsChange([]);
+  const cellStyle = (active, highlighted) => ({
+    width: "40px",
+    height: "40px",
+    background: highlighted
+      ? "#ffd27f"
+      : active
+      ? "#4caf50"
+      : "#ddd",
+    borderRadius: "4px",
+    cursor: "pointer",
+    border: "1px solid #aaa",
+  });
 
-  /* ---------------------------------------------
-     UPDATE SEQUENCE
-  ----------------------------------------------*/
-  const update = (newSeq) => onSequenceChange(newSeq);
-
-  const toggleDrum = (step, drumId) => {
-    const newSeq = sequence.map(s => [...s]);
-    const exists = newSeq[step].some(ev => ev.type === "drum" && ev.drum === drumId);
-
-    if (exists)
-      newSeq[step] = newSeq[step].filter(ev => !(ev.type === "drum" && ev.drum === drumId));
-    else
-      newSeq[step].push({ id: Math.random(), type: "drum", drum: drumId });
-
-    update(newSeq);
+  const nameCellStyle = {
+    padding: "6px",
+    background: "#222",
+    color: "white",
+    cursor: "pointer",
+    borderRadius: "4px",
+    textAlign: "center",
   };
 
-  const addChordAt = (step, chordIndex) => {
-    const newSeq = sequence.map(s => [...s]);
-    newSeq[step].push({
-      id: Math.random(),
-      type: "chord",
-      chordIndex,
-      start: true,
-      sustain: 1
-    });
-    update(newSeq);
-  };
+  // ------------------------------------------------------------
+  // TRACK EDITOR POPUP COMPONENT
+  // ------------------------------------------------------------
+  const TrackEditor = () => {
+    if (!openTrack) return null;
 
-  const changeSustain = (stepIndex, chordIndex, delta) => {
-    const newSeq = sequence.map(s => s.map(ev => ({ ...ev })));
-    const startObj = newSeq[stepIndex].find(
-      ev => ev.type === "chord" && ev.chordIndex === chordIndex && ev.start
+    const close = () => setOpenTrack(null);
+
+    return (
+      <div
+        className="track-editor-overlay"
+        onClick={close}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.45)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          backdropFilter: "blur(2px)",
+          zIndex: 999,
+        }}
+      >
+        <div
+          className="track-editor"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "white",
+            padding: "20px",
+            borderRadius: "12px",
+            minWidth: "300px",
+            boxShadow: "0 0 20px rgba(0,0,0,0.3)",
+            position: "relative",
+          }}
+        >
+          <button
+            onClick={close}
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#ccc",
+              border: "none",
+              padding: "4px 8px",
+              cursor: "pointer",
+            }}
+          >
+            X
+          </button>
+
+          {/* ---------- DRUM TRACK ---------- */}
+          {openTrack.type === "drum" && (
+            <>
+              <h3>{openTrack.id.toUpperCase()} Settings</h3>
+
+              <label>Volume</label>
+              <input
+                type="range"
+                min="-30"
+                max="6"
+                value={tracks.drums[openTrack.id].volume}
+                onChange={(e) =>
+                  onTracksChange((prev) => ({
+                    ...prev,
+                    drums: {
+                      ...prev.drums,
+                      [openTrack.id]: {
+                        ...prev.drums[openTrack.id],
+                        volume: Number(e.target.value),
+                      },
+                    },
+                  }))
+                }
+                style={{ width: "100%" }}
+              />
+            </>
+          )}
+
+          {/* ---------- CHORD TRACK ---------- */}
+          {openTrack.type === "chord" && (
+            <>
+              <h3>Chord Row {openTrack.index + 1} Settings</h3>
+
+              <label>Volume</label>
+              <input
+                type="range"
+                min="-30"
+                max="6"
+                value={tracks.chords[openTrack.index].volume}
+                onChange={(e) =>
+                  onTracksChange((prev) => {
+                    const ch = [...prev.chords];
+                    ch[openTrack.index].volume = Number(e.target.value);
+                    return { ...prev, chords: ch };
+                  })
+                }
+                style={{ width: "100%" }}
+              />
+
+              <label>Filter Cutoff</label>
+              <input
+                type="range"
+                min="300"
+                max="8000"
+                value={tracks.chords[openTrack.index].cutoff}
+                onChange={(e) =>
+                  onTracksChange((prev) => {
+                    const ch = [...prev.chords];
+                    ch[openTrack.index].cutoff = Number(e.target.value);
+                    return { ...prev, chords: ch };
+                  })
+                }
+                style={{ width: "100%" }}
+              />
+
+              <label>Reverb Mix</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={tracks.chords[openTrack.index].reverbMix}
+                onChange={(e) =>
+                  onTracksChange((prev) => {
+                    const ch = [...prev.chords];
+                    ch[openTrack.index].reverbMix = Number(e.target.value);
+                    return { ...prev, chords: ch };
+                  })
+                }
+                style={{ width: "100%" }}
+              />
+
+              <label>Chorus Mix</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={tracks.chords[openTrack.index].chorusMix}
+                onChange={(e) =>
+                  onTracksChange((prev) => {
+                    const ch = [...prev.chords];
+                    ch[openTrack.index].chorusMix = Number(e.target.value);
+                    return { ...prev, chords: ch };
+                  })
+                }
+                style={{ width: "100%" }}
+              />
+
+              <label>Detune</label>
+              <input
+                type="range"
+                min="-50"
+                max="50"
+                value={tracks.chords[openTrack.index].detune}
+                onChange={(e) =>
+                  onTracksChange((prev) => {
+                    const ch = [...prev.chords];
+                    ch[openTrack.index].detune = Number(e.target.value);
+                    return { ...prev, chords: ch };
+                  })
+                }
+                style={{ width: "100%" }}
+              />
+            </>
+          )}
+        </div>
+      </div>
     );
-    if (!startObj) return;
-
-    const id = startObj.id;
-    const newLen = Math.max(1, startObj.sustain + delta);
-    startObj.sustain = newLen;
-
-    for (let i = 0; i < STEPS; i++)
-      newSeq[i] = newSeq[i].filter(ev => !(ev.type === "chord" && ev.id === id && !ev.start));
-
-    for (let i = stepIndex + 1; i < stepIndex + newLen && i < STEPS; i++)
-      newSeq[i].push({ id, type: "chord", chordIndex, start: false });
-
-    update(newSeq);
   };
 
-  const removeChordAt = (step, chordIndex) => {
-    const newSeq = sequence.map(s => [...s]);
-    const startObj = newSeq[step].find(
-      ev => ev.type === "chord" && ev.chordIndex === chordIndex && ev.start
-    );
-    if (!startObj) return;
-
-    const id = startObj.id;
-    for (let i = 0; i < STEPS; i++)
-      newSeq[i] = newSeq[i].filter(ev => ev.id !== id);
-
-    update(newSeq);
-  };
-
-  /* ---------------------------------------------
-     UI
-  ----------------------------------------------*/
-
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
   return (
-    <div className="music-sequencer">
-
-      {/* ---------------------------------------------
-          CHORD GENERATOR UI
-      ----------------------------------------------*/}
-      <div className="generator-panel">
-        <h2>Chord Generator</h2>
-
-        <div className="gen-row">
-          <label>Root:</label>
-          <select value={rootNote} onChange={e => setRootNote(e.target.value)}>
-            {NOTES.map(n => <option key={n}>{n}</option>)}
-          </select>
-
-          <label>Triad:</label>
-          <select value={triad} onChange={e => setTriad(e.target.value)}>
-            {Object.keys(TRIADS).map(t => <option key={t}>{t}</option>)}
-          </select>
-
-          <label>Ext:</label>
-          <select value={extension} onChange={e => setExtension(e.target.value)}>
-            {Object.keys(EXTENSIONS).map(ext =>
-              <option key={ext} value={ext}>{ext || "None"}</option>
-            )}
-          </select>
-
-          <label>Oct:</label>
-          <select value={octave} onChange={e => setOctave(Number(e.target.value))}>
-            {[2,3,4,5,6].map(o => <option key={o}>{o}</option>)}
-          </select>
-
-          <button onClick={addChord}>Add</button>
-          <button onClick={clearChords}>Clear</button>
-        </div>
+    <div>
+      <div style={{ marginBottom: "10px" }}>
+        <button onClick={addChordRow}>Add Chord Row</button>
+        <button onClick={clearChordRows} style={{ marginLeft: "8px" }}>
+          Clear Chords
+        </button>
       </div>
 
-      {/* ---------------------------------------------
-          STEP GRID
-      ----------------------------------------------*/}
-      <div className="drum-grid">
-
-        {/* HEADER */}
-        <div className="drum-row drum-header">
-          <div className="drum-cell"></div>
-          {Array.from({ length: STEPS }).map((_, i) => (
-            <div
-              key={i}
-              className={`drum-cell drum-header-cell ${
-                currentStep === i ? "playing" : ""
-              }`}
-            >
-              {i + 1}
-            </div>
-          ))}
-        </div>
-
-        {/* DRUM ROWS */}
-        {["kick","snare","hihat"].map(drumId => (
-          <div key={drumId} className="drum-row">
-            <div className="drum-cell drum-name">{drumId}</div>
-
-            {Array.from({ length: STEPS }).map((_, step) => {
-              const active = sequence[step].some(
-                ev => ev.type === "drum" && ev.drum === drumId
-              );
-
-              return (
-                <div
-                  key={step}
-                  className={`drum-cell drum-step 
-                    ${active ? "active" : ""} 
-                    ${currentStep === step ? "playing" : ""}
-                  `}
-                  onClick={() => toggleDrum(step, drumId)}
-                />
-              );
-            })}
+      {/* Drum Rows */}
+      <div style={gridStyle}>
+        {["kick", "snare", "hihat"].map((drumId) => (
+          <div
+            key={drumId}
+            style={{
+              gridColumn: "1",
+              ...nameCellStyle,
+            }}
+            onClick={() => setOpenTrack({ type: "drum", id: drumId })}
+          >
+            {drumId.toUpperCase()}
           </div>
         ))}
 
-        {/* CHORD ROWS */}
-        {chords.map((ch, chordIndex) => (
-          <div key={chordIndex} className="drum-row">
-            <div className="drum-cell drum-name">
-              {ch.root} {ch.triad} {ch.extension}
-            </div>
+        {["kick", "snare", "hihat"].map((drumId, rowIndex) =>
+          sequence.map((_, step) => {
+            const active = isActive(step, { type: "drum", drum: drumId });
+            const highlighted = currentStep === step;
 
-            {Array.from({ length: STEPS }).map((_, step) => {
-              const obj = sequence[step].find(
-                ev => ev.type === "chord" && ev.chordIndex === chordIndex
-              );
-
-              const isStart = obj?.start;
-              const isSustain = obj && !obj.start;
-
-              return (
-                <div
-                  key={step}
-                  className={`drum-cell drum-step chord-step
-                    ${isStart ? "chord-start" : ""}
-                    ${isSustain ? "chord-sustain" : ""}
-                    ${currentStep === step ? "playing" : ""}
-                  `}
-                >
-                  <div className="cell-buttons">
-                    {!obj && (
-                      <button onClick={() => addChordAt(step, chordIndex)}>+</button>
-                    )}
-                    {isStart && (
-                      <>
-                        <button onClick={() => changeSustain(step, chordIndex, +1)}>+</button>
-                        <button onClick={() => changeSustain(step, chordIndex, -1)}>-</button>
-                        <button onClick={() => removeChordAt(step, chordIndex)}>x</button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-
+            return (
+              <div
+                key={`${drumId}-${step}`}
+                style={cellStyle(active, highlighted)}
+                onClick={() =>
+                  handleToggle(step, { type: "drum", drum: drumId })
+                }
+              />
+            );
+          })
+        )}
       </div>
+
+      {/* Chord Rows */}
+      {chords.map((ch, chordIndex) => (
+        <div key={chordIndex} style={gridStyle}>
+          <div
+            style={nameCellStyle}
+            onClick={() => setOpenTrack({ type: "chord", index: chordIndex })}
+          >
+            {ch.root} {ch.triad} {ch.extension}
+          </div>
+
+          {sequence.map((_, step) => {
+            const active = isActive(step, {
+              type: "chord",
+              chordIndex,
+            });
+
+            const highlighted = currentStep === step;
+
+            return (
+              <div
+                key={`chord-${chordIndex}-${step}`}
+                style={cellStyle(active, highlighted)}
+                onClick={() =>
+                  handleToggle(step, {
+                    type: "chord",
+                    chordIndex,
+                  })
+                }
+              />
+            );
+          })}
+        </div>
+      ))}
+
+      {/* POPUP EDITOR */}
+      <TrackEditor />
     </div>
   );
 }
