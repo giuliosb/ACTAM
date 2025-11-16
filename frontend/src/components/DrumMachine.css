@@ -1,0 +1,35 @@
+.drum-grid {
+  display: grid;
+  grid-template-columns: 120px repeat(16, 40px);
+  gap: 2px;
+}
+
+.drum-row {
+  display: contents; /* important: makes rows expand correctly */
+}
+
+.drum-cell {
+  border: 1px solid #ccc;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.drum-header-cell {
+  font-weight: bold;
+  background: #ddd;
+}
+
+.drum-name {
+  background: #eee;
+  font-weight: bold;
+}
+
+.drum-step {
+  cursor: pointer;
+}
+
+.drum-step.active {
+  background: #ff7043 !important;
+}
