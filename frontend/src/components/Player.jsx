@@ -17,24 +17,41 @@ export default function Player({ sequence, chords, tracks, onStep }) {
   const transportEvent = useRef(null);
   const stepCounter = useRef(0);
 
-  const initSynths = () => {
+  /* ------------------------------
+     INIT DRUM SYNTHS (persistent)
+  ------------------------------ */
+  const initDrums = () => {
     if (kick.current) return;
-
     kick.current = new Tone.MembraneSynth().toDestination();
     snare.current = new Tone.NoiseSynth().toDestination();
     hihat.current = new Tone.MetalSynth().toDestination();
   };
 
-  // 🎯 CREA UNA CHAIN NUOVA PER OGNI ACCORDO (ZERO ERRORI)
-  const buildChordSynth = (track) => {
+  /* ---------------------------------------
+     CREA UN SINGOLO ACCORDO (SAFE, NO REUSE)
+  --------------------------------------- */
+  const playChord = (chordIndex, freqs, sustainSeconds, time) => {
+    const track = tracks.chords?.[chordIndex] ?? {
+      volume: -8,
+      cutoff: 1500,
+      reverbMix: 0.3,
+      chorusMix: 0.5,
+      detune: 0,
+    };
+
+    // chain nuova e sicura ad ogni nota
     const filter = new Tone.Filter(track.cutoff, "lowpass");
     const chorus = new Tone.Chorus(4, 2.5, track.chorusMix).start();
-    const reverb = new Tone.Reverb({ decay: 2.5, preDelay: 0.01 });
+    const reverb = new Tone.Reverb({
+      decay: 2.5,
+      preDelay: 0.01,
+    });
     reverb.wet.value = track.reverbMix;
+
     const limiter = new Tone.Limiter(-1);
 
     const synth = new Tone.PolySynth(Tone.FMSynth, {
-      maxPolyphony: 24,
+      maxPolyphony: 8,
       volume: track.volume,
       detune: track.detune,
       envelope: {
@@ -43,24 +60,36 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         sustain: 0.5,
         release: 1.0,
       },
-    }).chain(filter, chorus, reverb, limiter)
+    })
+      .chain(filter, chorus, reverb, limiter)
       .toDestination();
 
-    return synth;
+    synth.triggerAttackRelease(freqs, sustainSeconds, time);
+
+    // Cleanup automatico → evita leak
+    setTimeout(() => {
+      synth.dispose();
+      filter.dispose();
+      chorus.dispose();
+      reverb.dispose();
+      limiter.dispose();
+    }, (sustainSeconds + 0.1) * 1000);
   };
 
+  /* ------------------------------
+     PLAY STEP
+  ------------------------------ */
   const playStep = (step, time) => {
     const events = sequence[step] || [];
 
-    // apply drum volumes per-row
     const drumTracks = tracks?.drums || {};
     if (kick.current) kick.current.volume.value = drumTracks.kick?.volume ?? 0;
     if (snare.current) snare.current.volume.value = drumTracks.snare?.volume ?? 0;
     if (hihat.current) hihat.current.volume.value = drumTracks.hihat?.volume ?? 0;
 
-    // ----------------- DRUM TRIGGERS -----------------
-    events.forEach((ev) => {
-      if (ev.type !== "drum") return;
+    // ---- DRUM ----
+    for (const ev of events) {
+      if (ev.type !== "drum") continue;
 
       if (ev.drum === "kick")
         kick.current?.triggerAttackRelease("C1", "8n", time);
@@ -70,9 +99,9 @@ export default function Player({ sequence, chords, tracks, onStep }) {
 
       if (ev.drum === "hihat")
         hihat.current?.triggerAttackRelease("16n", time);
-    });
+    }
 
-    // ----------------- CHORD TRIGGER -----------------
+    // ---- CHORD (solo una nota per step) ----
     for (const ev of events) {
       if (ev.type !== "chord" || !ev.start) continue;
 
@@ -80,39 +109,29 @@ export default function Player({ sequence, chords, tracks, onStep }) {
       if (!chord) break;
 
       const freqs = chord.notes.map((n) => n.freq);
-
-      const track =
-        tracks.chords?.[ev.chordIndex] || {
-          volume: -8,
-          cutoff: 1500,
-          reverbMix: 0.3,
-          chorusMix: 0.5,
-          detune: 0,
-        };
-
-      // durata dello step in secondi
       const stepDuration = 60 / bpm / 4;
       const sustainSeconds = Math.max(0.03, ev.sustain * stepDuration);
 
-      // 🎛 CREA IL SYNTH AD OGNI ACCORDO
-      const synth = buildChordSynth(track);
-      synth.triggerAttackRelease(freqs, sustainSeconds, time);
-
+      playChord(ev.chordIndex, freqs, sustainSeconds, time);
       break;
     }
   };
 
+  /* ------------------------------
+      START
+  ------------------------------ */
   const start = async () => {
     if (!Tone) {
       Tone = await import("tone");
       await Tone.start();
     }
 
-    initSynths();
+    initDrums();
 
     Tone.Transport.bpm.value = bpm;
     Tone.Transport.swing = swing;
     Tone.Transport.swingSubdivision = "16n";
+
     Tone.Destination.volume.value = masterVolume;
 
     stepCounter.current = 0;
@@ -123,10 +142,8 @@ export default function Player({ sequence, chords, tracks, onStep }) {
 
     transportEvent.current = Tone.Transport.scheduleRepeat((time) => {
       const step = stepCounter.current;
-
       onStep(step);
       playStep(step, time);
-
       stepCounter.current = (stepCounter.current + 1) % STEPS;
     }, "16n");
 
@@ -134,23 +151,30 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     setIsPlaying(true);
   };
 
+  /* ------------------------------
+      STOP
+  ------------------------------ */
   const stop = () => {
     if (!Tone) return;
 
     Tone.Transport.stop();
     Tone.Transport.cancel();
 
-    onStep(-1);
     stepCounter.current = 0;
+    onStep(-1);
     setIsPlaying(false);
   };
 
+  /* ------------------------------
+      UI
+  ------------------------------ */
   return (
     <div style={{ marginBottom: "20px" }}>
       <button onClick={isPlaying ? stop : start}>
         {isPlaying ? "Stop" : "Play"}
       </button>
 
+      {/* BPM */}
       <label style={{ marginLeft: "20px" }}>BPM:</label>
 
       <input
@@ -173,7 +197,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         style={{ width: "200px" }}
       />
 
-      {/* MASTER VOLUME */}
+      {/* MASTER */}
       <div style={{ marginTop: "10px" }}>
         <label>Master Vol (dB): </label>
         <input
@@ -185,12 +209,12 @@ export default function Player({ sequence, chords, tracks, onStep }) {
           step="1"
           style={{ width: "200px" }}
         />
-        <span>{masterVolume} dB</span>
+        {masterVolume} dB
       </div>
 
       {/* SWING */}
       <div style={{ marginTop: "10px" }}>
-        <label>Swing: </label>
+        <label>Swing:</label>
         <input
           type="range"
           min="0"
@@ -200,7 +224,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
           onChange={(e) => setSwing(Number(e.target.value))}
           style={{ width: "200px" }}
         />
-        <span>{Math.round(swing * 100)}%</span>
+        {Math.round(swing * 100)}%
       </div>
     </div>
   );
