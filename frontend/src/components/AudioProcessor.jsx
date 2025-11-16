@@ -10,6 +10,7 @@ export default function AudioProcessor() {
   const [uploadResponse, setUploadResponse] = useState(null);
   const [stretchRate, setStretchRate] = useState(0);
   const [tuning, setTuning] = useState(0);
+  const [original_tuning, setOGTuning] = useState(0);
   const [processing, setProcessing] = useState(false);
 
   const [processedAudioBlob, setProcessedAudioBlob] = useState(null);
@@ -56,7 +57,9 @@ export default function AudioProcessor() {
 
 
       setTuning(tuning);
+      setOGTuning(tuning);
       log(`🎵 Detected tuning: ${tuning}`);
+      getAudio()
     } catch (err) {
       log("❌ Upload failed");
       log(err.toString());
@@ -108,7 +111,7 @@ export default function AudioProcessor() {
       <h2>Audio Processor</h2>
 
       <div style={{ marginTop: "20px" }}>
-        <strong>Detected tuning:</strong> {tuning} Hz
+        <strong>Original tuning:</strong> {original_tuning} Hz
       </div>
 
       {/* Upload section */}
@@ -139,7 +142,7 @@ export default function AudioProcessor() {
           onChange={(e) => setStretchRate(Number(e.target.value))}
         />
 
-        <label style={{ marginLeft: "20px" }}>Target Tuning (Hz): </label>
+        <label style={{ marginLeft: "20px" }}>Tuning (Hz): </label>
         <input
           type="number"
           step="1"
