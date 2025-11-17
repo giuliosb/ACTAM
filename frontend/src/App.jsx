@@ -6,6 +6,7 @@ import ChordGenerator from "./components/ChordGenerator";
 import Sequencer from "./components/Sequencer";
 import ChordPlayer from "./components/Player";
 import AudioProcessor from "./components/AudioProcessor"; 
+import DrumMachine from "./components/DrumMachine";
 
 function App() {
   const [chords, setChords] = useState([]);       // lista accordi
@@ -45,7 +46,9 @@ function App() {
           style={{ marginLeft: "10px", padding: "5px", width: "60px" }}
         />
       </div>
-
+      <div>
+<DrumMachine />
+      </div>
 
       <AudioProcessor />
       
