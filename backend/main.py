@@ -77,6 +77,17 @@ async def upload_audio(file: UploadFile = File(...)):
             "tuning_detection_error": str(e)
         }
 
+@app.get("/get-tuning")
+async def get_tunning():
+    """Get the tuning of upload audio file."""
+    global ORIGINAL_TUNING
+
+    return {
+            "tuning": ORIGINAL_TUNING
+        }
+   
+        
+
 @app.post("/clear")
 def clear_temp():
     """Delete the current temporary file."""
@@ -109,9 +120,12 @@ async def get_and_process_audio(req: ProcessRequest):
     global CURRENT_FILE_PATH
     global ORIGINAL_TUNING
     
+    if CURRENT_FILE_PATH is None:
+        raise HTTPException(status_code=404, detail="No file uploaded yet")
+
     # Check if file exists
-    if not CURRENT_FILE_PATH or not os.path.exists(CURRENT_FILE_PATH):
-        raise HTTPException(status_code=400, detail="No file uploaded yet")
+    if not os.path.exists(CURRENT_FILE_PATH):
+        raise HTTPException(status_code=400, detail="Cannot read file")
     
     try:
         # Process the audio 
