@@ -1,6 +1,5 @@
 import { useRef, useState, useEffect } from "react";
 
-// Tone.js is imported dynamically so the app loads faster
 let Tone = null;
 
 export default function Player({ sequence, chords, tracks, onStep }) {
@@ -18,10 +17,9 @@ export default function Player({ sequence, chords, tracks, onStep }) {
   const stepCounter = useRef(0);
 
   const chordChains = useRef([]);
+  const masterCompressor = useRef(null);
 
-  // --------------------------
-  // DRUM INIT
-  // --------------------------
+  // INIT DRUMS
   const initDrums = () => {
     if (kick.current) return;
 
@@ -30,16 +28,14 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     hihat.current = new Tone.MetalSynth().toDestination();
   };
 
-  // Master volume update
+  // MASTER VOLUME
   useEffect(() => {
-    if (Tone && Tone.Destination) {
+    if (Tone) {
       Tone.Destination.volume.value = masterVolume;
     }
   }, [masterVolume]);
 
-  // --------------------------
-  // SYNTH FACTORY (instrument selection)
-  // --------------------------
+  // SYNTH FACTORY
   const createSynth = (instrument) => {
     switch (instrument) {
       case "sinepad":
@@ -67,17 +63,14 @@ export default function Player({ sequence, chords, tracks, onStep }) {
           envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.8 },
         });
 
-      default: // FM
+      default:
         return new Tone.PolySynth(Tone.FMSynth, {
           envelope: { attack: 0.03, decay: 0.3, sustain: 0.5, release: 1.0 },
         });
     }
   };
 
-  // --------------------------
-  // CREATE / SYNC CHORD SYNTH CHAINS
-  // (now supports instrument changes)
-  // --------------------------
+  // CREATE / SYNC CHORD CHAINS
   useEffect(() => {
     if (!Tone || !isPlaying) return;
 
@@ -85,60 +78,57 @@ export default function Player({ sequence, chords, tracks, onStep }) {
       const track = tracks.chords?.[i] ?? {};
       const instrument = track.instrument || "fm";
 
-      // Need to create or recreate the chain
       const mustRecreate =
         !chordChains.current[i] ||
         chordChains.current[i].instrument !== instrument;
 
       if (mustRecreate) {
-        // Dispose old chain if exists
         if (chordChains.current[i]) {
           const old = chordChains.current[i];
           old.synth.dispose();
           old.filter.dispose();
           old.chorus.dispose();
           old.reverb.dispose();
+          old.panner.dispose();
           old.limiter.dispose();
         }
 
-        // Create new chain
         const filter = new Tone.Filter(1500, "lowpass");
         const chorus = new Tone.Chorus(4, 2.5).start();
         const reverb = new Tone.Reverb({ decay: 3, preDelay: 0.01 });
+        const panner = new Tone.Panner(0);
         const limiter = new Tone.Limiter(-1);
 
         const synth = createSynth(instrument);
-        synth.chain(filter, chorus, reverb, limiter, Tone.Destination);
+
+        synth.chain(filter, chorus, reverb, panner, limiter, Tone.Destination);
 
         chordChains.current[i] = {
           synth,
           filter,
           chorus,
           reverb,
+          panner,
           limiter,
           instrument,
         };
       }
     }
 
-    // Remove abandoned chains
-    if (chordChains.current.length > chords.length) {
-      for (let i = chords.length; i < chordChains.current.length; i++) {
-        const old = chordChains.current[i];
-        if (!old) continue;
+    while (chordChains.current.length > chords.length) {
+      const old = chordChains.current.pop();
+      if (old) {
         old.synth.dispose();
         old.filter.dispose();
         old.chorus.dispose();
         old.reverb.dispose();
+        old.panner.dispose();
         old.limiter.dispose();
       }
-      chordChains.current.length = chords.length;
     }
   }, [chords.length, tracks.chords, isPlaying]);
 
-  // --------------------------
   // CLEANUP
-  // --------------------------
   useEffect(() => {
     return () => {
       chordChains.current.forEach((c) => {
@@ -147,15 +137,13 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         c.filter.dispose();
         c.chorus.dispose();
         c.reverb.dispose();
+        c.panner.dispose();
         c.limiter.dispose();
       });
-      chordChains.current = [];
     };
   }, []);
 
-  // --------------------------
   // PLAY CHORD
-  // --------------------------
   const playChord = (index, freqs, sustain, time) => {
     const chain = chordChains.current[index];
     if (!chain) return;
@@ -165,57 +153,61 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     chain.filter.frequency.value = t.cutoff ?? 1500;
     chain.chorus.wet.value = t.chorusMix ?? 0.5;
     chain.reverb.wet.value = t.reverbMix ?? 0.3;
+    chain.panner.pan.value = t.pan ?? 0;
+
     chain.synth.volume.value = t.volume ?? -8;
-    chain.synth.set({ detune: t.detune ?? 0 });
+
+    chain.synth.set({
+      detune: t.detune ?? 0,
+      envelope: {
+        attack: t.attack ?? 0.03,
+        decay: t.decay ?? 0.3,
+        sustain: t.sustain ?? 0.5,
+        release: t.release ?? 1.0,
+      }
+    });
 
     chain.synth.triggerAttackRelease(freqs, sustain, time);
   };
 
-  // --------------------------
   // PLAY STEP
-  // --------------------------
   const playStep = (step, time, offsets = {}) => {
-    const { kickOffset = 0, snareOffset = 0, hihatOffset = 0 } = offsets;
-    const events = sequence[step] || [];
+    const evts = sequence[step] || [];
 
-    const drumTracks = tracks?.drums || {};
+    const drumTracks = tracks.drums || {};
     if (kick.current) kick.current.volume.value = drumTracks.kick?.volume ?? 0;
     if (snare.current) snare.current.volume.value = drumTracks.snare?.volume ?? 0;
     if (hihat.current) hihat.current.volume.value = drumTracks.hihat?.volume ?? 0;
 
-    // Drums
-    for (const ev of events) {
+    for (const ev of evts) {
       if (ev.type === "drum") {
         if (ev.drum === "kick")
-          kick.current?.triggerAttackRelease("C1", "8n", time + kickOffset);
+          kick.current.triggerAttackRelease("C1", "8n", time);
 
         if (ev.drum === "snare")
-          snare.current?.triggerAttackRelease("8n", time + snareOffset);
+          snare.current.triggerAttackRelease("8n", time);
 
         if (ev.drum === "hihat")
-          hihat.current?.triggerAttackRelease("16n", time + hihatOffset);
+          hihat.current.triggerAttackRelease("16n", time);
       }
     }
 
-    // Chord start event
-    for (const ev of events) {
+    for (const ev of evts) {
       if (ev.type === "chord" && ev.start) {
         const chord = chords[ev.chordIndex];
         if (!chord) break;
 
-        const freqs = chord.notes.map((n) => n.freq);
-        const stepDuration = 60 / bpm / 4;
-        const sustainSeconds = Math.max(0.03, ev.sustain * stepDuration);
+        const freqs = chord.notes.map(n => n.freq);
+        const stepDur = 60 / bpm / 4;
+        const sustain = Math.max(0.03, ev.sustain * stepDur);
 
-        playChord(ev.chordIndex, freqs, sustainSeconds, time);
+        playChord(ev.chordIndex, freqs, sustain, time);
         break;
       }
     }
   };
 
-  // --------------------------
-  // START TRANSPORT
-  // --------------------------
+  // START
   const start = async () => {
     if (!Tone) {
       Tone = await import("tone");
@@ -224,7 +216,16 @@ export default function Player({ sequence, chords, tracks, onStep }) {
 
     initDrums();
     Tone.Transport.bpm.value = bpm;
-    Tone.Destination.volume.value = masterVolume;
+
+    // MASTER COMPRESSOR (ROUTING SICURO)
+    if (!masterCompressor.current) {
+      masterCompressor.current = new Tone.Compressor({
+        threshold: -18,
+        ratio: 3,
+        attack: 0.003,
+        release: 0.25,
+      }).connect(Tone.Destination);
+    }
 
     stepCounter.current = 0;
 
@@ -233,44 +234,29 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     }
 
     transportEvent.current = Tone.Transport.scheduleRepeat((time) => {
-      const step = stepCounter.current;
-      const sixteenth = 60 / bpm / 4;
+      const s = stepCounter.current;
 
-      const kickSwing = tracks.drums?.kick?.swing ?? 0;
-      const snareSwing = tracks.drums?.snare?.swing ?? 0;
-      const hihatSwing = tracks.drums?.hihat?.swing ?? 0;
+      onStep(s);
+      playStep(s, time);
 
-      const kickOffset = step % 2 === 1 ? sixteenth * kickSwing * 0.5 : 0;
-      const snareOffset = step % 2 === 1 ? sixteenth * snareSwing * 0.5 : 0;
-      const hihatOffset = step % 2 === 1 ? sixteenth * hihatSwing * 0.5 : 0;
-
-      onStep(step);
-      playStep(step, time, { kickOffset, snareOffset, hihatOffset });
-
-      stepCounter.current = (step + 1) % STEPS;
+      stepCounter.current = (s + 1) % STEPS;
     }, "16n");
 
     Tone.Transport.start();
     setIsPlaying(true);
   };
 
-  // --------------------------
   // STOP
-  // --------------------------
   const stop = () => {
     if (!Tone) return;
-
     Tone.Transport.stop();
     Tone.Transport.cancel();
     stepCounter.current = 0;
-
     onStep(-1);
     setIsPlaying(false);
   };
 
-  // --------------------------
   // UI
-  // --------------------------
   return (
     <div style={{ marginBottom: "20px" }}>
       <button onClick={isPlaying ? stop : start}>

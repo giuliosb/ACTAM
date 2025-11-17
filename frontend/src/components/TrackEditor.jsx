@@ -49,7 +49,12 @@ export default function TrackEditor({
           cutoff: 1500,
           reverbMix: 0.3,
           chorusMix: 0.5,
-          detune: 0
+          detune: 0,
+          attack: 0.03,
+          decay: 0.3,
+          sustain: 0.5,
+          release: 1.0,
+          pan: 0
         }
       : null;
 
@@ -160,7 +165,7 @@ export default function TrackEditor({
               </button>
             </h2>
 
-            {/* 🎹 Instrument Selector */}
+            {/* Instrument selector */}
             <label>Instrument</label>
             <select
               value={chordTrack.instrument || "fm"}
@@ -239,6 +244,73 @@ export default function TrackEditor({
               value={chordTrack.detune}
               onChange={e =>
                 changeChordTrackParam(openTrack.index, "detune", Number(e.target.value))
+              }
+              style={{ width: "100%" }}
+            />
+
+            {/* ADSR */}
+            <label>Attack</label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={chordTrack.attack ?? 0.03}
+              onChange={e =>
+                changeChordTrackParam(openTrack.index, "attack", Number(e.target.value))
+              }
+              style={{ width: "100%" }}
+            />
+
+            <label>Decay</label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={chordTrack.decay ?? 0.3}
+              onChange={e =>
+                changeChordTrackParam(openTrack.index, "decay", Number(e.target.value))
+              }
+              style={{ width: "100%" }}
+            />
+
+            <label>Sustain</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={chordTrack.sustain ?? 0.5}
+              onChange={e =>
+                changeChordTrackParam(openTrack.index, "sustain", Number(e.target.value))
+              }
+              style={{ width: "100%" }}
+            />
+
+            <label>Release</label>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={chordTrack.release ?? 1.0}
+              onChange={e =>
+                changeChordTrackParam(openTrack.index, "release", Number(e.target.value))
+              }
+              style={{ width: "100%" }}
+            />
+
+            {/* Panning */}
+            <label>Panning</label>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value={chordTrack.pan ?? 0}
+              onChange={e =>
+                changeChordTrackParam(openTrack.index, "pan", Number(e.target.value))
               }
               style={{ width: "100%" }}
             />
