@@ -1,44 +1,67 @@
 import { useState } from "react";
 import MusicSequencer from "./components/MusicSequencer.jsx";
 import Player from "./components/Player.jsx";
+import TrackEditor from "./components/TrackEditor.jsx";
 
 export default function App() {
   const STEPS = 16;
 
-  // Sequenza di 16 step × eventi
   const [sequence, setSequence] = useState(
     Array.from({ length: STEPS }, () => [])
   );
 
-  // Lista accordi generati dal Chord Generator
   const [chords, setChords] = useState([]);
 
-  // Parametri per-riga (drums + una track per ogni accordo)
   const [tracks, setTracks] = useState({
     drums: {
-      kick: { volume: 0 },
-      snare: { volume: 0 },
-      hihat: { volume: 0 },
+      kick: { volume: 0, swing: 0 },
+      snare: { volume: 0, swing: 0 },
+      hihat: { volume: 0, swing: 0 }
     },
-    chords: [], // un oggetto per ogni riga-accordo
+    chords: []
   });
 
-  // Step corrente suonato dal Player (per highlight)
   const [currentStep, setCurrentStep] = useState(-1);
+
+  // popup state moved HERE
+  const [openTrack, setOpenTrack] = useState(null);
+
+  // remove chord helper (passed down)
+  const removeChord = (index) => {
+    const newChords = chords.filter((_, i) => i !== index);
+    setChords(newChords);
+
+    setTracks(prev => ({
+      ...prev,
+      chords: prev.chords.filter((_, i) => i !== index)
+    }));
+
+    let newSeq = sequence.map(step =>
+      step.filter(ev => ev.type !== "chord" || ev.chordIndex !== index)
+    );
+
+    newSeq = newSeq.map(step =>
+      step.map(ev =>
+        (ev.type === "chord" && ev.chordIndex > index)
+          ? { ...ev, chordIndex: ev.chordIndex - 1 }
+          : ev
+      )
+    );
+
+    setSequence(newSeq);
+  };
 
   return (
     <div style={{ padding: "20px" }}>
       <h1>Music Sequencer</h1>
 
-      {/* PLAYER / TRANSPORT */}
       <Player
         sequence={sequence}
-        chords={chords}
         tracks={tracks}
+        chords={chords}
         onStep={setCurrentStep}
       />
 
-      {/* SEQUENCER GRID + CHORD GENERATOR */}
       <MusicSequencer
         sequence={sequence}
         onSequenceChange={setSequence}
@@ -47,6 +70,20 @@ export default function App() {
         tracks={tracks}
         onTracksChange={setTracks}
         currentStep={currentStep}
+        openTrack={openTrack}
+        setOpenTrack={setOpenTrack}
+      />
+
+      <TrackEditor
+        openTrack={openTrack}
+        setOpenTrack={setOpenTrack}
+        tracks={tracks}
+        onTracksChange={setTracks}
+        chords={chords}
+        onChordsChange={setChords}
+        sequence={sequence}
+        onSequenceChange={setSequence}
+        removeChord={removeChord}
       />
     </div>
   );

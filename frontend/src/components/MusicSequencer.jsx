@@ -16,21 +16,18 @@ export default function MusicSequencer({
   tracks,
   onTracksChange,
   currentStep,
+  openTrack,
+  setOpenTrack
 }) {
   const STEPS = 16;
 
-  // CHORD GENERATOR LOCAL STATE
+  /* ------------------ CHORD GENERATOR ------------------ */
   const [a4Frequency] = useState(440);
   const [rootNote, setRootNote] = useState("C");
   const [octave, setOctave] = useState(4);
   const [triad, setTriad] = useState("Major");
   const [extension, setExtension] = useState("");
 
-  // Popup track editor
-  const [openTrack, setOpenTrack] = useState(null);
-  // { type: "drum", id: "kick" } or { type: "chord", index: 0 }
-
-  /* ------------------ CHORD BUILDING ------------------ */
   const noteFrequency = (note, octave) => {
     const n = NOTES.indexOf(note) + (octave - 4) * 12 - 9;
     return a4Frequency * Math.pow(2, n / 12);
@@ -59,12 +56,12 @@ export default function MusicSequencer({
 
   const addChord = () => {
     const notes = buildChordNotes();
+
     onChordsChange([
       ...chords,
       { root: rootNote, triad, extension, notes }
     ]);
 
-    // aggiungi track per nuova riga accordo
     onTracksChange(prev => ({
       ...prev,
       chords: [
@@ -74,25 +71,16 @@ export default function MusicSequencer({
     }));
   };
 
-  const clearChords = () => {
-    onChordsChange([]);
-    onTracksChange(prev => ({
-      ...prev,
-      chords: []
-    }));
-  };
-
-  /* ------------------ SEQUENCE UPDATE ------------------ */
+  /* ------------------ SEQUENCER EVENTS ------------------ */
   const update = (newSeq) => onSequenceChange(newSeq);
 
   const toggleDrum = (step, drumId) => {
     const newSeq = sequence.map(s => [...s]);
     const exists = newSeq[step].some(ev => ev.type === "drum" && ev.drum === drumId);
 
-    if (exists)
-      newSeq[step] = newSeq[step].filter(ev => !(ev.type === "drum" && ev.drum === drumId));
-    else
-      newSeq[step].push({ id: Math.random(), type: "drum", drum: drumId });
+    newSeq[step] = exists
+      ? newSeq[step].filter(ev => !(ev.type === "drum" && ev.drum === drumId))
+      : [...newSeq[step], { id: Math.random(), type:"drum", drum:drumId }];
 
     update(newSeq);
   };
@@ -111,6 +99,7 @@ export default function MusicSequencer({
 
   const changeSustain = (stepIndex, chordIndex, delta) => {
     const newSeq = sequence.map(s => s.map(ev => ({ ...ev })));
+
     const startObj = newSeq[stepIndex].find(
       ev => ev.type === "chord" && ev.chordIndex === chordIndex && ev.start
     );
@@ -124,7 +113,7 @@ export default function MusicSequencer({
       newSeq[i] = newSeq[i].filter(ev => !(ev.type === "chord" && ev.id === id && !ev.start));
 
     for (let i = stepIndex + 1; i < stepIndex + newLen && i < STEPS; i++)
-      newSeq[i].push({ id, type: "chord", chordIndex, start: false });
+      newSeq[i].push({ id, type:"chord", chordIndex, start:false });
 
     update(newSeq);
   };
@@ -143,233 +132,10 @@ export default function MusicSequencer({
     update(newSeq);
   };
 
-  /* ------------------ TRACK PARAM CONTROLS ------------------ */
-
-  const changeDrumVolume = (drumId, value) => {
-    onTracksChange(prev => ({
-      ...prev,
-      drums: {
-        ...prev.drums,
-        [drumId]: {
-          ...(prev.drums?.[drumId] || {}),
-          volume: value
-        }
-      }
-    }));
-  };
-
-  const changeChordTrackParam = (chordIndex, param, value) => {
-    onTracksChange(prev => {
-      const chordsTracks = [...(prev.chords || [])];
-      if (!chordsTracks[chordIndex]) {
-        chordsTracks[chordIndex] = {
-          volume: -8,
-          cutoff: 1500,
-          reverbMix: 0.3,
-          chorusMix: 0.5,
-          detune: 0
-        };
-      }
-      chordsTracks[chordIndex] = {
-        ...chordsTracks[chordIndex],
-        [param]: value
-      };
-      return { ...prev, chords: chordsTracks };
-    });
-  };
-
-  /* ------------------ TRACK EDITOR POPUP ------------------ */
-
-  const TrackEditor = () => {
-    if (!openTrack) return null;
-
-    const close = () => setOpenTrack(null);
-
-    // drum track safe access
-    const drumTrack =
-      openTrack.type === "drum"
-        ? tracks.drums?.[openTrack.id] || { volume: 0 }
-        : null;
-
-    // chord track safe access
-    const chordTrack =
-      openTrack.type === "chord"
-        ? tracks.chords?.[openTrack.index] || {
-            volume: -8,
-            cutoff: 1500,
-            reverbMix: 0.3,
-            chorusMix: 0.5,
-            detune: 0,
-          }
-        : null;
-
-    return (
-      <div
-        className="track-editor-overlay"
-        onClick={close}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.45)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          backdropFilter: "blur(2px)",
-          zIndex: 999
-        }}
-      >
-        <div
-          className="track-editor"
-          onClick={e => e.stopPropagation()}
-          style={{
-            background: "#fff",
-            padding: "20px",
-            borderRadius: "12px",
-            minWidth: "280px",
-            boxShadow: "0 0 20px rgba(0,0,0,0.3)",
-            position: "relative"
-          }}
-        >
-          <button
-            onClick={close}
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              background: "#ccc",
-              border: "none",
-              padding: "4px 8px",
-              cursor: "pointer",
-              borderRadius: "4px"
-            }}
-          >
-            X
-          </button>
-
-          {openTrack.type === "drum" && drumTrack && (
-            <>
-              <h3>{openTrack.id.toUpperCase()} settings</h3>
-
-              <label>Volume</label>
-              <input
-                type="range"
-                min="-30"
-                max="6"
-                value={drumTrack.volume}
-                onChange={e =>
-                  changeDrumVolume(openTrack.id, Number(e.target.value))
-                }
-                style={{ width: "100%" }}
-              />
-              <div>{drumTrack.volume} dB</div>
-            </>
-          )}
-
-          {openTrack.type === "chord" && chordTrack && (
-            <>
-              <h3>
-                Chord row {openTrack.index + 1}
-              </h3>
-
-              <label>Volume</label>
-              <input
-                type="range"
-                min="-30"
-                max="6"
-                value={chordTrack.volume}
-                onChange={e =>
-                  changeChordTrackParam(
-                    openTrack.index,
-                    "volume",
-                    Number(e.target.value)
-                  )
-                }
-                style={{ width: "100%" }}
-              />
-              <div>{chordTrack.volume} dB</div>
-
-              <label>Filter cutoff</label>
-              <input
-                type="range"
-                min="300"
-                max="8000"
-                value={chordTrack.cutoff}
-                onChange={e =>
-                  changeChordTrackParam(
-                    openTrack.index,
-                    "cutoff",
-                    Number(e.target.value)
-                  )
-                }
-                style={{ width: "100%" }}
-              />
-              <div>{Math.round(chordTrack.cutoff)} Hz</div>
-
-              <label>Reverb mix</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={chordTrack.reverbMix}
-                onChange={e =>
-                  changeChordTrackParam(
-                    openTrack.index,
-                    "reverbMix",
-                    Number(e.target.value)
-                  )
-                }
-                style={{ width: "100%" }}
-              />
-              <div>{Math.round(chordTrack.reverbMix * 100)}%</div>
-
-              <label>Chorus mix</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={chordTrack.chorusMix}
-                onChange={e =>
-                  changeChordTrackParam(
-                    openTrack.index,
-                    "chorusMix",
-                    Number(e.target.value)
-                  )
-                }
-                style={{ width: "100%" }}
-              />
-              <div>{Math.round(chordTrack.chorusMix * 100)}%</div>
-
-              <label>Detune</label>
-              <input
-                type="range"
-                min="-50"
-                max="50"
-                value={chordTrack.detune}
-                onChange={e =>
-                  changeChordTrackParam(
-                    openTrack.index,
-                    "detune",
-                    Number(e.target.value)
-                  )
-                }
-                style={{ width: "100%" }}
-              />
-              <div>{chordTrack.detune} cents</div>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  /* ------------------ UI ------------------ */
-
   return (
     <div className="music-sequencer">
 
-      {/* CHORD GENERATOR UI */}
+      {/* CHORD GENERATOR */}
       <div className="generator-panel">
         <h2>Chord Generator</h2>
 
@@ -397,14 +163,12 @@ export default function MusicSequencer({
           </select>
 
           <button onClick={addChord}>Add</button>
-          <button onClick={clearChords}>Clear</button>
         </div>
       </div>
 
       {/* STEP GRID */}
       <div className="drum-grid">
 
-        {/* HEADER */}
         <div className="drum-row drum-header">
           <div className="drum-cell"></div>
           {Array.from({ length: STEPS }).map((_, i) => (
@@ -419,13 +183,12 @@ export default function MusicSequencer({
           ))}
         </div>
 
-        {/* DRUM ROWS */}
         {["kick","snare","hihat"].map(drumId => (
           <div key={drumId} className="drum-row">
             <div
               className="drum-cell drum-name"
-              style={{ cursor: "pointer" }}
-              onClick={() => setOpenTrack({ type: "drum", id: drumId })}
+              style={{ cursor:"pointer" }}
+              onClick={() => setOpenTrack({ type:"drum", id:drumId })}
             >
               {drumId}
             </div>
@@ -449,13 +212,12 @@ export default function MusicSequencer({
           </div>
         ))}
 
-        {/* CHORD ROWS */}
         {chords.map((ch, chordIndex) => (
           <div key={chordIndex} className="drum-row">
             <div
               className="drum-cell drum-name"
-              style={{ cursor: "pointer" }}
-              onClick={() => setOpenTrack({ type: "chord", index: chordIndex })}
+              style={{ cursor:"pointer" }}
+              onClick={() => setOpenTrack({ type:"chord", index:chordIndex })}
             >
               {ch.root} {ch.triad} {ch.extension}
             </div>
@@ -494,11 +256,7 @@ export default function MusicSequencer({
             })}
           </div>
         ))}
-
       </div>
-
-      {/* POPUP EDITOR */}
-      <TrackEditor />
     </div>
   );
 }
