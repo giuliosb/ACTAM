@@ -9,7 +9,6 @@ import os
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-
 app = FastAPI(title="Audio Processor API")
 
 
@@ -41,6 +40,12 @@ async def upload_audio(file: UploadFile = File(...)):
     """Upload an audio file temporarily and replace the previous one."""
     global CURRENT_FILE_PATH
     global ORIGINAL_TUNING
+
+    # --- CHECKING FILE TYPE ---
+    if file.content_type not in ["audio/wav", "audio/x-wav", "audio/mpeg", "audio/flac", "audio/x-flac"]:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload WAV or MP3.")
+    # -----------------------------------------
+
 
     # Use a system temporary directory (auto-deleted when the server restarts)
     temp_dir = tempfile.gettempdir()
@@ -160,21 +165,20 @@ async def get_and_process_audio(req: ProcessRequest):
             raise Exception(f"Error processing the audio: {str(e)}")
 
 
-        # Create temporary output file
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-        output_path = temp_file.name
-        temp_file.close()
-        
-        # Save stretched audio
-        sf.write(output_path, y, sr)
+        temp_flac = tempfile.NamedTemporaryFile(delete=False, suffix='.flac')
+        flac_path = temp_flac.name
+        temp_flac.close()
 
-        # Return the (not necesserily processed) audio file
+        sf.write(flac_path, y, sr, format='FLAC')
+
+
+        
         return FileResponse(
-            output_path,
-            media_type="audio/wav",
-            filename="processed_audio.wav",
-            background=None
+            flac_path,
+            media_type="audio/flac",
+            filename="processed_audio.flac",
         )
+
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
