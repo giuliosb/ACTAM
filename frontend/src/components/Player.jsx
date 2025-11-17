@@ -2,16 +2,14 @@ import { useRef, useState, useEffect, useCallback } from "react";
 
 const STEPS = 16;
 
-/**
- * Hook che carica Tone in modo lazy, imposta BPM e master volume
- * e crea un master compressor.
- */
+/* -----------------------------------------------
+   1. Tone Engine
+------------------------------------------------ */
 function useToneEngine(bpm, masterVolume) {
   const toneRef = useRef(null);
   const masterCompressor = useRef(null);
   const [isReady, setIsReady] = useState(false);
 
-  // Caricamento Tone, inizializzazione master chain
   useEffect(() => {
     let cancelled = false;
 
@@ -24,7 +22,6 @@ function useToneEngine(bpm, masterVolume) {
       await Tone.start();
       toneRef.current = Tone;
 
-      // Master compressor
       masterCompressor.current = new Tone.Compressor({
         threshold: -18,
         ratio: 3,
@@ -32,7 +29,6 @@ function useToneEngine(bpm, masterVolume) {
         release: 0.25,
       }).connect(Tone.Destination);
 
-      // Impostazioni iniziali
       Tone.Transport.bpm.value = bpm;
       Tone.Destination.volume.value = masterVolume;
 
@@ -46,32 +42,24 @@ function useToneEngine(bpm, masterVolume) {
         Tone.Transport.stop();
         Tone.Transport.cancel();
       }
-      if (masterCompressor.current) {
-        masterCompressor.current.dispose();
-      }
+      masterCompressor.current?.dispose();
     };
   }, []);
 
-  // Aggiorna BPM quando cambia
   useEffect(() => {
-    const Tone = toneRef.current;
-    if (!Tone) return;
-    Tone.Transport.bpm.value = bpm;
+    if (toneRef.current) toneRef.current.Transport.bpm.value = bpm;
   }, [bpm]);
 
-  // Aggiorna master volume quando cambia
   useEffect(() => {
-    const Tone = toneRef.current;
-    if (!Tone) return;
-    Tone.Destination.volume.value = masterVolume;
+    if (toneRef.current) toneRef.current.Destination.volume.value = masterVolume;
   }, [masterVolume]);
 
   return { Tone: toneRef.current, isReady };
 }
 
-/**
- * Hook che inizializza i drum synth (kick, snare, hihat)
- */
+/* -----------------------------------------------
+   2. Drums
+------------------------------------------------ */
 function useDrums(Tone) {
   const kick = useRef(null);
   const snare = useRef(null);
@@ -95,9 +83,9 @@ function useDrums(Tone) {
   return { kick, snare, hihat };
 }
 
-/**
- * Factory per i synth polifonici, parametrizzata con Tone
- */
+/* -----------------------------------------------
+   3. Synth Factory
+------------------------------------------------ */
 function createSynth(Tone, instrument) {
   switch (instrument) {
     case "sinepad":
@@ -105,26 +93,22 @@ function createSynth(Tone, instrument) {
         oscillator: { type: "sine" },
         envelope: { attack: 1, decay: 0.5, sustain: 0.8, release: 2.5 },
       });
-
     case "saw":
       return new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "sawtooth" },
         envelope: { attack: 0.02, decay: 0.2, sustain: 0.4, release: 0.5 },
       });
-
     case "organ":
       return new Tone.PolySynth(Tone.AMSynth, {
         harmonicity: 1.5,
         envelope: { attack: 0.05, decay: 0.2, sustain: 0.9, release: 1.2 },
       });
-
     case "piano":
       return new Tone.PolySynth(Tone.FMSynth, {
         harmonicity: 3,
         modulationIndex: 10,
         envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.8 },
       });
-
     default:
       return new Tone.PolySynth(Tone.FMSynth, {
         envelope: { attack: 0.03, decay: 0.3, sustain: 0.5, release: 1.0 },
@@ -132,15 +116,14 @@ function createSynth(Tone, instrument) {
   }
 }
 
-/**
- * Hook che gestisce le catene FX/synth per gli accordi
- */
-function useChordChains(Tone, chords, chordTracks, isPlaying) {
+/* -----------------------------------------------
+   4. Chord Chains (Persistenti)
+------------------------------------------------ */
+function useChordChains(Tone, chords, chordTracks) {
   const chordChains = useRef([]);
 
-  // Crea / sincronizza le catene quando cambia la configurazione
   useEffect(() => {
-    if (!Tone || !isPlaying) return;
+    if (!Tone) return;
 
     const disposeChain = (chain) => {
       chain?.synth?.dispose();
@@ -155,14 +138,12 @@ function useChordChains(Tone, chords, chordTracks, isPlaying) {
       const track = chordTracks?.[i] ?? {};
       const instrument = track.instrument || "fm";
 
-      const mustRecreate =
+      const needsNew =
         !chordChains.current[i] ||
         chordChains.current[i].instrument !== instrument;
 
-      if (mustRecreate) {
-        if (chordChains.current[i]) {
-          disposeChain(chordChains.current[i]);
-        }
+      if (needsNew) {
+        if (chordChains.current[i]) disposeChain(chordChains.current[i]);
 
         const filter = new Tone.Filter(1500, "lowpass");
         const chorus = new Tone.Chorus(4, 2.5).start();
@@ -185,24 +166,12 @@ function useChordChains(Tone, chords, chordTracks, isPlaying) {
       }
     }
 
-    // Rimuovi catene in eccesso
     while (chordChains.current.length > chords.length) {
       const old = chordChains.current.pop();
-      if (old) {
-        const disposeChain = (chain) => {
-          chain?.synth?.dispose();
-          chain?.filter?.dispose();
-          chain?.chorus?.dispose();
-          chain?.reverb?.dispose();
-          chain?.panner?.dispose();
-          chain?.limiter?.dispose();
-        };
-        disposeChain(old);
-      }
+      if (old) disposeChain(old);
     }
-  }, [Tone, chords.length, chordTracks, isPlaying]);
+  }, [Tone, chords.length]); // NOTE: chordTracks removed
 
-  // Cleanup globale quando il componente viene smontato
   useEffect(() => {
     return () => {
       chordChains.current.forEach((c) => {
@@ -220,9 +189,9 @@ function useChordChains(Tone, chords, chordTracks, isPlaying) {
   return chordChains;
 }
 
-/**
- * Hook che gestisce il Transport, lo scheduling e lo stato di play
- */
+/* -----------------------------------------------
+   5. Transport
+------------------------------------------------ */
 function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
   const transportEvent = useRef(null);
   const stepCounter = useRef(0);
@@ -249,6 +218,7 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
 
   const stop = useCallback(() => {
     if (!Tone) return;
+
     Tone.Transport.stop();
     Tone.Transport.cancel();
     stepCounter.current = 0;
@@ -256,13 +226,14 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
     setIsPlaying(false);
   }, [Tone, onStep, setIsPlaying]);
 
-  // Cleanup Transport quando cambia Tone o si smonta
   useEffect(() => {
     return () => {
       if (!Tone) return;
+
       if (transportEvent.current) {
         Tone.Transport.clear(transportEvent.current);
       }
+
       Tone.Transport.stop();
       Tone.Transport.cancel();
     };
@@ -271,24 +242,37 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
   return { start, stop };
 }
 
-/**
- * COMPONENTE PRINCIPALE
- */
+/* -----------------------------------------------
+   6. Player Component
+------------------------------------------------ */
 export default function Player({ sequence, chords, tracks, onStep }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [masterVolume, setMasterVolume] = useState(0);
 
-  // 1) Tone engine (import, master, bpm, volume)
   const { Tone, isReady } = useToneEngine(bpm, masterVolume);
-
-  // 2) Drums
   const { kick, snare, hihat } = useDrums(Tone);
+  const chordChains = useChordChains(Tone, chords, tracks.chords);
 
-  // 3) Chord chains
-  const chordChains = useChordChains(Tone, chords, tracks.chords, isPlaying);
+  /* -----------------------------------------------
+     🔥 MOD #4 — REAL SWING
+  ------------------------------------------------ */
+  useEffect(() => {
+    if (!Tone) return;
 
-  // 4) Funzione per suonare un accordo
+    const drum = tracks.drums || {};
+
+    const totalSwing =
+      (drum.kick?.swing ?? 0) * 0.3 +
+      (drum.snare?.swing ?? 0) * 0.3 +
+      (drum.hihat?.swing ?? 0) * 0.4;
+
+    Tone.Transport.swing = (totalSwing + 1) / 2; // convert -1..1 → 0..1
+    Tone.Transport.swingSubdivision = "16n";
+  }, [Tone, tracks.drums]);
+
+  /* ----------------------------------------------- */
+
   const playChord = useCallback(
     (index, freqs, sustain, time) => {
       const chain = chordChains.current[index];
@@ -300,7 +284,6 @@ export default function Player({ sequence, chords, tracks, onStep }) {
       chain.chorus.wet.value = t.chorusMix ?? 0.5;
       chain.reverb.wet.value = t.reverbMix ?? 0.3;
       chain.panner.pan.value = t.pan ?? 0;
-
       chain.synth.volume.value = t.volume ?? -8;
 
       chain.synth.set({
@@ -318,36 +301,27 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     [chordChains, tracks.chords]
   );
 
-  // 5) Funzione per suonare uno step della sequenza
   const playStep = useCallback(
     (step, time) => {
-      const evts = sequence[step] || [];
-      const drumTracks = tracks.drums || {};
+      const evs = sequence[step] || [];
+      const drum = tracks.drums || {};
 
       if (kick.current)
-        kick.current.volume.value = drumTracks.kick?.volume ?? 0;
+        kick.current.volume.value = drum.kick?.volume ?? 0;
       if (snare.current)
-        snare.current.volume.value = drumTracks.snare?.volume ?? 0;
+        snare.current.volume.value = drum.snare?.volume ?? 0;
       if (hihat.current)
-        hihat.current.volume.value = drumTracks.hihat?.volume ?? 0;
+        hihat.current.volume.value = drum.hihat?.volume ?? 0;
 
-      // Drums
-      for (const ev of evts) {
+      for (const ev of evs) {
         if (ev.type === "drum") {
-          if (ev.drum === "kick") {
-            kick.current?.triggerAttackRelease("C1", "8n", time);
-          }
-          if (ev.drum === "snare") {
-            snare.current?.triggerAttackRelease("8n", time);
-          }
-          if (ev.drum === "hihat") {
-            hihat.current?.triggerAttackRelease("16n", time);
-          }
+          if (ev.drum === "kick") kick.current?.triggerAttackRelease("C1", "8n", time);
+          if (ev.drum === "snare") snare.current?.triggerAttackRelease("8n", time);
+          if (ev.drum === "hihat") hihat.current?.triggerAttackRelease("16n", time);
         }
       }
 
-      // Chords (primo evento di start nello step)
-      for (const ev of evts) {
+      for (const ev of evs) {
         if (ev.type === "chord" && ev.start) {
           const chord = chords[ev.chordIndex];
           if (!chord) break;
@@ -364,7 +338,6 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     [sequence, tracks.drums, chords, bpm, playChord, kick, snare, hihat]
   );
 
-  // 6) Transport (start/stop)
   const { start, stop } = useTransport(Tone, {
     steps: STEPS,
     onStep,
@@ -372,13 +345,11 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     setIsPlaying,
   });
 
-  // UI
   return (
     <div style={{ marginBottom: "20px" }}>
       <button
         onClick={isPlaying ? stop : start}
         disabled={!isReady}
-        title={!isReady ? "Inizializzazione audio in corso..." : ""}
       >
         {isPlaying ? "Stop" : "Play"}
       </button>
@@ -393,6 +364,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         disabled={isPlaying}
         style={{ width: "60px", margin: "0 10px" }}
       />
+
       <input
         type="range"
         min="40"

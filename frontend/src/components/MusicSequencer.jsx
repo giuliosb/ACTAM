@@ -1,11 +1,8 @@
 import { useState } from "react";
 import "./MusicSequencer.css";
-import { Instrument } from "tone/build/esm/instrument/Instrument";
 
-// List of note names in one octave
 const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
-// Interval structures (in semitones) for common triads
 const TRIADS = {
   Major: [0, 4, 7],
   Minor: [0, 3, 7],
@@ -13,9 +10,8 @@ const TRIADS = {
   Aug:   [0, 4, 8],
 };
 
-// Optional chord extensions, as semitone offsets from the root
 const EXTENSIONS = {
-  "": null,     // no extension
+  "": null,
   "7": 10,
   "Maj7": 11,
   "m7": 10,
@@ -28,7 +24,6 @@ const EXTENSIONS = {
   "Sus4": 5,
 };
 
-// PLAY VIEW SWITCH ADDED
 export default function MusicSequencer({
   sequence,
   onSequenceChange,
@@ -42,29 +37,21 @@ export default function MusicSequencer({
 }) {
   const STEPS = 16;
 
-  // Base tuning (Hz) for A4
   const [a4Frequency] = useState(440);
 
-  // Chord generator UI state
   const [rootNote, setRootNote] = useState("C");
   const [octave, setOctave] = useState(4);
   const [triad, setTriad] = useState("Major");
   const [extension, setExtension] = useState("");
 
-  // Convert note name + octave → frequency using equal temperament
   const noteFrequency = (note, octave) => {
-    // Relative semitones from A4
-    // A4 is NOTE index 9, octave 4
     const n = NOTES.indexOf(note) + (octave - 4) * 12 - 9;
     return a4Frequency * Math.pow(2, n / 12);
   };
 
-  // Build the actual chord notes from the current generator settings
   const buildChordNotes = () => {
     const rootIndex = NOTES.indexOf(rootNote);
     const baseTriad = TRIADS[triad];
-
-    // If an extension is selected and defined, add it to the triad
     const chordIntervals =
       extension && EXTENSIONS[extension] !== null
         ? [...baseTriad, EXTENSIONS[extension]]
@@ -82,17 +69,14 @@ export default function MusicSequencer({
     });
   };
 
-  // Add a new chord definition and its corresponding track settings
   const addChord = () => {
     const notes = buildChordNotes();
 
-    // Append chord descriptor
     onChordsChange([
       ...chords,
       { root: rootNote, triad, extension, notes },
     ]);
 
-    // Append a new chord track with default synth/effect parameters
     onTracksChange((prev) => ({
       ...prev,
       chords: [
@@ -109,61 +93,60 @@ export default function MusicSequencer({
     }));
   };
 
-  // Small helper so we always go through onSequenceChange
   const update = (newSeq) => onSequenceChange(newSeq);
 
-  // ==========================================
-  // Drum Editing
-  // ==========================================
-
-  // Toggle a single drum hit on/off at (step, drumId)
+  // ------------------------------------------------------
+  // 1. TOGGLE DRUM (MODIFICATO - NO DEEP CLONE)
+  // ------------------------------------------------------
   const toggleDrum = (step, drumId) => {
-    const newSeq = sequence.map((s) => [...s]);
+    const newSeq = [...sequence];
+    const events = [...newSeq[step]];
 
-    const exists = newSeq[step].some(
+    const exists = events.some(
       (ev) => ev.type === "drum" && ev.drum === drumId
     );
 
     newSeq[step] = exists
-      ? newSeq[step].filter(
-          (ev) => !(ev.type === "drum" && ev.drum === drumId)
-        )
-      : [
-          ...newSeq[step],
-          { id: Math.random(), type: "drum", drum: drumId },
-        ];
+      ? events.filter((ev) => !(ev.type === "drum" && ev.drum === drumId))
+      : [...events, { id: Math.random(), type: "drum", drum: drumId }];
 
     update(newSeq);
   };
 
-  // ==========================================
-  // Chord Editing (grid events)
-  // ==========================================
-
-  // Add a chord start event at (step, chordIndex)
+  // ------------------------------------------------------
+  // 2. ADD CHORD AT STEP (MODIFICATO)
+  // ------------------------------------------------------
   const addChordAt = (step, chordIndex) => {
-    const newSeq = sequence.map((s) => [...s]);
-
-    newSeq[step].push({
-      id: Math.random(),
-      type: "chord",
-      chordIndex,
-      start: true,
-      sustain: 1, // sustain length in steps (minimum 1)
-    });
+    const newSeq = [...sequence];
+    newSeq[step] = [
+      ...newSeq[step],
+      {
+        id: Math.random(),
+        type: "chord",
+        chordIndex,
+        start: true,
+        sustain: 1,
+      },
+    ];
 
     update(newSeq);
   };
 
-  // Change sustain length of a chord that starts at stepIndex
+  // ------------------------------------------------------
+  // 3. CHANGE SUSTAIN (MODIFICATO - NO DEEP CLONE)
+  // ------------------------------------------------------
   const changeSustain = (stepIndex, chordIndex, delta) => {
-    // Deep-clone at event level to avoid mutating original objects
-    const newSeq = sequence.map((s) => s.map((ev) => ({ ...ev })));
+    const newSeq = [...sequence];
 
-    // Find the start event of this chord
-    const startObj = newSeq[stepIndex].find(
+    // Clone solo lo step di partenza
+    const startEvents = [...newSeq[stepIndex]];
+    newSeq[stepIndex] = startEvents;
+
+    const startObj = startEvents.find(
       (ev) =>
-        ev.type === "chord" && ev.chordIndex === chordIndex && ev.start
+        ev.type === "chord" &&
+        ev.chordIndex === chordIndex &&
+        ev.start
     );
     if (!startObj) return;
 
@@ -171,59 +154,69 @@ export default function MusicSequencer({
     const newLen = Math.max(1, startObj.sustain + delta);
     startObj.sustain = newLen;
 
-    // Remove all old sustain ghost events for this chord ID
-    for (let i = 0; i < STEPS; i++) {
-      newSeq[i] = newSeq[i].filter(
-        (ev) => !(ev.type === "chord" && ev.id === id && !ev.start)
-      );
+    // Rimuovi i vecchi sustain solo dove servono
+    for (let i = stepIndex + 1; i < STEPS; i++) {
+      const has = newSeq[i].some((ev) => ev.id === id);
+      if (!has) break; // se gli step successivi non hanno più sustain, fermati
+      newSeq[i] = newSeq[i].filter((ev) => ev.id !== id);
     }
 
-    // Create new sustain ghost events for the updated length
+    // Aggiungi i nuovi sustain
     for (
       let i = stepIndex + 1;
       i < stepIndex + newLen && i < STEPS;
       i++
     ) {
-      newSeq[i].push({
-        id,
-        type: "chord",
-        chordIndex,
-        start: false, // sustain/continuation
-      });
+      newSeq[i] = [
+        ...newSeq[i],
+        {
+          id,
+          type: "chord",
+          chordIndex,
+          start: false,
+        },
+      ];
     }
 
     update(newSeq);
   };
 
-  // Remove a chord (start + all its sustain events) starting at this step
+  // ------------------------------------------------------
+  // 4. REMOVE CHORD (MODIFICATO - SOLO STEPS NECESSARI)
+  // ------------------------------------------------------
   const removeChordAt = (step, chordIndex) => {
-    const newSeq = sequence.map((s) => [...s]);
+    const newSeq = [...sequence];
 
     const startObj = newSeq[step].find(
       (ev) =>
-        ev.type === "chord" && ev.chordIndex === chordIndex && ev.start
+        ev.type === "chord" &&
+        ev.chordIndex === chordIndex &&
+        ev.start
     );
     if (!startObj) return;
 
     const id = startObj.id;
 
-    // Remove all events with this chord ID from the whole sequence
-    for (let i = 0; i < STEPS; i++) {
+    // Rimuovi l’evento di start
+    newSeq[step] = newSeq[step].filter((ev) => ev.id !== id);
+
+    // Rimuovi i sustain SOLO dove e se esistono
+    for (let i = step + 1; i < STEPS; i++) {
+      const had = newSeq[i].some((ev) => ev.id === id);
+      if (!had) break; // stop appena finisce la "scia"
       newSeq[i] = newSeq[i].filter((ev) => ev.id !== id);
     }
 
     update(newSeq);
   };
 
-  // ==========================================
-  // PLAY MODE VIEW
-  // (shown only when the transport is running)
-  // ==========================================
+  // -------------------------------
+  //   PLAY MODE VIEW (INVARIATO)
+  // -------------------------------
   if (currentStep !== -1) {
     return (
       <div className="music-sequencer">
         <div className="drum-grid">
-          {/* Header row with step indices */}
           <div className="drum-row drum-header">
             <div className="drum-cell" />
             {Array.from({ length: STEPS }).map((_, i) => (
@@ -239,7 +232,6 @@ export default function MusicSequencer({
             ))}
           </div>
 
-          {/* Drum rows (read-only in play view) */}
           {["kick", "snare", "hihat"].map((drumId) => (
             <div key={drumId} className="drum-row">
               <div className="drum-cell drum-name">{drumId}</div>
@@ -263,7 +255,6 @@ export default function MusicSequencer({
             </div>
           ))}
 
-          {/* Chord rows (read-only in play view) */}
           {chords.map((ch, chordIndex) => (
             <div key={chordIndex} className="drum-row">
               <div className="drum-cell drum-name">
@@ -299,43 +290,31 @@ export default function MusicSequencer({
     );
   }
 
-  // ==========================================
-  // EDIT MODE VIEW (default, when not playing)
-  // ==========================================
+  // -------------------------------
+  //   EDIT MODE VIEW (INVARIATO)
+  // -------------------------------
   return (
     <div className="music-sequencer">
-      {/* ==========================
-          CHORD GENERATOR PANEL
-      =========================== */}
       <div className="generator-panel">
         <h2>Chord Generator</h2>
 
         <div className="gen-row">
           <label>Root:</label>
-          <select
-            value={rootNote}
-            onChange={(e) => setRootNote(e.target.value)}
-          >
+          <select value={rootNote} onChange={(e) => setRootNote(e.target.value)}>
             {NOTES.map((n) => (
               <option key={n}>{n}</option>
             ))}
           </select>
 
           <label>Triad:</label>
-          <select
-            value={triad}
-            onChange={(e) => setTriad(e.target.value)}
-          >
+          <select value={triad} onChange={(e) => setTriad(e.target.value)}>
             {Object.keys(TRIADS).map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>
 
           <label>Ext:</label>
-          <select
-            value={extension}
-            onChange={(e) => setExtension(e.target.value)}
-          >
+          <select value={extension} onChange={(e) => setExtension(e.target.value)}>
             {Object.keys(EXTENSIONS).map((ext) => (
               <option key={ext} value={ext}>
                 {ext || "None"}
@@ -344,10 +323,7 @@ export default function MusicSequencer({
           </select>
 
           <label>Oct:</label>
-          <select
-            value={octave}
-            onChange={(e) => setOctave(Number(e.target.value))}
-          >
+          <select value={octave} onChange={(e) => setOctave(Number(e.target.value))}>
             {[2, 3, 4, 5, 6].map((o) => (
               <option key={o}>{o}</option>
             ))}
@@ -357,11 +333,7 @@ export default function MusicSequencer({
         </div>
       </div>
 
-      {/* ==========================
-          SEQUENCER GRID
-      =========================== */}
       <div className="drum-grid">
-        {/* Header with step numbers */}
         <div className="drum-row drum-header">
           <div className="drum-cell" />
           {Array.from({ length: STEPS }).map((_, i) => (
@@ -377,21 +349,16 @@ export default function MusicSequencer({
           ))}
         </div>
 
-        {/* Drum rows (editable) */}
         {["kick", "snare", "hihat"].map((drumId) => (
           <div key={drumId} className="drum-row">
-            {/* Drum name cell — opens TrackEditor for that drum */}
             <div
               className="drum-cell drum-name"
               style={{ cursor: "pointer" }}
-              onClick={() =>
-                setOpenTrack({ type: "drum", id: drumId })
-              }
+              onClick={() => setOpenTrack({ type: "drum", id: drumId })}
             >
               {drumId}
             </div>
 
-            {/* Drum steps */}
             {Array.from({ length: STEPS }).map((_, step) => {
               const active = sequence[step].some(
                 (ev) => ev.type === "drum" && ev.drum === drumId
@@ -412,10 +379,8 @@ export default function MusicSequencer({
           </div>
         ))}
 
-        {/* Chord rows (editable) */}
         {chords.map((ch, chordIndex) => (
           <div key={chordIndex} className="drum-row">
-            {/* Click on the chord name to open TrackEditor for that chord */}
             <div
               className="drum-cell drum-name"
               style={{ cursor: "pointer" }}
@@ -426,7 +391,6 @@ export default function MusicSequencer({
               {ch.root} {ch.triad} {ch.extension}
             </div>
 
-            {/* Chord events across the timeline */}
             {Array.from({ length: STEPS }).map((_, step) => {
               const obj = sequence[step].find(
                 (ev) =>
@@ -446,10 +410,6 @@ export default function MusicSequencer({
                     (isSustain ? " chord-sustain" : "") +
                     (currentStep === step ? " playing" : "")
                   }
-                  // Click behavior:
-                  //  - click empty cell → add chord start
-                  //  - click on start cell → remove the whole chord
-                  //  - Shift + click on start cell → increase sustain length
                   onClick={(e) => {
                     if (e.shiftKey) {
                       if (isStart) changeSustain(step, chordIndex, +1);
