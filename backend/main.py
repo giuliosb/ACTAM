@@ -89,8 +89,8 @@ def clear_temp():
 
 
 class ProcessRequest(BaseModel):
-    stretch_rate: float
-    target_tuning: float  # Target A4 frequency in Hz (e.g., 440, 442)
+    #stretch_rate: float
+    target_tuning: float  # Target A4 frequency in Hz
 
 # TODO: Put the audioprocessing segment into a separate function that returns the file
 
@@ -100,7 +100,7 @@ async def get_and_process_audio(req: ProcessRequest):
     Process and return the audio file with optional time stretching and pitch shifting.
     
     Args:
-        stretch_rate: Time stretch factor (0 = no stretching, 0.5 = slower, 2.0 = faster)
+        stretch_rate: Time stretch factor   --- NOT USED ANYMORE
         target_tuning: Target A4 frequency in Hz (0 = no pitch shift, 440, 442, etc.)
     
     Returns:
@@ -137,10 +137,10 @@ async def get_and_process_audio(req: ProcessRequest):
                 
             #___________Time_stretch____________
             
-            if req.stretch_rate != 0:
+            # if req.stretch_rate != 0:
                 # Apply time stretching
-                y_stretched = librosa.effects.time_stretch(y, rate=req.stretch_rate)
-                y = y_stretched
+                # y_stretched = librosa.effects.time_stretch(y, rate=req.stretch_rate)
+                # y = y_stretched
 
         except Exception as e:
             raise Exception(f"Error processing the audio: {str(e)}")

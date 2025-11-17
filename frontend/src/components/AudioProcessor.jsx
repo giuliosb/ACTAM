@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import AudioVisualizer from "./AudioVisualizer";
 
@@ -8,8 +8,8 @@ const API = "http://127.0.0.1:8000";
 export default function AudioProcessor() {
   const [file, setFile] = useState(null);
   const [uploadResponse, setUploadResponse] = useState(null);
-  const [stretchRate, setStretchRate] = useState(0);
-  const [tuning, setTuning] = useState(0);
+
+  const [tuning, setTuning] = useState(440);
   const [original_tuning, setOGTuning] = useState(0);
   const [processing, setProcessing] = useState(false);
 
@@ -75,8 +75,8 @@ export default function AudioProcessor() {
 
     try {
       const requestBody = {
-        stretch_rate: Number(stretchRate),
-        target_tuning: Number(tuning),
+        //stretch_rate: Number(stretchRate),
+        target_tuning: Number(tuning)
       };
 
       setProcessing(true);
@@ -102,6 +102,10 @@ export default function AudioProcessor() {
       setProcessing(false);
     }
   };
+
+  useEffect(() => {
+    getAudio();
+  }, []);
 
   // ----------------------------------
   // UI
@@ -134,14 +138,7 @@ export default function AudioProcessor() {
 
       {/* Controls */}
       <div style={{ marginTop: "20px" }}>
-        <label>Stretch Rate: </label>
-        <input
-          type="number"
-          step="0.1"
-          value={stretchRate}
-          onChange={(e) => setStretchRate(Number(e.target.value))}
-        />
-
+       
         <label style={{ marginLeft: "20px" }}>Tuning (Hz): </label>
         <input
           type="number"
@@ -169,14 +166,14 @@ export default function AudioProcessor() {
           {uploadedAudioBlob && (
             <div style={{ marginTop: "20px" }}>
               <h3>Uploaded Audio Waveform</h3>
-              <AudioVisualizer audioFile={uploadedAudioBlob} />
+              <AudioVisualizer audioFile={uploadedAudioBlob}/>
             </div>
           )}
 
           {processedAudioBlob && (
             <div style={{ marginTop: "20px" }}>
               <h3>Processed Audio Waveform</h3>
-              <AudioVisualizer audioFile={processedAudioBlob} />
+              <AudioVisualizer audioFile={processedAudioBlob}/>
             </div>
           )}
 

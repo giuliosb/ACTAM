@@ -12,6 +12,8 @@ export default function AudioVisualizer({ audioFile }) {
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
 
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+
   // Give regions a random color when they are created
 const random = (min, max) => Math.random() * (max - min) + min
 const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.15)`
@@ -38,6 +40,7 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
       waveColor: 'rgb(200, 0, 200)',
       progressColor: 'rgb(100, 0, 100)',
       cursorWidth: 1,
+      audioRate: playbackSpeed,
       responsive: true,
       plugins: [regionsPlugin],
     });
@@ -101,6 +104,12 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     };
   }, [audioFile]);
 
+  useEffect(() => {
+    if (wavesurferRef.current) {
+      wavesurferRef.current.setPlaybackRate(playbackSpeed);
+    }
+  }, [playbackSpeed]);
+
   const handlePlay = () => {
     const ws = wavesurferRef.current;
     const region = regionRef.current;
@@ -132,6 +141,19 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
         <span>
           Start: {startTime.toFixed(2)}s • End: {endTime.toFixed(2)}s
         </span>
+      </div>
+      {/* ---------------- SPEED CONTROL ---------------- */}
+      <div style={{ marginTop: "10px" }}>
+        <label>Playback speed: </label>
+        <input
+          type="number"
+          step="0.05"
+          min="0.2"
+          max="3"
+          value={playbackSpeed}
+          onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+          style={{ width: "80px", marginLeft: "10px" }}
+        />
       </div>
     </div>
   );
