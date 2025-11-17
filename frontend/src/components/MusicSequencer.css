@@ -84,3 +84,43 @@
   display: inline-block;
 }
 
+/* Enhanced player-view animations and colors */
+
+.playing {
+  animation: pulse 0.5s ease-in-out infinite alternate;
+  box-shadow: 0 0 8px rgba(255, 255, 0, 0.7);
+}
+
+@keyframes pulse {
+  from { background-color: #ffe066; }
+  to { background-color: #ffdf00; }
+}
+
+/* Drum active enhanced */
+.drum-step.active {
+  background: linear-gradient(135deg, #ff7043, #ff5722) !important;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
+}
+
+/* Chord start and sustain with nicer contrast */
+.chord-start {
+  background: linear-gradient(135deg, #4caf50, #388e3c) !important;
+  color: white;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
+}
+
+.chord-sustain {
+  background: linear-gradient(135deg, #a5d6a7, #81c784) !important;
+  box-shadow: inset 0 0 3px rgba(0,0,0,0.2);
+}
+
+/* Smooth highlight animation for step following */
+.drum-cell.playing {
+  animation: stepGlow 0.35s ease-in-out;
+}
+
+@keyframes stepGlow {
+  0%   { transform: scale(1);   background-color: rgba(255,255,0,0.4); }
+  50%  { transform: scale(1.1); background-color: rgba(255,255,0,0.7); }
+  100% { transform: scale(1);   background-color: rgba(255,255,0,0.4); }
+}

@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+// Updated Player.jsx with live master volume updates
+import { useRef, useState, useEffect } from "react";
 
 let Tone = null;
 
@@ -16,7 +17,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
   const transportEvent = useRef(null);
   const stepCounter = useRef(0);
 
-  /* ------------------ INIT DRUM SYNTHS ------------------ */
+  // ---------------- INIT DRUM SYNTHS ----------------
   const initDrums = () => {
     if (kick.current) return;
 
@@ -25,7 +26,14 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     hihat.current = new Tone.MetalSynth().toDestination();
   };
 
-  /* ------------------ PLAY CHORD ------------------ */
+  // ---------------- LIVE MASTER VOLUME UPDATE ----------------
+  useEffect(() => {
+    if (Tone && Tone.Destination) {
+      Tone.Destination.volume.value = masterVolume;
+    }
+  }, [masterVolume]);
+
+  // ---------------- PLAY CHORD ----------------
   const playChord = (chordIndex, freqs, sustainSeconds, time) => {
     const track = tracks.chords?.[chordIndex] ?? {
       volume: -8,
@@ -66,7 +74,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     }, (sustainSeconds + 0.2) * 1000);
   };
 
-  /* ------------------ PLAY STEP ------------------ */
+  // ---------------- PLAY STEP ----------------
   const playStep = (step, time, offsets = {}) => {
     const { kickOffset = 0, snareOffset = 0, hihatOffset = 0 } = offsets;
 
@@ -77,7 +85,6 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     if (snare.current) snare.current.volume.value = drumTracks.snare?.volume ?? 0;
     if (hihat.current) hihat.current.volume.value = drumTracks.hihat?.volume ?? 0;
 
-    // DRUM EVENTS
     for (const ev of events) {
       if (ev.type !== "drum") continue;
 
@@ -91,7 +98,6 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         hihat.current?.triggerAttackRelease("16n", time + hihatOffset);
     }
 
-    // CHORD EVENTS
     for (const ev of events) {
       if (ev.type !== "chord" || !ev.start) continue;
 
@@ -107,7 +113,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     }
   };
 
-  /* ------------------ START ------------------ */
+  // ---------------- START ----------------
   const start = async () => {
     if (!Tone) {
       Tone = await import("tone");
@@ -116,7 +122,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
 
     initDrums();
     Tone.Transport.bpm.value = bpm;
-    Tone.Destination.volume.value = masterVolume;
+    Tone.Destination.volume.value = masterVolume; // initial set
 
     stepCounter.current = 0;
 
@@ -127,12 +133,11 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     transportEvent.current = Tone.Transport.scheduleRepeat((time) => {
       const step = stepCounter.current;
 
-      // Swing separato per KICK / SNARE / HIHAT
       const kickSwing  = tracks.drums?.kick?.swing  ?? 0;
       const snareSwing = tracks.drums?.snare?.swing ?? 0;
       const hihatSwing = tracks.drums?.hihat?.swing ?? 0;
 
-      const baseOffset = 60 / bpm / 8; // 1/16th note duration * 0.5
+      const baseOffset = 60 / bpm / 8;
 
       const kickOffset  = step % 2 === 1 ? baseOffset * kickSwing  : 0;
       const snareOffset = step % 2 === 1 ? baseOffset * snareSwing : 0;
@@ -153,7 +158,6 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     setIsPlaying(true);
   };
 
-  /* ------------------ STOP ------------------ */
   const stop = () => {
     if (!Tone) return;
 
@@ -165,7 +169,6 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     setIsPlaying(false);
   };
 
-  /* ------------------ UI ------------------ */
   return (
     <div style={{ marginBottom: "20px" }}>
       <button onClick={isPlaying ? stop : start}>

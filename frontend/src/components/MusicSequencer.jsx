@@ -1,3 +1,4 @@
+// Updated MusicSequencer.jsx
 import { useState } from "react";
 import "./MusicSequencer.css";
 
@@ -8,6 +9,7 @@ const EXTENSIONS = {
   "9":14, "11":17, "13":21, "Add9":14, "Sus2":2, "Sus4":5
 };
 
+// PLAY VIEW SWITCH ADDED
 export default function MusicSequencer({
   sequence,
   onSequenceChange,
@@ -21,7 +23,6 @@ export default function MusicSequencer({
 }) {
   const STEPS = 16;
 
-  /* ------------------ CHORD GENERATOR ------------------ */
   const [a4Frequency] = useState(440);
   const [rootNote, setRootNote] = useState("C");
   const [octave, setOctave] = useState(4);
@@ -71,7 +72,6 @@ export default function MusicSequencer({
     }));
   };
 
-  /* ------------------ SEQUENCER EVENTS ------------------ */
   const update = (newSeq) => onSequenceChange(newSeq);
 
   const toggleDrum = (step, drumId) => {
@@ -132,10 +132,77 @@ export default function MusicSequencer({
     update(newSeq);
   };
 
+  // SHOW PLAYVIEW GRID WHEN PLAYING
+  if (currentStep !== -1) {
+    return (
+      <div className="music-sequencer">
+
+        <div className="drum-grid">
+          <div className="drum-row drum-header">
+            <div className="drum-cell"></div>
+            {Array.from({ length: STEPS }).map((_, i) => (
+              <div
+                key={i}
+                className={`drum-cell drum-header-cell ${currentStep === i ? "playing" : ""}`}
+              >
+                {i + 1}
+              </div>
+            ))}
+          </div>
+
+          {["kick","snare","hihat"].map(drumId => (
+            <div key={drumId} className="drum-row">
+              <div className="drum-cell drum-name">{drumId}</div>
+
+              {Array.from({ length: STEPS }).map((_, step) => {
+                const active = sequence[step].some(
+                  ev => ev.type === "drum" && ev.drum === drumId
+                );
+
+                return (
+                  <div
+                    key={step}
+                    className={`drum-cell drum-step 
+                      ${active ? "active" : ""}
+                      ${currentStep === step ? "playing" : ""}`}
+                  />
+                );
+              })}
+            </div>
+          ))}
+
+          {chords.map((ch, chordIndex) => (
+            <div key={chordIndex} className="drum-row">
+              <div className="drum-cell drum-name">{ch.root} {ch.triad} {ch.extension}</div>
+
+              {Array.from({ length: STEPS }).map((_, step) => {
+                const obj = sequence[step].find(
+                  ev => ev.type === "chord" && ev.chordIndex === chordIndex
+                );
+
+                const isStart = obj?.start;
+                const isSustain = obj && !obj.start;
+
+                return (
+                  <div
+                    key={step}
+                    className={`drum-cell drum-step chord-step
+                      ${isStart ? "chord-start" : ""}
+                      ${isSustain ? "chord-sustain" : ""}
+                      ${currentStep === step ? "playing" : ""}`}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="music-sequencer">
 
-      {/* CHORD GENERATOR */}
       <div className="generator-panel">
         <h2>Chord Generator</h2>
 
@@ -166,7 +233,6 @@ export default function MusicSequencer({
         </div>
       </div>
 
-      {/* STEP GRID */}
       <div className="drum-grid">
 
         <div className="drum-row drum-header">
@@ -238,20 +304,18 @@ export default function MusicSequencer({
                     ${isSustain ? "chord-sustain" : ""}
                     ${currentStep === step ? "playing" : ""}
                   `}
-                >
-                  <div className="cell-buttons">
-                    {!obj && (
-                      <button onClick={() => addChordAt(step, chordIndex)}>+</button>
-                    )}
-                    {isStart && (
-                      <>
-                        <button onClick={() => changeSustain(step, chordIndex, +1)}>+</button>
-                        <button onClick={() => changeSustain(step, chordIndex, -1)}>-</button>
-                        <button onClick={() => removeChordAt(step, chordIndex)}>x</button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                  onClick={(e) => {
+                    if (e.shiftKey) {
+                      if (isStart) changeSustain(step, chordIndex, +1);
+                    } else {
+                      if (!obj) {
+                        addChordAt(step, chordIndex);
+                      } else if (isStart) {
+                        removeChordAt(step, chordIndex);
+                      }
+                    }
+                  }}
+                />
               );
             })}
           </div>
