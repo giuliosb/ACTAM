@@ -196,17 +196,17 @@ export default function AudioProcessor() {
           )}
 
           {/* Download button */}
-          <button
+          {/* <button
             style={{ marginTop: "10px" }}
             onClick={() => {
               const a = document.createElement("a");
               a.href = processedAudioURL;
-              a.download = "processed_audio.wav";
+              a.download = "processed_audio.flac";
               a.click();
             }}
           >
             Download Processed Audio
-          </button>
+          </button> */}
         </div>
       )}
 

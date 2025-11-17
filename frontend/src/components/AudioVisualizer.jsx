@@ -46,6 +46,12 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
       audioRate: playbackSpeed,
       responsive: true,
       plugins: [regionsPlugin],
+      // Set a bar width
+      barWidth: 2,
+      // Optionally, specify the spacing between bars
+      barGap: 1,
+      // And the bar radius
+      barRadius: 2,
     });
 
     wavesurferRef.current = ws;
