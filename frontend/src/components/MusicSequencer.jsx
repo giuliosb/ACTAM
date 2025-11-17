@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./MusicSequencer.css";
+import { Instrument } from "tone/build/esm/instrument/Instrument";
 
 // List of note names in one octave
 const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -97,6 +98,7 @@ export default function MusicSequencer({
       chords: [
         ...(prev.chords || []),
         {
+          Instrument: "fm",
           volume: -8,
           cutoff: 1500,
           reverbMix: 0.3,

@@ -11,15 +11,10 @@ export default function TrackEditor({
   onSequenceChange,
   removeChord
 }) {
-  // If no track is selected, don't render the popup
   if (!openTrack) return null;
 
-  // Close popup
   const close = () => setOpenTrack(null);
 
-  /* ---------------------------------------------------------
-     UPDATE A DRUM PARAMETER (volume, swing, etc.)
-  --------------------------------------------------------- */
   const changeDrumParam = (drumId, param, value) => {
     onTracksChange(prev => ({
       ...prev,
@@ -33,9 +28,6 @@ export default function TrackEditor({
     }));
   };
 
-  /* ---------------------------------------------------------
-     UPDATE A CHORD TRACK PARAMETER (volume, cutoff, etc.)
-  --------------------------------------------------------- */
   const changeChordTrackParam = (index, param, value) => {
     onTracksChange(prev => {
       const arr = [...(prev.chords || [])];
@@ -44,11 +36,6 @@ export default function TrackEditor({
     });
   };
 
-  /* ---------------------------------------------------------
-     RESOLVE WHICH TRACK WE ARE EDITING
-     - drumTrack → openTrack.type === "drum"
-     - chordTrack → openTrack.type === "chord"
-  --------------------------------------------------------- */
   const drumTrack =
     openTrack.type === "drum"
       ? tracks.drums?.[openTrack.id] ?? { volume: 0, swing: 0 }
@@ -57,6 +44,7 @@ export default function TrackEditor({
   const chordTrack =
     openTrack.type === "chord"
       ? tracks.chords?.[openTrack.index] ?? {
+          instrument: "fm",
           volume: -8,
           cutoff: 1500,
           reverbMix: 0.3,
@@ -65,16 +53,10 @@ export default function TrackEditor({
         }
       : null;
 
-  /* ---------------------------------------------------------
-     UI POPUP
-     NOTE: markup identical to your original version
-  --------------------------------------------------------- */
-
   return (
     <div
       className="track-editor-overlay"
       onClick={e => {
-        // Close only when clicking the dark background
         if (e.target === e.currentTarget) close();
       }}
       style={{
@@ -91,7 +73,6 @@ export default function TrackEditor({
       <div
         className="track-editor"
         onClick={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}
         style={{
           background: "#fff",
           padding: "20px",
@@ -101,7 +82,6 @@ export default function TrackEditor({
           boxShadow: "0 0 20px rgba(0,0,0,0.3)"
         }}
       >
-        {/* Close button */}
         <button
           onClick={close}
           style={{
@@ -118,37 +98,24 @@ export default function TrackEditor({
           X
         </button>
 
-        {/* ---------------------------------------------------------
-           DRUM TRACK UI
-        --------------------------------------------------------- */}
+        {/* DRUM TRACK */}
         {openTrack.type === "drum" && drumTrack && (
           <>
-            <h2 style={{ marginBottom: "10px" }}>
-              {openTrack.id.toUpperCase()} Settings
-            </h2>
+            <h2>{openTrack.id.toUpperCase()} Settings</h2>
 
-            {/* VOLUME */}
             <label>Volume (dB)</label>
             <input
               type="range"
               min="-30"
               max="6"
-              step="1"
               value={drumTrack.volume ?? 0}
               onChange={e =>
-                changeDrumParam(
-                  openTrack.id,
-                  "volume",
-                  Number(e.target.value)
-                )
+                changeDrumParam(openTrack.id, "volume", Number(e.target.value))
               }
               style={{ width: "100%" }}
             />
-            <div style={{ marginBottom: "15px" }}>
-              {drumTrack.volume ?? 0} dB
-            </div>
+            <div>{drumTrack.volume ?? 0} dB</div>
 
-            {/* SWING */}
             <label>Swing</label>
             <input
               type="range"
@@ -157,11 +124,7 @@ export default function TrackEditor({
               step="0.01"
               value={drumTrack.swing ?? 0}
               onChange={e =>
-                changeDrumParam(
-                  openTrack.id,
-                  "swing",
-                  Number(e.target.value)
-                )
+                changeDrumParam(openTrack.id, "swing", Number(e.target.value))
               }
               style={{ width: "100%" }}
             />
@@ -169,9 +132,7 @@ export default function TrackEditor({
           </>
         )}
 
-        {/* ---------------------------------------------------------
-           CHORD TRACK UI
-        --------------------------------------------------------- */}
+        {/* CHORD TRACK */}
         {openTrack.type === "chord" && chordTrack && (
           <>
             <h2
@@ -182,8 +143,6 @@ export default function TrackEditor({
               }}
             >
               <span>Chord {openTrack.index + 1}</span>
-
-              {/* Delete chord button */}
               <button
                 onClick={() => {
                   removeChord(openTrack.index);
@@ -194,33 +153,43 @@ export default function TrackEditor({
                   color: "#fff",
                   border: "none",
                   padding: "4px 8px",
-                  borderRadius: "4px",
-                  cursor: "pointer"
+                  borderRadius: "4px"
                 }}
               >
                 Delete
               </button>
             </h2>
 
-            {/* VOLUME */}
+            {/* 🎹 Instrument Selector */}
+            <label>Instrument</label>
+            <select
+              value={chordTrack.instrument || "fm"}
+              onChange={(e) =>
+                changeChordTrackParam(openTrack.index, "instrument", e.target.value)
+              }
+              style={{ width: "100%", marginBottom: "12px" }}
+            >
+              <option value="fm">FM Synth</option>
+              <option value="sinepad">Sine Pad</option>
+              <option value="saw">Saw Lead</option>
+              <option value="organ">Organ</option>
+              <option value="piano">Electric Piano</option>
+            </select>
+
+            {/* Volume */}
             <label>Volume (dB)</label>
             <input
               type="range"
               min="-30"
               max="6"
-              step="1"
               value={chordTrack.volume}
               onChange={e =>
-                changeChordTrackParam(
-                  openTrack.index,
-                  "volume",
-                  Number(e.target.value)
-                )
+                changeChordTrackParam(openTrack.index, "volume", Number(e.target.value))
               }
               style={{ width: "100%" }}
             />
 
-            {/* FILTER CUTOFF */}
+            {/* Filter */}
             <label>Filter cutoff</label>
             <input
               type="range"
@@ -228,16 +197,12 @@ export default function TrackEditor({
               max="8000"
               value={chordTrack.cutoff}
               onChange={e =>
-                changeChordTrackParam(
-                  openTrack.index,
-                  "cutoff",
-                  Number(e.target.value)
-                )
+                changeChordTrackParam(openTrack.index, "cutoff", Number(e.target.value))
               }
               style={{ width: "100%" }}
             />
 
-            {/* REVERB */}
+            {/* Reverb */}
             <label>Reverb</label>
             <input
               type="range"
@@ -246,16 +211,12 @@ export default function TrackEditor({
               step="0.01"
               value={chordTrack.reverbMix}
               onChange={e =>
-                changeChordTrackParam(
-                  openTrack.index,
-                  "reverbMix",
-                  Number(e.target.value)
-                )
+                changeChordTrackParam(openTrack.index, "reverbMix", Number(e.target.value))
               }
               style={{ width: "100%" }}
             />
 
-            {/* CHORUS */}
+            {/* Chorus */}
             <label>Chorus</label>
             <input
               type="range"
@@ -264,16 +225,12 @@ export default function TrackEditor({
               step="0.01"
               value={chordTrack.chorusMix}
               onChange={e =>
-                changeChordTrackParam(
-                  openTrack.index,
-                  "chorusMix",
-                  Number(e.target.value)
-                )
+                changeChordTrackParam(openTrack.index, "chorusMix", Number(e.target.value))
               }
               style={{ width: "100%" }}
             />
 
-            {/* DETUNE */}
+            {/* Detune */}
             <label>Detune</label>
             <input
               type="range"
@@ -281,11 +238,7 @@ export default function TrackEditor({
               max="50"
               value={chordTrack.detune}
               onChange={e =>
-                changeChordTrackParam(
-                  openTrack.index,
-                  "detune",
-                  Number(e.target.value)
-                )
+                changeChordTrackParam(openTrack.index, "detune", Number(e.target.value))
               }
               style={{ width: "100%" }}
             />
