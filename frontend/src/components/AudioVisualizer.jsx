@@ -13,6 +13,9 @@ export default function AudioVisualizer({ audioFile }) {
   const [endTime, setEndTime] = useState(0);
 
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [loopEnabled, setLoopEnabled] = useState(true);
+
+  const loopEnabledRef = useRef(loopEnabled);
 
   // Give regions a random color when they are created
 const random = (min, max) => Math.random() * (max - min) + min
@@ -77,6 +80,8 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
       setEndTime(region.end);
     });
 
+    
+
     // keep track when user moves handles
     regionsPlugin.on("region-updated", (region) => {
       if (region !== regionRef.current) return;
@@ -86,29 +91,51 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     });
 
     // stop playback at region end
+   // ----------------------------------------------
+    // LOOPING LOGIC
+    // ----------------------------------------------
     ws.on("audioprocess", (time) => {
       const region = regionRef.current;
       if (!region) return;
       if (time >= region.end) {
-        ws.pause();
-        setIsPlaying(false);
+       if (loopEnabledRef.current) {
+          ws.play(region.start);  // restart the loop
+        } else {
+          ws.pause();                 // stop normally
+          setIsPlaying(false);
+        }
       }
+
     });
+
+    
 
     ws.on("play", () => setIsPlaying(true));
     ws.on("pause", () => setIsPlaying(false));
 
     return () => {
       URL.revokeObjectURL(url);
-      ws.destroy();
+     try {
+    ws.destroy();
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("WaveSurfer destroy error:", err);
+      }
+    }
     };
   }, [audioFile]);
 
+  // Update playback speed live
   useEffect(() => {
     if (wavesurferRef.current) {
       wavesurferRef.current.setPlaybackRate(playbackSpeed);
     }
   }, [playbackSpeed]);
+
+  useEffect(() => {
+    loopEnabledRef.current = loopEnabled;
+    console.log("Loop changend:", loopEnabled);
+  }, [loopEnabled]);
 
   const handlePlay = () => {
     const ws = wavesurferRef.current;
@@ -154,6 +181,17 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
           onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
           style={{ width: "80px", marginLeft: "10px" }}
         />
+      </div>
+       {/* LOOP CHECKBOX */}
+      <div style={{ marginTop: "10px" }}>
+        <label>
+          <input
+            type="checkbox"
+            checked={loopEnabled}
+            onChange={(e) => setLoopEnabled(e.target.checked)}
+          />
+          Loop region
+        </label>
       </div>
     </div>
   );

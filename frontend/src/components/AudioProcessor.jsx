@@ -10,13 +10,14 @@ export default function AudioProcessor() {
   const [uploadResponse, setUploadResponse] = useState(null);
 
   const [tuning, setTuning] = useState(440);
-  const [original_tuning, setOGTuning] = useState(0);
+  const [original_tuning, setOGTuning] = useState(440);
   const [processing, setProcessing] = useState(false);
 
   const [processedAudioBlob, setProcessedAudioBlob] = useState(null);
   const [processedAudioURL, setProcessedAudioURL] = useState(null);
 
   const [uploadedAudioBlob, setUploadedAudioBlob] = useState(null);
+ 
 
   const [logs, setLogs] = useState([]);
 
@@ -68,6 +69,28 @@ export default function AudioProcessor() {
   };
 
   // ----------------------------------
+  // REQUEST TUNING
+  // ----------------------------------
+
+  const getTuning = async () => {
+    log("🎧 Requesting tuning...");
+
+    try {
+      const res = await axios.get(`${API}/get-tuning`, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const { tuning } = res.data;
+      setTuning(tuning);
+      getAudio();
+      log(`🎵 Got tuning: ${tuning}`);
+    } catch (err) {
+      log("❌ Get tuning failed");
+      log(err.toString());
+      alert("Get tuning failed");
+    }
+  };
+  
+  // ----------------------------------
   // REQUEST PROCESSED AUDIO
   // ----------------------------------
   const getAudio = async () => {
@@ -97,14 +120,16 @@ export default function AudioProcessor() {
     } catch (err) {
       log("❌ Failed to fetch processed audio");
       log(err.toString());
-      alert("Error receiving audio");
+      if (!err.toString().endsWith("404")) {
+        alert("Error receiving audio");
+      }
     } finally {
       setProcessing(false);
     }
   };
 
   useEffect(() => {
-    getAudio();
+    getTuning();
   }, []);
 
   // ----------------------------------
@@ -162,13 +187,6 @@ export default function AudioProcessor() {
           <h3>Processed Audio</h3>
 
           <audio controls src={processedAudioURL} />
-
-          {uploadedAudioBlob && (
-            <div style={{ marginTop: "20px" }}>
-              <h3>Uploaded Audio Waveform</h3>
-              <AudioVisualizer audioFile={uploadedAudioBlob}/>
-            </div>
-          )}
 
           {processedAudioBlob && (
             <div style={{ marginTop: "20px" }}>
