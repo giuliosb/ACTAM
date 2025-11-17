@@ -1,4 +1,4 @@
-// Updated Player.jsx with live master volume updates
+// Player.jsx - versione DAW-style con synth/effetti persistenti per ogni traccia accordi
 import { useRef, useState, useEffect } from "react";
 
 let Tone = null;
@@ -17,6 +17,10 @@ export default function Player({ sequence, chords, tracks, onStep }) {
   const transportEvent = useRef(null);
   const stepCounter = useRef(0);
 
+  // synth + effetti persistenti per OGNI traccia accordi
+  // chordChains.current[i] = { synth, filter, chorus, reverb, limiter }
+  const chordChains = useRef([]);
+
   // ---------------- INIT DRUM SYNTHS ----------------
   const initDrums = () => {
     if (kick.current) return;
@@ -33,45 +37,88 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     }
   }, [masterVolume]);
 
-  // ---------------- PLAY CHORD ----------------
-  const playChord = (chordIndex, freqs, sustainSeconds, time) => {
-    const track = tracks.chords?.[chordIndex] ?? {
-      volume: -8,
-      cutoff: 1500,
-      reverbMix: 0.3,
-      chorusMix: 0.5,
-      detune: 0,
+  // ---------------- CREA / SINCRONIZZA CATENE PER LE TRACCE ACCORDI ----------------
+  useEffect(() => {
+    if (!Tone || !isPlaying) return;
+
+    // crea catene mancanti
+    for (let i = 0; i < chords.length; i++) {
+      if (!chordChains.current[i]) {
+        const filter = new Tone.Filter(1500, "lowpass");
+        const chorus = new Tone.Chorus(4, 2.5).start();
+        const reverb = new Tone.Reverb({ decay: 3, preDelay: 0.01 });
+        const limiter = new Tone.Limiter(-1);
+
+        const synth = new Tone.PolySynth(Tone.FMSynth, {
+          maxPolyphony: 8,
+          volume: -8,
+          detune: 0,
+          envelope: {
+            attack: 0.03,
+            decay: 0.3,
+            sustain: 0.5,
+            release: 1.0,
+          },
+        });
+
+        synth.chain(filter, chorus, reverb, limiter, Tone.Destination);
+
+        chordChains.current[i] = { synth, filter, chorus, reverb, limiter };
+      }
+    }
+
+    // rimuovi catene in eccesso quando spariscono tracce accordi
+    if (chordChains.current.length > chords.length) {
+      for (let i = chords.length; i < chordChains.current.length; i++) {
+        const chain = chordChains.current[i];
+        if (!chain) continue;
+        chain.synth.dispose();
+        chain.filter.dispose();
+        chain.chorus.dispose();
+        chain.reverb.dispose();
+        chain.limiter.dispose();
+      }
+      chordChains.current.length = chords.length;
+    }
+  }, [chords.length, isPlaying]);
+
+  // cleanup generale su unmount
+  useEffect(() => {
+    return () => {
+      chordChains.current.forEach((chain) => {
+        if (!chain) return;
+        chain.synth.dispose();
+        chain.filter.dispose();
+        chain.chorus.dispose();
+        chain.reverb.dispose();
+        chain.limiter.dispose();
+      });
+      chordChains.current = [];
     };
+  }, []);
 
-    const filter = new Tone.Filter(track.cutoff, "lowpass");
-    const chorus = new Tone.Chorus(4, 2.5, track.chorusMix).start();
-    const reverb = new Tone.Reverb({ decay: 2.5, preDelay: 0.01 });
-    reverb.wet.value = track.reverbMix;
-    const limiter = new Tone.Limiter(-1);
+  // ---------------- PLAY CHORD (USA CATENE PERSISTENTI) ----------------
+  const playChord = (chordIndex, freqs, sustainSeconds, time) => {
+    const chain = chordChains.current[chordIndex];
+    if (!chain) return;
 
-    const synth = new Tone.PolySynth(Tone.FMSynth, {
-      maxPolyphony: 8,
-      volume: track.volume,
-      detune: track.detune,
-      envelope: {
-        attack: 0.03,
-        decay: 0.3,
-        sustain: 0.5,
-        release: 1.0,
-      },
-    })
-      .chain(filter, chorus, reverb, limiter)
-      .toDestination();
+    const track =
+      tracks.chords?.[chordIndex] ?? {
+        volume: -8,
+        cutoff: 1500,
+        reverbMix: 0.3,
+        chorusMix: 0.5,
+        detune: 0,
+      };
 
-    synth.triggerAttackRelease(freqs, sustainSeconds, time);
+    // aggiorna parametri LIVE dalla traccia
+    chain.filter.frequency.value = track.cutoff;
+    chain.chorus.wet.value = track.chorusMix;
+    chain.reverb.wet.value = track.reverbMix;
+    chain.synth.volume.value = track.volume;
+    chain.synth.set({ detune: track.detune });
 
-    setTimeout(() => {
-      synth.dispose();
-      filter.dispose();
-      chorus.dispose();
-      reverb.dispose();
-      limiter.dispose();
-    }, (sustainSeconds + 0.2) * 1000);
+    chain.synth.triggerAttackRelease(freqs, sustainSeconds, time);
   };
 
   // ---------------- PLAY STEP ----------------
@@ -85,6 +132,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     if (snare.current) snare.current.volume.value = drumTracks.snare?.volume ?? 0;
     if (hihat.current) hihat.current.volume.value = drumTracks.hihat?.volume ?? 0;
 
+    // DRUMS
     for (const ev of events) {
       if (ev.type !== "drum") continue;
 
@@ -98,6 +146,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         hihat.current?.triggerAttackRelease("16n", time + hihatOffset);
     }
 
+    // CHORD (1 per step)
     for (const ev of events) {
       if (ev.type !== "chord" || !ev.start) continue;
 
@@ -133,15 +182,22 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     transportEvent.current = Tone.Transport.scheduleRepeat((time) => {
       const step = stepCounter.current;
 
-      const kickSwing  = tracks.drums?.kick?.swing  ?? 0;
+      const kickSwing = tracks.drums?.kick?.swing ?? 0;
       const snareSwing = tracks.drums?.snare?.swing ?? 0;
       const hihatSwing = tracks.drums?.hihat?.swing ?? 0;
 
-      const baseOffset = 60 / bpm / 8;
+      // Durata di un sedicesimo (16th note)
+      const sixteenth = 60 / bpm / 4;
 
-      const kickOffset  = step % 2 === 1 ? baseOffset * kickSwing  : 0;
-      const snareOffset = step % 2 === 1 ? baseOffset * snareSwing : 0;
-      const hihatOffset = step % 2 === 1 ? baseOffset * hihatSwing : 0;
+      // Swing naturale, tipo DAW
+      // step % 2 === 1 => applicato ai sedicesimi pari
+      const kickOffset =
+        step % 2 === 1 ? sixteenth * kickSwing * 0.5 : 0;
+      const snareOffset =
+        step % 2 === 1 ? sixteenth * snareSwing * 0.5 : 0;
+      const hihatOffset =
+        step % 2 === 1 ? sixteenth * hihatSwing * 0.5 : 0;
+
 
       onStep(step);
 
