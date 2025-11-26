@@ -116,10 +116,14 @@ function createSynth(Tone, instrument) {
 }
 
 /* -----------------------------------------------
-   4. Chord Chains (Persistenti)
+   4. Chord Chains (Persistenti, più stabili)
 ------------------------------------------------ */
 function useChordChains(Tone, chords, chordTracks) {
   const chordChains = useRef([]);
+
+  // chiave che cambia SOLO se cambiano gli strumenti, non i parametri
+  const instrumentsKey =
+    chordTracks?.map((t) => t?.instrument || "fm").join("|") || "";
 
   useEffect(() => {
     if (!Tone) return;
@@ -169,7 +173,7 @@ function useChordChains(Tone, chords, chordTracks) {
       const old = chordChains.current.pop();
       if (old) disposeChain(old);
     }
-  }, [Tone, chords.length, chordTracks]);
+  }, [Tone, chords.length, instrumentsKey]); // 👈 niente più dip su chordTracks full
 
   useEffect(() => {
     return () => {
@@ -189,7 +193,7 @@ function useChordChains(Tone, chords, chordTracks) {
 }
 
 /* -----------------------------------------------
-   5. Transport
+   5. Transport (reset + pre-roll, senza cancel selvaggio)
 ------------------------------------------------ */
 function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
   const transportEvent = useRef(null);
@@ -202,16 +206,25 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
 
     if (transportEvent.current) {
       Tone.Transport.clear(transportEvent.current);
+      transportEvent.current = null;
     }
 
-    transportEvent.current = Tone.Transport.scheduleRepeat((time) => {
-      const s = stepCounter.current;
-      onStep(s);
-      playStep(s, time); // playStep leggerà i dati live dai ref
-      stepCounter.current = (s + 1) % steps;
-    }, "16n");
+    Tone.Transport.position = "0:0:0";
 
-    Tone.Transport.start();
+    transportEvent.current = Tone.Transport.scheduleRepeat(
+      (time) => {
+        const s = stepCounter.current;
+        onStep(s);
+        playStep(s, time);
+        stepCounter.current = (s + 1) % steps;
+      },
+      "16n",
+      0
+    );
+
+    // piccolo pre-roll per evitare primo giro muto / glitch
+    Tone.Transport.start("+0.05");
+
     setIsPlaying(true);
   }, [Tone, onStep, playStep, steps, setIsPlaying]);
 
@@ -219,7 +232,11 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
     if (!Tone) return;
 
     Tone.Transport.stop();
-    Tone.Transport.cancel();
+    if (transportEvent.current) {
+      Tone.Transport.clear(transportEvent.current);
+      transportEvent.current = null;
+    }
+
     stepCounter.current = 0;
     onStep(-1);
     setIsPlaying(false);
@@ -232,9 +249,7 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
       if (transportEvent.current) {
         Tone.Transport.clear(transportEvent.current);
       }
-
       Tone.Transport.stop();
-      Tone.Transport.cancel();
     };
   }, [Tone]);
 
@@ -242,7 +257,7 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
 }
 
 /* -----------------------------------------------
-   6. Player Component (LIVE EDIT READY)
+   6. Player Component (LIVE + TRACK MUTE)
 ------------------------------------------------ */
 export default function Player({ sequence, chords, tracks, onStep }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -276,7 +291,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
   }, [bpm]);
 
   /* -----------------------------------------------
-     🔥 MOD #4 — REAL SWING
+     Swing
   ------------------------------------------------ */
   useEffect(() => {
     if (!Tone) return;
@@ -292,16 +307,19 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     Tone.Transport.swingSubdivision = "16n";
   }, [Tone, tracks.drums]);
 
-  /* ----------------------------------------------- */
-
+  /* -----------------------------------------------
+     Chords
+  ------------------------------------------------ */
   const playChord = useCallback(
     (index, freqs, sustain, time) => {
       const chain = chordChains.current[index];
       if (!chain) return;
 
-      // 💡 Leggi i parametri della track sempre dal ref
       const tracks = tracksRef.current || {};
       const t = tracks.chords?.[index] ?? {};
+
+      // se la chord track è mutata → non suona
+      if (t.enabled === false) return;
 
       chain.filter.frequency.value = t.cutoff ?? 1500;
       chain.chorus.wet.value = t.chorusMix ?? 0.5;
@@ -321,42 +339,65 @@ export default function Player({ sequence, chords, tracks, onStep }) {
 
       chain.synth.triggerAttackRelease(freqs, sustain, time);
     },
-    [chordChains] // tracks arrivano da ref, quindi niente deps qui
+    [chordChains]
   );
 
+  /* -----------------------------------------------
+     Step playback (DRUMS + CHORDS, con mute)
+  ------------------------------------------------ */
   const playStep = useCallback(
     (step, time) => {
-      // 🎯 Qui leggiamo SEMPRE gli ultimi dati
       const sequence = sequenceRef.current || [];
       const tracks = tracksRef.current || {};
       const chords = chordsRef.current || [];
       const bpm = bpmRef.current || 120;
 
       const evs = sequence[step] || [];
-      const drum = tracks.drums || {};
+      const drumTracks = tracks.drums || {};
 
+      // mute globale drums (opzionale)
+      const drumsEnabledGlobal =
+        drumTracks.enabled === undefined ? true : drumTracks.enabled;
+
+      // aggiorno i volumi
       if (kick.current)
-        kick.current.volume.value = drum.kick?.volume ?? 0;
+        kick.current.volume.value = drumTracks.kick?.volume ?? 0;
       if (snare.current)
-        snare.current.volume.value = drum.snare?.volume ?? 0;
+        snare.current.volume.value = drumTracks.snare?.volume ?? 0;
       if (hihat.current)
-        hihat.current.volume.value = drum.hihat?.volume ?? 0;
+        hihat.current.volume.value = drumTracks.hihat?.volume ?? 0;
 
+      // --- DRUM EVENTS ---
       for (const ev of evs) {
         if (ev.type === "drum") {
-          if (ev.drum === "kick")
+          if (!drumsEnabledGlobal) continue;
+
+          if (ev.drum === "kick") {
+            const t = drumTracks.kick || {};
+            if (t.enabled === false) continue;
             kick.current?.triggerAttackRelease("C1", "8n", time);
-          if (ev.drum === "snare")
+          }
+          if (ev.drum === "snare") {
+            const t = drumTracks.snare || {};
+            if (t.enabled === false) continue;
             snare.current?.triggerAttackRelease("8n", time);
-          if (ev.drum === "hihat")
+          }
+          if (ev.drum === "hihat") {
+            const t = drumTracks.hihat || {};
+            if (t.enabled === false) continue;
             hihat.current?.triggerAttackRelease("16n", time);
+          }
         }
       }
 
+      // --- CHORD EVENTS ---
       for (const ev of evs) {
         if (ev.type === "chord" && ev.start) {
           const chord = chords[ev.chordIndex];
           if (!chord) break;
+
+          const chordTrack = tracks.chords?.[ev.chordIndex] ?? {};
+          if (chordTrack.enabled === false) break;
 
           const freqs = chord.notes.map((n) => n.freq);
           const stepDur = 60 / bpm / 4;
@@ -367,7 +408,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         }
       }
     },
-    [kick, snare, hihat, playChord] // dati musicali arrivano dai ref
+    [kick, snare, hihat, playChord]
   );
 
   const { start, stop } = useTransport(Tone, {
