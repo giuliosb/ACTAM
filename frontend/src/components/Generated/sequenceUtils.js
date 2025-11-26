@@ -3,7 +3,7 @@ import { STEPS } from "./musicConfig";
 
 // Funzione di utilità per copiare la sequenza (copia shallow di ogni step)
 const cloneSequence = (sequence) =>
-  sequence.map((events) => [...events]);
+  sequence.map((events) => (events ? [...events] : []));
 
 // ------------------------------------------------------
 // TOGGLE DRUM
@@ -37,7 +37,7 @@ export function addChordEvent(sequence, step, chordIndex) {
       type: "chord",
       chordIndex,
       start: true,
-      sustain: 1,
+      sustain: 1, // lunghezza iniziale: 1 step (solo la cella di start)
     },
   ];
 
@@ -50,36 +50,63 @@ export function addChordEvent(sequence, step, chordIndex) {
 export function changeChordSustain(sequence, stepIndex, chordIndex, delta) {
   const newSeq = cloneSequence(sequence);
 
-  const startEvents = newSeq[stepIndex];
-  const startObj = startEvents.find(
+  const stepEvents = newSeq[stepIndex] || [];
+  const startObj = stepEvents.find(
     (ev) =>
       ev.type === "chord" &&
       ev.chordIndex === chordIndex &&
       ev.start
   );
-  if (!startObj) return sequence; // nessun cambiamento
+
+  // Se non troviamo lo start, non facciamo niente
+  if (!startObj) return sequence;
 
   const id = startObj.id;
-  const newLen = Math.max(1, startObj.sustain + delta);
-  startObj.sustain = newLen;
 
-  // Rimuovi i vecchi sustain
+  // 1️⃣ Calcola la lunghezza ATTUALE scorrendo in avanti
+  //    (così siamo sicuri che sia coerente con le celle di sustain esistenti)
+  let currentLen = 1; // almeno la cella di start
   for (let i = stepIndex + 1; i < STEPS; i++) {
-    const stepEvents = newSeq[i];
-    const has = stepEvents.some((ev) => ev.id === id);
-    if (!has) break;
-    newSeq[i] = stepEvents.filter((ev) => ev.id !== id);
+    const evs = newSeq[i] || [];
+    const hasSustain = evs.some(
+      (ev) =>
+        ev.type === "chord" &&
+        ev.chordIndex === chordIndex &&
+        ev.id === id &&
+        !ev.start
+    );
+    if (!hasSustain) break;
+    currentLen++;
   }
 
-  // Aggiungi i nuovi sustain
-  for (
-    let i = stepIndex + 1;
-    i < stepIndex + newLen && i < STEPS;
-    i++
-  ) {
-    const stepEvents = newSeq[i];
-    newSeq[i] = [
-      ...stepEvents,
+  // 2️⃣ Nuova lunghezza (= vecchia + delta), clampata tra 1 e fine griglia
+  let newLen = currentLen + delta;
+  if (newLen < 1) newLen = 1;
+
+  const maxLen = STEPS - stepIndex;
+  if (newLen > maxLen) newLen = maxLen;
+
+  // 3️⃣ Rimuovi TUTTE le celle di sustain per questo accordo (dallo step successivo in poi)
+  for (let i = stepIndex + 1; i < STEPS; i++) {
+    const evs = newSeq[i] || [];
+    if (!evs.length) continue;
+
+    newSeq[i] = evs.filter(
+      (ev) => !(ev.type === "chord" && ev.id === id && !ev.start)
+    );
+  }
+
+  // 4️⃣ Aggiungi le nuove celle di sustain:
+  //     newLen = 1 → nessuna cella extra
+  //     newLen = 2 → 1 cella (stepIndex + 1)
+  //     newLen = 3 → 2 celle (stepIndex + 1, stepIndex + 2), ecc.
+  for (let offset = 1; offset < newLen; offset++) {
+    const s = stepIndex + offset;
+    if (s >= STEPS) break;
+
+    const evs = newSeq[s] || [];
+    newSeq[s] = [
+      ...evs,
       {
         id,
         type: "chord",
@@ -88,6 +115,9 @@ export function changeChordSustain(sequence, stepIndex, chordIndex, delta) {
       },
     ];
   }
+
+  // 5️⃣ Aggiorna anche il valore numerico di sustain sullo start
+  startObj.sustain = newLen;
 
   return newSeq;
 }
@@ -98,7 +128,7 @@ export function changeChordSustain(sequence, stepIndex, chordIndex, delta) {
 export function removeChordEvent(sequence, step, chordIndex) {
   const newSeq = cloneSequence(sequence);
 
-  const startEvents = newSeq[step];
+  const startEvents = newSeq[step] || [];
   const startObj = startEvents.find(
     (ev) =>
       ev.type === "chord" &&
@@ -114,9 +144,12 @@ export function removeChordEvent(sequence, step, chordIndex) {
 
   // Rimuovi la "scia" di sustain
   for (let i = step + 1; i < STEPS; i++) {
-    const stepEvents = newSeq[i];
+    const stepEvents = newSeq[i] || [];
+    if (!stepEvents.length) continue;
+
     const had = stepEvents.some((ev) => ev.id === id);
     if (!had) break;
+
     newSeq[i] = stepEvents.filter((ev) => ev.id !== id);
   }
 

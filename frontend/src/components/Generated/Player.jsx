@@ -169,7 +169,7 @@ function useChordChains(Tone, chords, chordTracks) {
       const old = chordChains.current.pop();
       if (old) disposeChain(old);
     }
-  }, [Tone, chords.length]); // NOTE: chordTracks removed
+  }, [Tone, chords.length, chordTracks]); // ✅ aggiunto chordTracks
 
   useEffect(() => {
     return () => {
