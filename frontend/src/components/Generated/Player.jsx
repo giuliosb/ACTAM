@@ -294,18 +294,22 @@ export default function Player({ sequence, chords, tracks, onStep }) {
      Swing
   ------------------------------------------------ */
   useEffect(() => {
-    if (!Tone) return;
+  if (!Tone) return;
 
-    const drum = tracks.drums || {};
+  const drum = tracks.drums || {};
 
-    const totalSwing =
-      (drum.kick?.swing ?? 0) * 0.3 +
-      (drum.snare?.swing ?? 0) * 0.3 +
-      (drum.hihat?.swing ?? 0) * 0.4;
+  // supponiamo swing ∈ [0,1] per ciascuna sorgente
+  const totalSwing =
+    (drum.kick?.swing ?? 0) * 0.3 +
+    (drum.snare?.swing ?? 0) * 0.3 +
+    (drum.hihat?.swing ?? 0) * 0.4;
 
-    Tone.Transport.swing = (totalSwing + 1) / 2; // convert -1..1 → 0..1
-    Tone.Transport.swingSubdivision = "16n";
-  }, [Tone, tracks.drums]);
+  // clamp a [0,1] per sicurezza
+  const swingAmount = Math.min(1, Math.max(0, totalSwing));
+
+  Tone.Transport.swing = swingAmount;
+  Tone.Transport.swingSubdivision = "16n";
+}, [Tone, tracks.drums]);
 
   /* -----------------------------------------------
      Chords
