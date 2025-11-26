@@ -1,6 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-
-const STEPS = 16;
+import { STEPS } from "./musicConfig";
 
 /* -----------------------------------------------
    1. Tone Engine

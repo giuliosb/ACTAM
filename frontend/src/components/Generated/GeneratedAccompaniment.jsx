@@ -2,14 +2,11 @@ import { useState } from "react";
 import MusicSequencer from "./MusicSequencer.jsx";
 import Player from "./Player.jsx";
 import TrackEditor from "./TrackEditor.jsx";
+import { STEPS, createEmptySequence } from "./musicConfig";
 
 export default function GeneratedAccompaniment() {
   // Total number of steps in the sequencer (a 32-step grid)
-  const STEPS = 16;
-
-  const [sequence, setSequence] = useState(
-    Array.from({ length: STEPS }, () => [])
-  );
+  const [sequence, setSequence] = useState(createEmptySequence());
 
   const [chords, setChords] = useState([]);
 

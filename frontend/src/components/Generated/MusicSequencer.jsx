@@ -1,44 +1,118 @@
 import { useState } from "react";
 import "./MusicSequencer.css";
+import {
+  STEPS,
+  NOTES,
+  TRIADS,
+  EXTENSIONS,
+  DEFAULT_CHORD_TRACK,
+} from "./musicConfig";
+import {
+  toggleDrumEvent,
+  addChordEvent,
+  changeChordSustain,
+  removeChordEvent,
+} from "./sequenceUtils";
 
-const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+// -----------------------------------------
+//   VIEW: PLAY MODE
+// -----------------------------------------
+function SequencerPlayView({ sequence, chords, currentStep }) {
+  return (
+    <div className="music-sequencer">
+      <div className="drum-grid">
+        {/* Header con i numeri degli step */}
+        <div className="drum-row drum-header">
+          <div className="drum-cell" />
+          {Array.from({ length: STEPS }).map((_, i) => (
+            <div
+              key={i}
+              className={
+                "drum-cell drum-header-cell" +
+                (currentStep === i ? " playing" : "")
+              }
+            >
+              {i + 1}
+            </div>
+          ))}
+        </div>
 
-const TRIADS = {
-  Major: [0, 4, 7],
-  Minor: [0, 3, 7],
-  Dim:   [0, 3, 6],
-  Aug:   [0, 4, 8],
-};
+        {/* Righe dei drum */}
+        {["kick", "snare", "hihat"].map((drumId) => (
+          <div key={drumId} className="drum-row">
+            <div className="drum-cell drum-name">{drumId}</div>
 
-const EXTENSIONS = {
-  "": null,
-  "7": 10,
-  "Maj7": 11,
-  "m7": 10,
-  "6": 9,
-  "9": 14,
-  "11": 17,
-  "13": 21,
-  "Add9": 14,
-  "Sus2": 2,
-  "Sus4": 5,
-};
+            {Array.from({ length: STEPS }).map((_, step) => {
+              const active = sequence[step].some(
+                (ev) => ev.type === "drum" && ev.drum === drumId
+              );
 
-export default function MusicSequencer({
+              return (
+                <div
+                  key={step}
+                  className={
+                    "drum-cell drum-step" +
+                    (active ? " active" : "") +
+                    (currentStep === step ? " playing" : "")
+                  }
+                />
+              );
+            })}
+          </div>
+        ))}
+
+        {/* Righe degli accordi */}
+        {chords.map((ch, chordIndex) => (
+          <div key={chordIndex} className="drum-row">
+            <div className="drum-cell drum-name">
+              {ch.root} {ch.triad} {ch.extension}
+            </div>
+
+            {Array.from({ length: STEPS }).map((_, step) => {
+              const obj = sequence[step].find(
+                (ev) =>
+                  ev.type === "chord" &&
+                  ev.chordIndex === chordIndex
+              );
+
+              const isStart = obj?.start;
+              const isSustain = obj && !obj.start;
+
+              return (
+                <div
+                  key={step}
+                  className={
+                    "drum-cell drum-step chord-step" +
+                    (isStart ? " chord-start" : "") +
+                    (isSustain ? " chord-sustain" : "") +
+                    (currentStep === step ? " playing" : "")
+                  }
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// -----------------------------------------
+//   VIEW: EDIT MODE
+// -----------------------------------------
+function SequencerEditView({
   sequence,
-  onSequenceChange,
   chords,
   onChordsChange,
-  tracks,
   onTracksChange,
   currentStep,
-  openTrack,
+  toggleDrum,
+  addChordAt,
+  changeSustain,
+  removeChordAt,
   setOpenTrack,
 }) {
-  const STEPS = 16;
-
   const [a4Frequency, setA4Frequency] = useState(440);
-
   const [rootNote, setRootNote] = useState("C");
   const [octave, setOctave] = useState(4);
   const [triad, setTriad] = useState("Major");
@@ -81,218 +155,11 @@ export default function MusicSequencer({
       ...prev,
       chords: [
         ...(prev.chords || []),
-        {
-          Instrument: "fm",
-          volume: -8,
-          cutoff: 1500,
-          reverbMix: 0.3,
-          chorusMix: 0.5,
-          detune: 0,
-        },
+        { ...DEFAULT_CHORD_TRACK },
       ],
     }));
   };
 
-  const update = (newSeq) => onSequenceChange(newSeq);
-
-  // ------------------------------------------------------
-  // 1. TOGGLE DRUM (MODIFICATO - NO DEEP CLONE)
-  // ------------------------------------------------------
-  const toggleDrum = (step, drumId) => {
-    const newSeq = [...sequence];
-    const events = [...newSeq[step]];
-
-    const exists = events.some(
-      (ev) => ev.type === "drum" && ev.drum === drumId
-    );
-
-    newSeq[step] = exists
-      ? events.filter((ev) => !(ev.type === "drum" && ev.drum === drumId))
-      : [...events, { id: Math.random(), type: "drum", drum: drumId }];
-
-    update(newSeq);
-  };
-
-  // ------------------------------------------------------
-  // 2. ADD CHORD AT STEP (MODIFICATO)
-  // ------------------------------------------------------
-  const addChordAt = (step, chordIndex) => {
-    const newSeq = [...sequence];
-    newSeq[step] = [
-      ...newSeq[step],
-      {
-        id: Math.random(),
-        type: "chord",
-        chordIndex,
-        start: true,
-        sustain: 1,
-      },
-    ];
-
-    update(newSeq);
-  };
-
-  // ------------------------------------------------------
-  // 3. CHANGE SUSTAIN (MODIFICATO - NO DEEP CLONE)
-  // ------------------------------------------------------
-  const changeSustain = (stepIndex, chordIndex, delta) => {
-    const newSeq = [...sequence];
-
-    // Clone solo lo step di partenza
-    const startEvents = [...newSeq[stepIndex]];
-    newSeq[stepIndex] = startEvents;
-
-    const startObj = startEvents.find(
-      (ev) =>
-        ev.type === "chord" &&
-        ev.chordIndex === chordIndex &&
-        ev.start
-    );
-    if (!startObj) return;
-
-    const id = startObj.id;
-    const newLen = Math.max(1, startObj.sustain + delta);
-    startObj.sustain = newLen;
-
-    // Rimuovi i vecchi sustain solo dove servono
-    for (let i = stepIndex + 1; i < STEPS; i++) {
-      const has = newSeq[i].some((ev) => ev.id === id);
-      if (!has) break; // se gli step successivi non hanno più sustain, fermati
-      newSeq[i] = newSeq[i].filter((ev) => ev.id !== id);
-    }
-
-    // Aggiungi i nuovi sustain
-    for (
-      let i = stepIndex + 1;
-      i < stepIndex + newLen && i < STEPS;
-      i++
-    ) {
-      newSeq[i] = [
-        ...newSeq[i],
-        {
-          id,
-          type: "chord",
-          chordIndex,
-          start: false,
-        },
-      ];
-    }
-
-    update(newSeq);
-  };
-
-  // ------------------------------------------------------
-  // 4. REMOVE CHORD (MODIFICATO - SOLO STEPS NECESSARI)
-  // ------------------------------------------------------
-  const removeChordAt = (step, chordIndex) => {
-    const newSeq = [...sequence];
-
-    const startObj = newSeq[step].find(
-      (ev) =>
-        ev.type === "chord" &&
-        ev.chordIndex === chordIndex &&
-        ev.start
-    );
-    if (!startObj) return;
-
-    const id = startObj.id;
-
-    // Rimuovi l’evento di start
-    newSeq[step] = newSeq[step].filter((ev) => ev.id !== id);
-
-    // Rimuovi i sustain SOLO dove e se esistono
-    for (let i = step + 1; i < STEPS; i++) {
-      const had = newSeq[i].some((ev) => ev.id === id);
-      if (!had) break; // stop appena finisce la "scia"
-      newSeq[i] = newSeq[i].filter((ev) => ev.id !== id);
-    }
-
-    update(newSeq);
-  };
-
-  // -------------------------------
-  //   PLAY MODE VIEW (INVARIATO)
-  // -------------------------------
-  if (currentStep !== -1) {
-    return (
-      <div className="music-sequencer">
-        <div className="drum-grid">
-          <div className="drum-row drum-header">
-            <div className="drum-cell" />
-            {Array.from({ length: STEPS }).map((_, i) => (
-              <div
-                key={i}
-                className={
-                  "drum-cell drum-header-cell" +
-                  (currentStep === i ? " playing" : "")
-                }
-              >
-                {i + 1}
-              </div>
-            ))}
-          </div>
-
-          {["kick", "snare", "hihat"].map((drumId) => (
-            <div key={drumId} className="drum-row">
-              <div className="drum-cell drum-name">{drumId}</div>
-
-              {Array.from({ length: STEPS }).map((_, step) => {
-                const active = sequence[step].some(
-                  (ev) => ev.type === "drum" && ev.drum === drumId
-                );
-
-                return (
-                  <div
-                    key={step}
-                    className={
-                      "drum-cell drum-step" +
-                      (active ? " active" : "") +
-                      (currentStep === step ? " playing" : "")
-                    }
-                  />
-                );
-              })}
-            </div>
-          ))}
-
-          {chords.map((ch, chordIndex) => (
-            <div key={chordIndex} className="drum-row">
-              <div className="drum-cell drum-name">
-                {ch.root} {ch.triad} {ch.extension}
-              </div>
-
-              {Array.from({ length: STEPS }).map((_, step) => {
-                const obj = sequence[step].find(
-                  (ev) =>
-                    ev.type === "chord" &&
-                    ev.chordIndex === chordIndex
-                );
-
-                const isStart = obj?.start;
-                const isSustain = obj && !obj.start;
-
-                return (
-                  <div
-                    key={step}
-                    className={
-                      "drum-cell drum-step chord-step" +
-                      (isStart ? " chord-start" : "") +
-                      (isSustain ? " chord-sustain" : "") +
-                      (currentStep === step ? " playing" : "")
-                    }
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------
-  //   EDIT MODE VIEW (INVARIATO)
-  // -------------------------------
   return (
     <div className="music-sequencer">
       <div className="generator-panel">
@@ -300,7 +167,7 @@ export default function MusicSequencer({
 
         <div className="gen-row">
           <label>A4 (Hz):</label>
-        <input
+          <input
             type="number"
             min="400"
             max="480"
@@ -437,5 +304,65 @@ export default function MusicSequencer({
         ))}
       </div>
     </div>
+  );
+}
+
+// -----------------------------------------
+//   CONTAINER: decide PLAY vs EDIT
+// -----------------------------------------
+export default function MusicSequencer({
+  sequence,
+  onSequenceChange,
+  chords,
+  onChordsChange,
+  tracks,
+  onTracksChange,
+  currentStep,
+  openTrack,
+  setOpenTrack,
+}) {
+  // update è ora "funzionale": prende un updater e usa la functional form di setState
+  const update = (updater) =>
+    onSequenceChange((prevSequence) => updater(prevSequence));
+
+  const toggleDrum = (step, drumId) => {
+    update((prev) => toggleDrumEvent(prev, step, drumId));
+  };
+
+  const addChordAt = (step, chordIndex) => {
+    update((prev) => addChordEvent(prev, step, chordIndex));
+  };
+
+  const changeSustain = (stepIndex, chordIndex, delta) => {
+    update((prev) => changeChordSustain(prev, stepIndex, chordIndex, delta));
+  };
+
+  const removeChordAt = (step, chordIndex) => {
+    update((prev) => removeChordEvent(prev, step, chordIndex));
+  };
+
+  if (currentStep !== -1) {
+    return (
+      <SequencerPlayView
+        sequence={sequence}
+        chords={chords}
+        currentStep={currentStep}
+      />
+    );
+  }
+
+  return (
+    <SequencerEditView
+      sequence={sequence}
+      chords={chords}
+      onChordsChange={onChordsChange}
+      onTracksChange={onTracksChange}
+      currentStep={currentStep}
+      toggleDrum={toggleDrum}
+      addChordAt={addChordAt}
+      changeSustain={changeSustain}
+      removeChordAt={removeChordAt}
+      setOpenTrack={setOpenTrack}
+    />
   );
 }
