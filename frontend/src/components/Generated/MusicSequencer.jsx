@@ -37,7 +37,7 @@ export default function MusicSequencer({
 }) {
   const STEPS = 16;
 
-  const [a4Frequency] = useState(440);
+  const [a4Frequency, setA4Frequency] = useState(440);
 
   const [rootNote, setRootNote] = useState("C");
   const [octave, setOctave] = useState(4);
@@ -299,6 +299,15 @@ export default function MusicSequencer({
         <h2>Chord Generator</h2>
 
         <div className="gen-row">
+          <label>A4 (Hz):</label>
+        <input
+            type="number"
+            min="400"
+            max="480"
+            value={a4Frequency}
+            onChange={(e) => setA4Frequency(Number(e.target.value))}
+          />
+
           <label>Root:</label>
           <select value={rootNote} onChange={(e) => setRootNote(e.target.value)}>
             {NOTES.map((n) => (

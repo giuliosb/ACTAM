@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./App.css";
 
 import Menu from "./components/Menu";
-import GeneratedAccompaniment from "./components/GeneratedAccompaniment";
+import GeneratedAccompaniment from "./components/Generated/GeneratedAccompaniment";
 import AudioProcessor from "./components/AudioProcessor";
 
 function App() {
