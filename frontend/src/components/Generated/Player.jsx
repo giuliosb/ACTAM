@@ -169,7 +169,7 @@ function useChordChains(Tone, chords, chordTracks) {
       const old = chordChains.current.pop();
       if (old) disposeChain(old);
     }
-  }, [Tone, chords.length, chordTracks]); // ✅ aggiunto chordTracks
+  }, [Tone, chords.length, chordTracks]);
 
   useEffect(() => {
     return () => {
@@ -207,7 +207,7 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
     transportEvent.current = Tone.Transport.scheduleRepeat((time) => {
       const s = stepCounter.current;
       onStep(s);
-      playStep(s, time);
+      playStep(s, time); // playStep leggerà i dati live dai ref
       stepCounter.current = (s + 1) % steps;
     }, "16n");
 
@@ -242,7 +242,7 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
 }
 
 /* -----------------------------------------------
-   6. Player Component
+   6. Player Component (LIVE EDIT READY)
 ------------------------------------------------ */
 export default function Player({ sequence, chords, tracks, onStep }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -252,6 +252,28 @@ export default function Player({ sequence, chords, tracks, onStep }) {
   const { Tone, isReady } = useToneEngine(bpm, masterVolume);
   const { kick, snare, hihat } = useDrums(Tone);
   const chordChains = useChordChains(Tone, chords, tracks.chords);
+
+  // 🔁 REF per avere sempre l'ULTIMA versione di sequence / chords / tracks / bpm
+  const sequenceRef = useRef(sequence);
+  const chordsRef = useRef(chords);
+  const tracksRef = useRef(tracks);
+  const bpmRef = useRef(bpm);
+
+  useEffect(() => {
+    sequenceRef.current = sequence;
+  }, [sequence]);
+
+  useEffect(() => {
+    chordsRef.current = chords;
+  }, [chords]);
+
+  useEffect(() => {
+    tracksRef.current = tracks;
+  }, [tracks]);
+
+  useEffect(() => {
+    bpmRef.current = bpm;
+  }, [bpm]);
 
   /* -----------------------------------------------
      🔥 MOD #4 — REAL SWING
@@ -277,6 +299,8 @@ export default function Player({ sequence, chords, tracks, onStep }) {
       const chain = chordChains.current[index];
       if (!chain) return;
 
+      // 💡 Leggi i parametri della track sempre dal ref
+      const tracks = tracksRef.current || {};
       const t = tracks.chords?.[index] ?? {};
 
       chain.filter.frequency.value = t.cutoff ?? 1500;
@@ -297,11 +321,17 @@ export default function Player({ sequence, chords, tracks, onStep }) {
 
       chain.synth.triggerAttackRelease(freqs, sustain, time);
     },
-    [chordChains, tracks.chords]
+    [chordChains] // tracks arrivano da ref, quindi niente deps qui
   );
 
   const playStep = useCallback(
     (step, time) => {
+      // 🎯 Qui leggiamo SEMPRE gli ultimi dati
+      const sequence = sequenceRef.current || [];
+      const tracks = tracksRef.current || {};
+      const chords = chordsRef.current || [];
+      const bpm = bpmRef.current || 120;
+
       const evs = sequence[step] || [];
       const drum = tracks.drums || {};
 
@@ -314,9 +344,12 @@ export default function Player({ sequence, chords, tracks, onStep }) {
 
       for (const ev of evs) {
         if (ev.type === "drum") {
-          if (ev.drum === "kick") kick.current?.triggerAttackRelease("C1", "8n", time);
-          if (ev.drum === "snare") snare.current?.triggerAttackRelease("8n", time);
-          if (ev.drum === "hihat") hihat.current?.triggerAttackRelease("16n", time);
+          if (ev.drum === "kick")
+            kick.current?.triggerAttackRelease("C1", "8n", time);
+          if (ev.drum === "snare")
+            snare.current?.triggerAttackRelease("8n", time);
+          if (ev.drum === "hihat")
+            hihat.current?.triggerAttackRelease("16n", time);
         }
       }
 
@@ -334,7 +367,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         }
       }
     },
-    [sequence, tracks.drums, chords, bpm, playChord, kick, snare, hihat]
+    [kick, snare, hihat, playChord] // dati musicali arrivano dai ref
   );
 
   const { start, stop } = useTransport(Tone, {
@@ -346,10 +379,7 @@ export default function Player({ sequence, chords, tracks, onStep }) {
 
   return (
     <div style={{ marginBottom: "20px" }}>
-      <button
-        onClick={isPlaying ? stop : start}
-        disabled={!isReady}
-      >
+      <button onClick={isPlaying ? stop : start} disabled={!isReady}>
         {isPlaying ? "Stop" : "Play"}
       </button>
 
@@ -360,7 +390,6 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         max="240"
         value={bpm}
         onChange={(e) => setBpm(Number(e.target.value))}
-        disabled={isPlaying}
         style={{ width: "60px", margin: "0 10px" }}
       />
 
@@ -370,7 +399,6 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         max="240"
         value={bpm}
         onChange={(e) => setBpm(Number(e.target.value))}
-        disabled={isPlaying}
         style={{ width: "200px" }}
       />
 

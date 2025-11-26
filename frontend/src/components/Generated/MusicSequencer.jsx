@@ -321,7 +321,6 @@ export default function MusicSequencer({
   openTrack,
   setOpenTrack,
 }) {
-  // update è ora "funzionale": prende un updater e usa la functional form di setState
   const update = (updater) =>
     onSequenceChange((prevSequence) => updater(prevSequence));
 
@@ -334,23 +333,16 @@ export default function MusicSequencer({
   };
 
   const changeSustain = (stepIndex, chordIndex, delta) => {
-    update((prev) => changeChordSustain(prev, stepIndex, chordIndex, delta));
+    update((prev) =>
+      changeChordSustain(prev, stepIndex, chordIndex, delta)
+    );
   };
 
   const removeChordAt = (step, chordIndex) => {
     update((prev) => removeChordEvent(prev, step, chordIndex));
   };
 
-  if (currentStep !== -1) {
-    return (
-      <SequencerPlayView
-        sequence={sequence}
-        chords={chords}
-        currentStep={currentStep}
-      />
-    );
-  }
-
+  // 👇 Sempre la vista di editing, ma con currentStep che evidenzia
   return (
     <SequencerEditView
       sequence={sequence}
