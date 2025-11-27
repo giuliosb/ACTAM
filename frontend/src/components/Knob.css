@@ -1,0 +1,65 @@
+.knob-wrapper {
+    width: 160px;
+    height: 160px;
+    position: relative;
+    user-select: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .knob {
+    width: 100px;
+    height: 100px;
+    background: #111;
+    border-radius: 50%;
+    position: relative;
+    box-shadow: inset 0 0 8px #000, 0 0 4px #000;
+  }
+  
+  .indicator {
+    width: 7px;          /* thickness of the line */
+    height: 30px;        /* EXACT hand length like your photo */
+    background: linear-gradient(
+        to right,
+        #ffb000,
+        #ffe08a,
+        #ffb000
+    );
+
+    box-shadow: 0 0 8px rgba(255, 214, 102, 0.9);
+    position: absolute;
+    left: 50%;
+    top: 10px;           /* distance from knob edge */
+    transform: translateX(-50%);
+    border-radius: 2px;
+    box-shadow: 0 0 4px rgba(126, 203, 255, 0.6);
+  }
+  
+  
+  /* Ticks arc */
+  .ticks {
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+  }
+  
+  .tick {
+    position: absolute;
+    width: 3px;
+    height: 14px;
+    background: #444;
+    left: 50%;
+    top: 0;
+    transform-origin: center 70px;
+    opacity: 0.5;
+  }
+  
+.tick.active {
+  background: #ffd24d;
+  opacity: 1;
+  box-shadow: 0 0 6px rgba(255, 210, 77, 0.8);
+}
+
+  
