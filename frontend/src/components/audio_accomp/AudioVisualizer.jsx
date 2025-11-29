@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
+import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js'
 
 export default function AudioVisualizer({ audioFile }) {
   const containerRef = useRef(null);
@@ -36,6 +37,7 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     const regionsPlugin = RegionsPlugin.create({
       dragSelection: false, // do NOT create/move regions by dragging the waveform
     });
+    const timelinePlugin = TimelinePlugin.create();
 
     const ws = WaveSurfer.create({
       container: containerRef.current,
@@ -45,13 +47,13 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
       cursorWidth: 1,
       audioRate: playbackSpeed,
       responsive: true,
-      plugins: [regionsPlugin],
+      plugins: [regionsPlugin, timelinePlugin],
       // Set a bar width
       barWidth: 2,
       // Optionally, specify the spacing between bars
       barGap: 1,
-      // And the bar radius
-      barRadius: 2,
+      // Rounded edges
+      barRadius: 1,
     });
 
     wavesurferRef.current = ws;

@@ -114,6 +114,18 @@ export default function Slider({
                 <div className="tick-line"></div>
               </div>
             ))}
+
+            {/*  GLOWING VERSION  */}
+            {/* {Array.from({ length: 11 }).map((_, i) => {
+              const tickValue = (10 - i) * 10;        // 100 → 0
+              const isActive = pos >= tickValue;
+
+              return (
+                <div className="tick-row" key={i}>
+                  <div className={`tick-line ${isActive ? "active" : ""}`}></div>
+                </div>
+              );
+            })} */}
             <div></div>
           </div>
         </div>

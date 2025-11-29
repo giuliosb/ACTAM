@@ -37,7 +37,7 @@
   .tick-line {
     width: 12px;
     height: 2px;
-    background: #d6d6d6;
+    background: rgb(225, 225, 225);
     border-radius: 1px;
   }  
   
@@ -51,6 +51,16 @@
     width: 10px;
   }
   
+  .tick-line.active {
+  background: linear-gradient(
+      to right,
+      #ffb000,
+      #ffe08a,
+      #ffb000
+  );
+  box-shadow: 0 0 8px rgba(255, 214, 102, 0.9);
+  } 
+
 
 .slider-wrapper {
     display: flex;
