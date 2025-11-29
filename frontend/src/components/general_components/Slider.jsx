@@ -87,9 +87,9 @@ export default function Slider({
 
   const gridStyle = {
     display: "grid",
-    gridTemplateColumns: "30px 1fr",
-    columnGap: "10px",
-    rowGap: "6px",
+    gridTemplateColumns: "60px 30px", // fixed, compact
+    columnGap: "8px",
+    alignItems: "center",
   };
 
   // convert pos (0–100) to px `top` in track coords
@@ -104,10 +104,10 @@ export default function Slider({
 
   return (
     <div>
-      <div style={gridStyle}>
+      <div className="slider-wrapper" style={gridStyle}>
         {/* 2nd COLUMN – ticks */}
         <div className="tick-track">
-          <div className="ticks">
+          <div className="slider-ticks">
             <div></div>
             {Array.from({ length: 11 }).map((_, i) => (
               <div className="tick-row" key={i}>

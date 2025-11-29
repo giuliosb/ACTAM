@@ -1,5 +1,5 @@
-import Knob from "./Knob";
-import Slider from "./Slider";
+import Knob from "./general_components/Knob";
+import Slider from "./general_components/Slider";
 import { useState } from "react";
 
 export default function ShowKnobs() {
@@ -17,14 +17,10 @@ export default function ShowKnobs() {
   };
 
   return (
+    
     <div className="show-knobs-container">
       <Knob value={value1} onChange={setValue1} />
-      {/* <Knob value={value2} onChange={setValue2} />
-      <Knob value={value3} onChange={setValue3} /> 
-      <Knob value={value4} onChange={setValue4} /> 
-      <Knob value={value5} onChange={setValue5} /> 
-      <Knob value={value6} onChange={setValue6} />
-      <Knob value={value7} onChange={setValue7} />    */}
+     
       <Slider
         value={10}         // initial value (0–100)
         onChange={logValue} // callback returns 0–100 (linear or log depending on dB)
@@ -35,7 +31,6 @@ export default function ShowKnobs() {
         />
 
 
-
-    </div>
+   </div>
   );
 }
