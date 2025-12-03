@@ -14,20 +14,15 @@ import {
   removeChordEvent,
 } from "./sequenceUtils";
 
-// -----------------------------------------
-//   VIEW: EDIT MODE
-// -----------------------------------------
-function SequencerEditView({
+export default function MusicSequencer({
   sequence,
+  onSequenceChange,
   chords,
-  tracks,          // 👈 AGGIUNTO
   onChordsChange,
+  tracks,
   onTracksChange,
   currentStep,
-  toggleDrum,
-  addChordAt,
-  changeSustain,
-  removeChordAt,
+  openTrack,
   setOpenTrack,
 }) {
   const [a4Frequency, setA4Frequency] = useState(440);
@@ -35,6 +30,27 @@ function SequencerEditView({
   const [octave, setOctave] = useState(4);
   const [triad, setTriad] = useState("Major");
   const [extension, setExtension] = useState("");
+
+  const update = (updater) =>
+    onSequenceChange((prevSequence) => updater(prevSequence));
+
+  const toggleDrum = (step, drumId) => {
+    update((prev) => toggleDrumEvent(prev, step, drumId));
+  };
+
+  const addChordAt = (step, chordIndex) => {
+    update((prev) => addChordEvent(prev, step, chordIndex));
+  };
+
+  const changeSustain = (stepIndex, chordIndex, delta) => {
+    update((prev) =>
+      changeChordSustain(prev, stepIndex, chordIndex, delta)
+    );
+  };
+
+  const removeChordAt = (step, chordIndex) => {
+    update((prev) => removeChordEvent(prev, step, chordIndex));
+  };
 
   const noteFrequency = (note, octave) => {
     const n = NOTES.indexOf(note) + (octave - 4) * 12 - 9;
@@ -75,7 +91,6 @@ function SequencerEditView({
     }));
   };
 
-  // Toggle live ON/OFF delle track via onTracksChange
   const toggleDrumTrackEnabled = (drumId) => {
     onTracksChange((prev) => {
       const prevDrums = prev.drums || {};
@@ -196,7 +211,7 @@ function SequencerEditView({
 
         {["kick", "snare", "hihat"].map((drumId) => {
           const t = drumTracks[drumId] || {};
-          const enabled = t.enabled !== false; // default ON
+          const enabled = t.enabled !== false;
 
           return (
             <div key={drumId} className="drum-row">
@@ -206,13 +221,11 @@ function SequencerEditView({
                 }
                 style={{ cursor: "pointer" }}
                 onClick={(e) => {
-                  // Ctrl+click (o Cmd+click su Mac) = mute/unmute
                   if (e.ctrlKey || e.metaKey) {
                     e.preventDefault();
                     e.stopPropagation();
                     toggleDrumTrackEnabled(drumId);
                   } else {
-                    // click normale = apre l’editor della track
                     setOpenTrack({ type: "drum", id: drumId });
                   }
                 }}
@@ -305,58 +318,5 @@ function SequencerEditView({
         })}
       </div>
     </div>
-  );
-}
-
-// -----------------------------------------
-//   CONTAINER:
-// -----------------------------------------
-export default function MusicSequencer({
-  sequence,
-  onSequenceChange,
-  chords,
-  onChordsChange,
-  tracks,
-  onTracksChange,
-  currentStep,
-  openTrack,
-  setOpenTrack,
-}) {
-  const update = (updater) =>
-    onSequenceChange((prevSequence) => updater(prevSequence));
-
-  const toggleDrum = (step, drumId) => {
-    update((prev) => toggleDrumEvent(prev, step, drumId));
-  };
-
-  const addChordAt = (step, chordIndex) => {
-    update((prev) => addChordEvent(prev, step, chordIndex));
-  };
-
-  const changeSustain = (stepIndex, chordIndex, delta) => {
-    update((prev) =>
-      changeChordSustain(prev, stepIndex, chordIndex, delta)
-    );
-  };
-
-  const removeChordAt = (step, chordIndex) => {
-    update((prev) => removeChordEvent(prev, step, chordIndex));
-  };
-
-  // 👇 Sempre la vista di editing, ma con currentStep che evidenzia
-  return (
-    <SequencerEditView
-      sequence={sequence}
-      chords={chords}
-      tracks={tracks}          // 👈 PASSIAMO tracks ALLA VIEW
-      onChordsChange={onChordsChange}
-      onTracksChange={onTracksChange}
-      currentStep={currentStep}
-      toggleDrum={toggleDrum}
-      addChordAt={addChordAt}
-      changeSustain={changeSustain}
-      removeChordAt={removeChordAt}
-      setOpenTrack={setOpenTrack}
-    />
   );
 }
