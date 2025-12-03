@@ -4,6 +4,7 @@ import "./App.css";
 import Menu from "./components/Menu";
 import GeneratedAccompaniment from "./components/generated_accomp/GeneratedAccompaniment";
 import AudioProcessor from "./components/audio_accomp/AudioProcessor";
+import Accompaniment from "./components/gen_accomp_v2/Accompaniment";
 
 function App() {
   const [currentCard, setCurrentCard] = useState("menu"); // menu | generated | audio
@@ -11,7 +12,7 @@ function App() {
   const renderCard = () => {
     switch (currentCard) {
       case "generated":
-        return <GeneratedAccompaniment />;
+        return <Accompaniment />;
       case "audio":
         return <AudioProcessor />;
       case "menu":

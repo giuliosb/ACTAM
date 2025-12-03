@@ -1,10 +1,9 @@
 import { useState } from "react";
-import MusicSequencer from "./MusicSequencer.jsx";
+import Sequencer from "./Sequencer.jsx";
 import Player from "./Player.jsx";
-import TrackEditor from "./TrackEditor.jsx";
 import { STEPS, createEmptySequence } from "./musicConfig.js";
 
-export default function GeneratedAccompaniment() {
+export default function Accompaniment() {
   // Total number of steps in the sequencer 
   const [sequence, setSequence] = useState(createEmptySequence());
 
@@ -61,14 +60,8 @@ export default function GeneratedAccompaniment() {
     <div style={{ padding: "20px" }}>
       <h1>Music Sequencer</h1>
 
-      <Player
-        sequence={sequence}
-        tracks={tracks}
-        chords={chords}
-        onStep={setCurrentStep}
-      />
 
-      <MusicSequencer
+      <Sequencer
         sequence={sequence}
         onSequenceChange={setSequence}
         chords={chords}
@@ -80,17 +73,13 @@ export default function GeneratedAccompaniment() {
         setOpenTrack={setOpenTrack}
       />
 
-      <TrackEditor
-        openTrack={openTrack}
-        setOpenTrack={setOpenTrack}
-        tracks={tracks}
-        onTracksChange={setTracks}
-        chords={chords}
-        onChordsChange={setChords}
+      <Player
         sequence={sequence}
-        onSequenceChange={setSequence}
-        removeChord={removeChord}
+        tracks={tracks}
+        chords={chords}
+        onStep={setCurrentStep}
       />
+
     </div>
   );
 }
