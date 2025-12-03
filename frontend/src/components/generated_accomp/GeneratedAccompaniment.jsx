@@ -2,7 +2,7 @@ import { useState } from "react";
 import MusicSequencer from "./MusicSequencer.jsx";
 import Player from "./Player.jsx";
 import TrackEditor from "./TrackEditor.jsx";
-import { STEPS, createEmptySequence } from "./musicConfig";
+import { STEPS, createEmptySequence } from "./musicConfig.js";
 
 export default function GeneratedAccompaniment() {
   // Total number of steps in the sequencer (a 32-step grid)

@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./App.css";
 
 import Menu from "./components/Menu";
-import GeneratedAccompaniment from "./components/Generated/GeneratedAccompaniment";
+import GeneratedAccompaniment from "./components/generated_accomp/GeneratedAccompaniment";
 import AudioProcessor from "./components/audio_accomp/AudioProcessor";
 
 function App() {
@@ -11,7 +11,7 @@ function App() {
   const renderCard = () => {
     switch (currentCard) {
       case "generated":
-        //return <GeneratedAccompaniment />;
+        return <GeneratedAccompaniment />;
       case "audio":
         return <AudioProcessor />;
       case "menu":
