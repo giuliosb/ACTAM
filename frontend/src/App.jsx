@@ -11,7 +11,7 @@ function App() {
   const renderCard = () => {
     switch (currentCard) {
       case "generated":
-        return <GeneratedAccompaniment />;
+        //return <GeneratedAccompaniment />;
       case "audio":
         return <AudioProcessor />;
       case "menu":

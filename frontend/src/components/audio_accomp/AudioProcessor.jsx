@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import AudioVisualizer from "./AudioVisualizer";
-import ShowKnobs from "../ShowKnobs";
 
 
 const API = "http://127.0.0.1:8000";
@@ -231,7 +230,6 @@ export default function AudioProcessor() {
           ))}
         </pre>
       </div>
-      <ShowKnobs/>
     </div>
   );
 }
