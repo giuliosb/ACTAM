@@ -11,9 +11,9 @@ export default function Accompaniment() {
 
   const [tracks, setTracks] = useState({
     drums: {
-      kick: { volume: 0, swing: 0 },
-      snare: { volume: 0, swing: 0 },
-      hihat: { volume: 0, swing: 0 }
+      kick: { volume: 0 },
+      snare: { volume: 0 },
+      hihat: { volume: 0 }
     },
     chords: []
   });
@@ -78,6 +78,7 @@ export default function Accompaniment() {
         tracks={tracks}
         chords={chords}
         onStep={setCurrentStep}
+        onTracksChange={setTracks} 
       />
 
     </div>

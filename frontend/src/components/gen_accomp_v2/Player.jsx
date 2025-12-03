@@ -195,7 +195,15 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
 /* -----------------------------------------------
    5. Player Component
 ------------------------------------------------ */
-export default function Player({ sequence, chords, tracks, onStep }) {
+export default function Player({
+  sequence,
+  chords,
+  tracks,
+  onStep,
+  onTracksChange,
+})
+  
+  {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [masterVolume, setMasterVolume] = useState(0);
@@ -226,24 +234,27 @@ export default function Player({ sequence, chords, tracks, onStep }) {
     bpmRef.current = bpm;
   }, [bpm]);
 
-  /* -----------------------------------------------
-     Swing (solo da drums)
-  ------------------------------------------------ */
-  useEffect(() => {
-    if (!Tone) return;
+    const handleDrumVolumeChange = (drumId, value) => {
+    if (!onTracksChange) return;
+    const vol = Number(value);
 
-    const drum = tracks.drums || {};
+    onTracksChange((prev) => {
+      const prevDrums = prev.drums || {};
+      const prevDrumTrack = prevDrums[drumId] || {};
 
-    const totalSwing =
-      (drum.kick?.swing ?? 0) * 0.3 +
-      (drum.snare?.swing ?? 0) * 0.3 +
-      (drum.hihat?.swing ?? 0) * 0.4;
+      return {
+        ...prev,
+        drums: {
+          ...prevDrums,
+          [drumId]: {
+            ...prevDrumTrack,
+            volume: vol,
+          },
+        },
+      };
+    });
+  };
 
-    const swingAmount = Math.min(1, Math.max(0, totalSwing));
-
-    Tone.Transport.swing = swingAmount;
-    Tone.Transport.swingSubdivision = "16n";
-  }, [Tone, tracks.drums]);
 
   /* -----------------------------------------------
      Chords (synth unico, senza parametri per track)
@@ -379,6 +390,41 @@ export default function Player({ sequence, chords, tracks, onStep }) {
         />
         {masterVolume} dB
       </div>
+
+            <div style={{ marginTop: "10px" }}>
+        <h4>Drum Volumes (dB)</h4>
+        {["kick", "snare", "hihat"].map((drumId) => {
+          const drumTracks = tracks?.drums || {};
+          const vol = drumTracks[drumId]?.volume ?? 0;
+
+          return (
+            <div key={drumId} style={{ marginBottom: "6px" }}>
+              <label
+                style={{
+                  width: "60px",
+                  display: "inline-block",
+                  textTransform: "capitalize",
+                }}
+              >
+                {drumId}:
+              </label>
+              <input
+                type="range"
+                min="-30"
+                max="6"
+                step="1"
+                value={vol}
+                onChange={(e) =>
+                  handleDrumVolumeChange(drumId, e.target.value)
+                }
+                style={{ width: "200px" }}
+              />
+              <span style={{ marginLeft: "8px" }}>{vol} dB</span>
+            </div>
+          );
+        })}
+      </div>
+
     </div>
   );
 }
