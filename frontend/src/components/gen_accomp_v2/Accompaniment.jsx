@@ -71,6 +71,7 @@ export default function Accompaniment() {
         currentStep={currentStep}
         openTrack={openTrack}
         setOpenTrack={setOpenTrack}
+        onRemoveChord={removeChord}
       />
 
       <Player

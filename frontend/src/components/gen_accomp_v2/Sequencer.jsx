@@ -24,6 +24,7 @@ export default function Sequencer({
   currentStep,
   openTrack,
   setOpenTrack,
+  onRemoveChord,
 }) {
   const [a4Frequency, setA4Frequency] = useState(440);
   const [rootNote, setRootNote] = useState("C");
@@ -278,6 +279,23 @@ export default function Sequencer({
               >
                 {ch.root} {ch.triad} {ch.extension}
                 {!enabled && <span className="mute-label"> (muted)</span>}
+                <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();      // così non apre/muta la traccia
+            if (onRemoveChord) onRemoveChord(chordIndex);
+          }}
+          style={{
+            marginLeft: "8px",
+            background: "transparent",
+            border: "1px solid #888",
+            borderRadius: "4px",
+            padding: "0 6px",
+            cursor: "pointer",
+          }}
+        >
+          ✕
+        </button>
               </div>
 
               {Array.from({ length: STEPS }).map((_, step) => {
