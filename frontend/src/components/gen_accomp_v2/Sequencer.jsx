@@ -32,8 +32,14 @@ export default function Sequencer({
   const [triad, setTriad] = useState("Major");
   const [extension, setExtension] = useState("");
 
+  const safeSequence = Array.isArray(sequence) ? sequence : [];
+
   const update = (updater) =>
-    onSequenceChange((prevSequence) => updater(prevSequence));
+    onSequenceChange((prevSequence) => {
+      const prevSafe = Array.isArray(prevSequence) ? prevSequence : [];
+      const next = updater(prevSafe);
+      return Array.isArray(next) ? next : prevSafe;
+    });
 
   const toggleDrum = (step, drumId) => {
     update((prev) => toggleDrumEvent(prev, step, drumId));
@@ -44,9 +50,7 @@ export default function Sequencer({
   };
 
   const changeSustain = (stepIndex, chordIndex, delta) => {
-    update((prev) =>
-      changeChordSustain(prev, stepIndex, chordIndex, delta)
-    );
+    update((prev) => changeChordSustain(prev, stepIndex, chordIndex, delta));
   };
 
   const removeChordAt = (step, chordIndex) => {
@@ -82,25 +86,29 @@ export default function Sequencer({
     const notes = buildChordNotes();
 
     onChordsChange([
-      ...chords,
+      ...(Array.isArray(chords) ? chords : []),
       { root: rootNote, triad, extension, notes },
     ]);
 
-    onTracksChange((prev) => ({
-      ...prev,
-      chords: [...(prev.chords || []), { ...DEFAULT_CHORD_TRACK }],
-    }));
+    onTracksChange((prev) => {
+      const safePrev = prev || {};
+      return {
+        ...safePrev,
+        chords: [...(safePrev.chords || []), { ...DEFAULT_CHORD_TRACK }],
+      };
+    });
   };
 
   const toggleDrumTrackEnabled = (drumId) => {
     onTracksChange((prev) => {
-      const prevDrums = prev.drums || {};
+      const safePrev = prev || {};
+      const prevDrums = safePrev.drums || {};
       const prevTrack = prevDrums[drumId] || {};
       const currentlyEnabled =
         prevTrack.enabled === undefined ? true : prevTrack.enabled;
 
       return {
-        ...prev,
+        ...safePrev,
         drums: {
           ...prevDrums,
           [drumId]: {
@@ -114,9 +122,10 @@ export default function Sequencer({
 
   const toggleChordTrackEnabled = (index) => {
     onTracksChange((prev) => {
-      const prevChords = prev.chords || [];
+      const safePrev = prev || {};
+      const prevChords = safePrev.chords || [];
       return {
-        ...prev,
+        ...safePrev,
         chords: prevChords.map((t, i) => {
           if (i !== index) return t;
           const track = t || { ...DEFAULT_CHORD_TRACK };
@@ -236,7 +245,11 @@ export default function Sequencer({
               </div>
 
               {Array.from({ length: STEPS }).map((_, step) => {
-                const active = sequence[step].some(
+                const stepEventsRaw = safeSequence[step];
+                const stepEvents = Array.isArray(stepEventsRaw)
+                  ? stepEventsRaw
+                  : [];
+                const active = stepEvents.some(
                   (ev) => ev.type === "drum" && ev.drum === drumId
                 );
 
@@ -280,27 +293,33 @@ export default function Sequencer({
                 {ch.root} {ch.triad} {ch.extension}
                 {!enabled && <span className="mute-label"> (muted)</span>}
                 <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();      // così non apre/muta la traccia
-            if (onRemoveChord) onRemoveChord(chordIndex);
-          }}
-          style={{
-            marginLeft: "8px",
-            background: "transparent",
-            border: "1px solid #888",
-            borderRadius: "4px",
-            padding: "0 6px",
-            cursor: "pointer",
-          }}
-        >
-          ✕
-        </button>
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onRemoveChord) onRemoveChord(chordIndex);
+                  }}
+                  style={{
+                    marginLeft: "8px",
+                    background: "transparent",
+                    border: "1px solid #888",
+                    borderRadius: "4px",
+                    padding: "0 6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </button>
               </div>
 
               {Array.from({ length: STEPS }).map((_, step) => {
-                const obj = sequence[step].find(
+                const stepEventsRaw = safeSequence[step];
+                const stepEvents = Array.isArray(stepEventsRaw)
+                  ? stepEventsRaw
+                  : [];
+
+                const obj = stepEvents.find(
                   (ev) =>
+                    ev &&
                     ev.type === "chord" &&
                     ev.chordIndex === chordIndex
                 );

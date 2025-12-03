@@ -153,6 +153,10 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
     transportEvent.current = Tone.Transport.scheduleRepeat(
       (time) => {
         const s = stepCounter.current;
+
+        // safety: se steps è 0 o negativo, non facciamo nulla
+        if (!Number.isFinite(steps) || steps <= 0) return;
+
         onStep(s);
         playStep(s, time);
         stepCounter.current = (s + 1) % steps;
@@ -201,9 +205,7 @@ export default function Player({
   tracks,
   onStep,
   onTracksChange,
-})
-  
-  {
+}) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [masterVolume, setMasterVolume] = useState(0);
@@ -219,31 +221,32 @@ export default function Player({
   const bpmRef = useRef(bpm);
 
   useEffect(() => {
-    sequenceRef.current = sequence;
+    sequenceRef.current = Array.isArray(sequence) ? sequence : [];
   }, [sequence]);
 
   useEffect(() => {
-    chordsRef.current = chords;
+    chordsRef.current = Array.isArray(chords) ? chords : [];
   }, [chords]);
 
   useEffect(() => {
-    tracksRef.current = tracks;
+    tracksRef.current = tracks || {};
   }, [tracks]);
 
   useEffect(() => {
     bpmRef.current = bpm;
   }, [bpm]);
 
-    const handleDrumVolumeChange = (drumId, value) => {
+  const handleDrumVolumeChange = (drumId, value) => {
     if (!onTracksChange) return;
     const vol = Number(value);
 
     onTracksChange((prev) => {
-      const prevDrums = prev.drums || {};
+      const safePrev = prev || {};
+      const prevDrums = safePrev.drums || {};
       const prevDrumTrack = prevDrums[drumId] || {};
 
       return {
-        ...prev,
+        ...safePrev,
         drums: {
           ...prevDrums,
           [drumId]: {
@@ -254,7 +257,6 @@ export default function Player({
       };
     });
   };
-
 
   /* -----------------------------------------------
      Chords (synth unico, senza parametri per track)
@@ -271,6 +273,8 @@ export default function Player({
       // manteniamo solo il mute per track
       if (t.enabled === false) return;
 
+      if (!Array.isArray(freqs) || freqs.length === 0) return;
+
       chain.synth.triggerAttackRelease(freqs, sustain, time);
     },
     [chordSynth]
@@ -281,14 +285,19 @@ export default function Player({
   ------------------------------------------------ */
   const playStep = useCallback(
     (step, time) => {
-      const sequence = sequenceRef.current || [];
+      const sequence = Array.isArray(sequenceRef.current)
+        ? sequenceRef.current
+        : [];
       const tracks = tracksRef.current || {};
-      const chords = chordsRef.current || [];
+      const chords = Array.isArray(chordsRef.current)
+        ? chordsRef.current
+        : [];
       const bpm = bpmRef.current || 120;
 
-      const evs = sequence[step] || [];
-      const drumTracks = tracks.drums || {};
+      const evsRaw = sequence[step];
+      const evs = Array.isArray(evsRaw) ? evsRaw : [];
 
+      const drumTracks = tracks.drums || {};
       const drumsEnabledGlobal =
         drumTracks.enabled === undefined ? true : drumTracks.enabled;
 
@@ -302,44 +311,55 @@ export default function Player({
 
       // --- DRUM EVENTS ---
       for (const ev of evs) {
-        if (ev.type === "drum") {
-          if (!drumsEnabledGlobal) continue;
+        if (!ev || ev.type !== "drum") continue;
 
-          if (ev.drum === "kick") {
-            const t = drumTracks.kick || {};
-            if (t.enabled === false) continue;
-            kick.current?.triggerAttackRelease("C1", "8n", time);
-          }
-          if (ev.drum === "snare") {
-            const t = drumTracks.snare || {};
-            if (t.enabled === false) continue;
-            snare.current?.triggerAttackRelease("8n", time);
-          }
-          if (ev.drum === "hihat") {
-            const t = drumTracks.hihat || {};
-            if (t.enabled === false) continue;
-            hihat.current?.triggerAttackRelease("16n", time);
-          }
+        if (!drumsEnabledGlobal) continue;
+
+        if (ev.drum === "kick") {
+          const t = drumTracks.kick || {};
+          if (t.enabled === false) continue;
+          kick.current?.triggerAttackRelease("C1", "8n", time);
+        }
+        if (ev.drum === "snare") {
+          const t = drumTracks.snare || {};
+          if (t.enabled === false) continue;
+          snare.current?.triggerAttackRelease("8n", time);
+        }
+        if (ev.drum === "hihat") {
+          const t = drumTracks.hihat || {};
+          if (t.enabled === false) continue;
+          hihat.current?.triggerAttackRelease("16n", time);
         }
       }
 
       // --- CHORD EVENTS ---
       for (const ev of evs) {
-        if (ev.type === "chord" && ev.start) {
-          const chord = chords[ev.chordIndex];
+        if (!ev || ev.type !== "chord" || !ev.start) continue;
 
-          if (!chord) continue;
+        const chord = chords[ev.chordIndex];
+        if (!chord) continue;
 
-          const chordTrack = tracks.chords?.[ev.chordIndex] ?? {};
-          if (chordTrack.enabled === false) continue;
+        const notes = Array.isArray(chord.notes) ? chord.notes : [];
+        if (notes.length === 0) continue;
 
-          const freqs = chord.notes.map((n) => n.freq);
-          const stepDur = 60 / bpm / 4;
-          const sustain = Math.max(0.03, ev.sustain * stepDur);
+        const chordTrack = tracks.chords?.[ev.chordIndex] ?? {};
+        if (chordTrack.enabled === false) continue;
 
-          playChord(ev.chordIndex, freqs, sustain, time);
-          break; // un solo accordo per step
-        }
+        const freqs = notes
+          .map((n) => n && typeof n.freq === "number" && n.freq > 0 && n.freq)
+          .filter(Boolean);
+
+        if (freqs.length === 0) continue;
+
+        const stepDur = 60 / bpm / 4;
+        const sustainFactor =
+          typeof ev.sustain === "number" && isFinite(ev.sustain)
+            ? ev.sustain
+            : 1;
+        const sustain = Math.max(0.03, sustainFactor * stepDur);
+
+        playChord(ev.chordIndex, freqs, sustain, time);
+        break; // un solo accordo per step
       }
     },
     [kick, snare, hihat, playChord]
@@ -391,7 +411,7 @@ export default function Player({
         {masterVolume} dB
       </div>
 
-            <div style={{ marginTop: "10px" }}>
+      <div style={{ marginTop: "10px" }}>
         <h4>Drum Volumes (dB)</h4>
         {["kick", "snare", "hihat"].map((drumId) => {
           const drumTracks = tracks?.drums || {};
@@ -424,7 +444,6 @@ export default function Player({
           );
         })}
       </div>
-
     </div>
   );
 }
