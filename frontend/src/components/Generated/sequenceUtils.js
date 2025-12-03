@@ -155,3 +155,42 @@ export function removeChordEvent(sequence, step, chordIndex) {
 
   return newSeq;
 }
+// ------------------------------------------------------
+// APPLICA LA RIMOZIONE DI UN ACCORDO ALLA SEQUENCE
+// (rimuove tutti gli eventi di quell'accordo
+//  e shifta gli indici > removedIndex)
+// ------------------------------------------------------
+export function applyChordDeletionToSequence(sequence, removedIndex) {
+  const newSeq = cloneSequence(sequence);
+
+  for (let step = 0; step < newSeq.length; step++) {
+    const events = newSeq[step] || [];
+    if (!events.length) continue;
+
+    const updated = [];
+
+    for (const ev of events) {
+      if (ev.type !== "chord") {
+        updated.push(ev);
+        continue;
+      }
+
+      // 1) se puntava all'accordo rimosso → lo elimino
+      if (ev.chordIndex === removedIndex) {
+        continue;
+      }
+
+      // 2) se puntava a un accordo dopo quello rimosso → shift -1
+      if (ev.chordIndex > removedIndex) {
+        updated.push({ ...ev, chordIndex: ev.chordIndex - 1 });
+      } else {
+        // 3) altrimenti lo tengo così com'è
+        updated.push(ev);
+      }
+    }
+
+    newSeq[step] = updated;
+  }
+
+  return newSeq;
+}

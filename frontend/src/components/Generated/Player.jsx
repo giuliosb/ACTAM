@@ -398,17 +398,22 @@ export default function Player({ sequence, chords, tracks, onStep }) {
       for (const ev of evs) {
         if (ev.type === "chord" && ev.start) {
           const chord = chords[ev.chordIndex];
-          if (!chord) break;
+
+          // se l'accordo non esiste più (es. hai rimosso l'ultimo),
+          // salta questo evento invece di fare break
+          if (!chord) continue;
 
           const chordTrack = tracks.chords?.[ev.chordIndex] ?? {};
-          if (chordTrack.enabled === false) break;
+
+          // se la track è muta, salta questo evento
+          if (chordTrack.enabled === false) continue;
 
           const freqs = chord.notes.map((n) => n.freq);
           const stepDur = 60 / bpm / 4;
           const sustain = Math.max(0.03, ev.sustain * stepDur);
 
           playChord(ev.chordIndex, freqs, sustain, time);
-          break;
+          break; // mantieni il break qui: suoni solo un accordo per step
         }
       }
     },

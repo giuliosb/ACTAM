@@ -24,28 +24,38 @@ export default function GeneratedAccompaniment() {
   const [openTrack, setOpenTrack] = useState(null);
 
   const removeChord = (index) => {
-    const newChords = chords.filter((_, i) => i !== index);
-    setChords(newChords);
+  // 1) aggiorna chords
+  const newChords = chords.filter((_, i) => i !== index);
+  setChords(newChords);
 
-    setTracks(prev => ({
+  // 2) aggiorna tracks.chords in modo difensivo
+  setTracks(prev => {
+    const prevChords = prev.chords || [];
+    return {
       ...prev,
-      chords: prev.chords.filter((_, i) => i !== index)
-    }));
+      chords: prevChords.filter((_, i) => i !== index),
+    };
+  });
 
-    let newSeq = sequence.map(step =>
-      step.filter(ev => ev.type !== "chord" || ev.chordIndex !== index)
-    );
+  // 3) pulisci la sequence
+  let newSeq = sequence.map(step =>
+    // step dovrebbe essere sempre un array, ma nel dubbio fallback a []
+    (step || []).filter(
+      ev => ev.type !== "chord" || ev.chordIndex !== index
+    )
+  );
 
-    newSeq = newSeq.map(step =>
-      step.map(ev =>
-        ev.type === "chord" && ev.chordIndex > index
-          ? { ...ev, chordIndex: ev.chordIndex - 1 }
-          : ev
-      )
-    );
+  newSeq = newSeq.map(step =>
+    step.map(ev =>
+      ev.type === "chord" && ev.chordIndex > index
+        ? { ...ev, chordIndex: ev.chordIndex - 1 }
+        : ev
+    )
+  );
 
-    setSequence(newSeq);
-  };
+  setSequence(newSeq);
+};
+
 
   return (
     <div style={{ padding: "20px" }}>
