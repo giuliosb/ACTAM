@@ -82,7 +82,25 @@ export default function Sequencer({
     });
   };
 
-  const addChord = () => {
+    const isDuplicateChord = (root, triad, extension) => {
+    const list = Array.isArray(chords) ? chords : [];
+    return list.some(
+      (ch) =>
+        ch &&
+        ch.root === root &&
+        ch.triad === triad &&
+        (ch.extension || "") === (extension || "")
+    );
+  };
+
+    const addChord = () => {
+    // se già esiste un accordo con stessa root/triad/extension, non lo aggiungo
+    if (isDuplicateChord(rootNote, triad, extension)) {
+      console.warn("Chord already exists, skipping");
+      // opzionale: alert("Questo accordo esiste già nella lista");
+      return;
+    }
+
     const notes = buildChordNotes();
 
     onChordsChange([
@@ -98,6 +116,7 @@ export default function Sequencer({
       };
     });
   };
+
 
   const toggleDrumTrackEnabled = (drumId) => {
     onTracksChange((prev) => {
@@ -199,7 +218,15 @@ export default function Sequencer({
             ))}
           </select>
 
-          <button onClick={addChord}>Add</button>
+          <button
+            onClick={addChord}
+            disabled={isDuplicateChord(rootNote, triad, extension)}
+          >
+            {isDuplicateChord(rootNote, triad, extension)
+              ? "Already added"
+              : "Add"}
+          </button>
+
         </div>
       </div>
 
