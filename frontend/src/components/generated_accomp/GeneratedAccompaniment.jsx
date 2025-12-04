@@ -5,7 +5,7 @@ import TrackEditor from "./TrackEditor.jsx";
 import { STEPS, createEmptySequence } from "./musicConfig.js";
 
 export default function GeneratedAccompaniment() {
-  // Total number of steps in the sequencer (a 32-step grid)
+  // Total number of steps in the sequencer 
   const [sequence, setSequence] = useState(createEmptySequence());
 
   const [chords, setChords] = useState([]);
