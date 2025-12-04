@@ -2,7 +2,6 @@ import { useState } from "react";
 import "./App.css";
 
 import Menu from "./components/Menu";
-import GeneratedAccompaniment from "./components/generated_accomp/GeneratedAccompaniment";
 import AudioProcessor from "./components/audio_accomp/AudioProcessor";
 import Accompaniment from "./components/gen_accomp_v2/Accompaniment";
 
