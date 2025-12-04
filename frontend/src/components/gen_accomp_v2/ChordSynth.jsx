@@ -24,18 +24,28 @@ export const DEFAULT_CHORD_SYNTH_SETTINGS = {
 const SAMPLER_LIBRARY = {
   "real-piano": {
     urls: {
+      A0: "A0.mp3",
+      C1: "C1.mp3",
+      "D#1": "Ds1.mp3",
+      "F#1": "Fs1.mp3",
       A1: "A1.mp3",
       C2: "C2.mp3",
-      E2: "E2.mp3",
+      "D#2": "Ds2.mp3",
+      "F#2": "Fs2.mp3",
       A2: "A2.mp3",
       C3: "C3.mp3",
-      E3: "E3.mp3",
+      "D#3": "Ds3.mp3",
+      "F#3": "Fs3.mp3",
       A3: "A3.mp3",
       C4: "C4.mp3",
-      E4: "E4.mp3",
+      "D#4": "Ds4.mp3",
+      "F#4": "Fs4.mp3",
       A4: "A4.mp3",
       C5: "C5.mp3",
-      E5: "E5.mp3",
+      "D#5": "Ds5.mp3",
+      "F#5": "Fs5.mp3",
+      A5: "A5.mp3",
+      C6: "C6.mp3",
     },
     baseUrl: "https://tonejs.github.io/audio/salamander/",
     volume: -4,
@@ -232,11 +242,14 @@ export default function ChordSynth({ Tone, targetRef, settings }) {
 
     const isSampler = !!SAMPLER_LIBRARY[normalizedSettings.instrument];
     let chain;
+    let samplerUsed = isSampler;
+    let instrumentUsed = normalizedSettings.instrument;
+
     const markReady = () => {
       if (chain) chain.ready = true;
     };
 
-    const synth = createSynth(
+    const primarySynth = createSynth(
       Tone,
       normalizedSettings.instrument,
       {
@@ -252,6 +265,29 @@ export default function ChordSynth({ Tone, targetRef, settings }) {
       }
     );
 
+    const synth =
+      primarySynth ||
+      createSynth(
+        Tone,
+        "fm",
+        {
+          attack: normalizedSettings.attack,
+          decay: normalizedSettings.decay,
+          sustain: normalizedSettings.sustain,
+          release: normalizedSettings.release,
+        }
+      );
+
+    if (!primarySynth && synth) {
+      samplerUsed = false;
+      instrumentUsed = "fm";
+    }
+
+    if (!synth?.chain) {
+      console.warn("Chord synth not initialized; skipping chain build");
+      return;
+    }
+
     synth.chain(filter, chorus, reverb, panner, limiter, Tone.Destination);
 
     chain = {
@@ -261,8 +297,8 @@ export default function ChordSynth({ Tone, targetRef, settings }) {
       reverb,
       panner,
       limiter,
-      instrument: normalizedSettings.instrument,
-      ready: isSampler ? !!synth?.loaded : true,
+      instrument: instrumentUsed,
+      ready: samplerUsed ? !!synth?.loaded : true,
     };
 
     chordChainRef.current = chain;

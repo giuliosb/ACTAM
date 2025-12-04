@@ -282,7 +282,11 @@ export default function Player({
       const vol = chordVolumeRef.current ?? 0;
       chain.synth.volume.value = vol;
 
-      chain.synth.triggerAttackRelease(freqs, sustain, time);
+      try {
+        chain.synth.triggerAttackRelease(freqs, sustain, time);
+      } catch (err) {
+        console.warn("Chord playback failed", err);
+      }
     },
     [chordSynthRef]
   );
