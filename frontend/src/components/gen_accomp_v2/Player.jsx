@@ -134,22 +134,29 @@ function useChordSynth(Tone) {
 /* -----------------------------------------------
    4. Transport
 ------------------------------------------------ */
+
 function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
   const transportEvent = useRef(null);
   const stepCounter = useRef(0);
 
-  const start = useCallback(() => {
+  const setupLoop = useCallback(() => {
     if (!Tone) return;
 
-    stepCounter.current = 0;
-
+    // cancella eventuali eventi vecchi
     if (transportEvent.current) {
       Tone.Transport.clear(transportEvent.current);
       transportEvent.current = null;
     }
 
+    // azzera posizione/ticks
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
     Tone.Transport.position = "0:0:0";
+    // (volendo: Tone.Transport.ticks = 0;)
 
+    stepCounter.current = 0;
+
+    // nuovo scheduleRepeat pulito
     transportEvent.current = Tone.Transport.scheduleRepeat(
       (time) => {
         const s = stepCounter.current;
@@ -158,20 +165,32 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
 
         onStep(s);
         playStep(s, time);
+
         stepCounter.current = (s + 1) % steps;
       },
       "16n",
       0
     );
+  }, [Tone, steps, onStep, playStep]);
 
-    Tone.Transport.start("+0.05");
+  const start = useCallback(() => {
+    if (!Tone) return;
+
+    setupLoop();
+
+    // partiamo da zero, senza offset
+    Tone.Transport.start();
     setIsPlaying(true);
-  }, [Tone, onStep, playStep, steps, setIsPlaying]);
+  }, [Tone, setupLoop, setIsPlaying]);
 
   const stop = useCallback(() => {
     if (!Tone) return;
 
     Tone.Transport.stop();
+    Tone.Transport.cancel();
+    Tone.Transport.position = "0:0:0";
+    // (volendo: Tone.Transport.ticks = 0;)
+
     if (transportEvent.current) {
       Tone.Transport.clear(transportEvent.current);
       transportEvent.current = null;
@@ -185,18 +204,22 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
   useEffect(() => {
     return () => {
       if (!Tone) return;
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
       if (transportEvent.current) {
         Tone.Transport.clear(transportEvent.current);
+        transportEvent.current = null;
       }
-      Tone.Transport.stop();
     };
   }, [Tone]);
 
   return { start, stop };
 }
 
+
 /* -----------------------------------------------
    5. Player Component
+   (sequencer "freezato" al Play)
 ------------------------------------------------ */
 export default function Player({
   sequence,
@@ -204,7 +227,7 @@ export default function Player({
   tracks,
   onStep,
   onTracksChange,
-  onPlayStateChange, // callback per il parent
+  onPlayStateChange,
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
@@ -226,20 +249,14 @@ export default function Player({
   const { kick, snare, hihat } = useDrums(Tone);
   const chordSynth = useChordSynth(Tone);
 
-  // refs per ultima versione di sequence/chords/tracks/bpm/vol accordi
-  const sequenceRef = useRef(sequence);
-  const chordsRef = useRef(chords);
-  const tracksRef = useRef(tracks);
+  // snapshot fisso di sequence/chords (congelato al Play)
+  const sequenceRef = useRef(Array.isArray(sequence) ? sequence : []);
+  const chordsRef = useRef(Array.isArray(chords) ? chords : []);
+
+  // parametri che restano live
+  const tracksRef = useRef(tracks || {});
   const bpmRef = useRef(bpm);
   const chordVolumeRef = useRef(chordVolume);
-
-  useEffect(() => {
-    sequenceRef.current = Array.isArray(sequence) ? sequence : [];
-  }, [sequence]);
-
-  useEffect(() => {
-    chordsRef.current = Array.isArray(chords) ? chords : [];
-  }, [chords]);
 
   useEffect(() => {
     tracksRef.current = tracks || {};
@@ -252,6 +269,12 @@ export default function Player({
   useEffect(() => {
     chordVolumeRef.current = chordVolume;
   }, [chordVolume]);
+
+  // snapshot di sequenza + accordi al momento del Play
+  const prepareSequenceSnapshot = useCallback(() => {
+    sequenceRef.current = Array.isArray(sequence) ? sequence : [];
+    chordsRef.current = Array.isArray(chords) ? chords : [];
+  }, [sequence, chords]);
 
   const handleDrumVolumeChange = (drumId, value) => {
     if (!onTracksChange) return;
@@ -283,16 +306,13 @@ export default function Player({
       const chain = chordSynth.current;
       if (!chain) return;
 
-      const tracks = tracksRef.current || {};
-      const chordTracks = tracks.chords || [];
+      const tracksSnap = tracksRef.current || {};
+      const chordTracks = tracksSnap.chords || [];
       const t = chordTracks[index] ?? {};
 
-      // mute per track
       if (t.enabled === false) return;
-
       if (!Array.isArray(freqs) || freqs.length === 0) return;
 
-      // volume globale accordi in dB
       const vol = chordVolumeRef.current ?? 0;
       chain.synth.volume.value = vol;
 
@@ -303,26 +323,27 @@ export default function Player({
 
   /* -----------------------------------------------
      Step playback (DRUMS + CHORDS)
+     usa sempre sequenceRef/chordsRef (snapshot)
   ------------------------------------------------ */
   const playStep = useCallback(
     (step, time) => {
-      const sequence = Array.isArray(sequenceRef.current)
+      const sequenceSnap = Array.isArray(sequenceRef.current)
         ? sequenceRef.current
         : [];
-      const tracks = tracksRef.current || {};
-      const chords = Array.isArray(chordsRef.current)
+      const tracksSnap = tracksRef.current || {};
+      const chordsSnap = Array.isArray(chordsRef.current)
         ? chordsRef.current
         : [];
-      const bpm = bpmRef.current || 120;
+      const bpmSnap = bpmRef.current || 120;
 
-      const evsRaw = sequence[step];
+      const evsRaw = sequenceSnap[step];
       const evs = Array.isArray(evsRaw) ? evsRaw : [];
 
-      const drumTracks = tracks.drums || {};
+      const drumTracks = tracksSnap.drums || {};
       const drumsEnabledGlobal =
         drumTracks.enabled === undefined ? true : drumTracks.enabled;
 
-      // volumi drums
+      // volumi drums (live)
       if (kick.current)
         kick.current.volume.value = drumTracks.kick?.volume ?? 0;
       if (snare.current)
@@ -333,7 +354,6 @@ export default function Player({
       // --- DRUM EVENTS ---
       for (const ev of evs) {
         if (!ev || ev.type !== "drum") continue;
-
         if (!drumsEnabledGlobal) continue;
 
         if (ev.drum === "kick") {
@@ -349,7 +369,7 @@ export default function Player({
         if (ev.drum === "hihat") {
           const t = drumTracks.hihat || {};
           if (t.enabled === false) continue;
-          hihat.current?.triggerAttackRelease("16n", time);
+          hihat.current?.triggerAttackRelease("8n", time);
         }
       }
 
@@ -357,22 +377,24 @@ export default function Player({
       for (const ev of evs) {
         if (!ev || ev.type !== "chord" || !ev.start) continue;
 
-        const chord = chords[ev.chordIndex];
+        const chord = chordsSnap[ev.chordIndex];
         if (!chord) continue;
 
         const notes = Array.isArray(chord.notes) ? chord.notes : [];
         if (notes.length === 0) continue;
 
-        const chordTrack = tracks.chords?.[ev.chordIndex] ?? {};
+        const chordTrack = tracksSnap.chords?.[ev.chordIndex] ?? {};
         if (chordTrack.enabled === false) continue;
 
         const freqs = notes
-          .map((n) => n && typeof n.freq === "number" && n.freq > 0 && n.freq)
+          .map(
+            (n) => n && typeof n.freq === "number" && n.freq > 0 && n.freq
+          )
           .filter(Boolean);
 
         if (freqs.length === 0) continue;
 
-        const stepDur = 60 / bpm / 4;
+        const stepDur = 60 / bpmSnap / 4;
         const sustainFactor =
           typeof ev.sustain === "number" && isFinite(ev.sustain)
             ? ev.sustain
@@ -393,9 +415,16 @@ export default function Player({
     setIsPlaying: setPlaying,
   });
 
+  // Start di alto livello: congela sequenza + avvia transport
+  const handleStart = useCallback(() => {
+    if (!isReady) return;
+    prepareSequenceSnapshot();
+    start();
+  }, [isReady, prepareSequenceSnapshot, start]);
+
   return (
     <div style={{ marginBottom: "20px" }}>
-      <button onClick={isPlaying ? stop : start} disabled={!isReady}>
+      <button onClick={isPlaying ? stop : handleStart} disabled={!isReady}>
         {isPlaying ? "Stop" : "Play"}
       </button>
 
