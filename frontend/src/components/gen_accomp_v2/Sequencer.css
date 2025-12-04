@@ -1,148 +1,209 @@
+/* ============================= */
+/* ===== SEQUENCER LAYOUT ===== */
+/* ============================= */
+
+.music-sequencer {
+  padding: 20px;
+  font-family: sans-serif;
+  background: #1e1e1e;
+  color: #e0e0e0;
+}
+
 .sequencer-body {
-    display: flex;
-    gap: 16px;
-  }
-  
-  .drum-grid {
-    flex: 1;
-  }
-  
-  /* ============================= */
-  /* ===== CHORD LIBRARY BASE ==== */
-  /* ============================= */
-  
-  .chord-library {
-    width: 220px;
-    border-left: 1px solid #444;
-    padding-left: 8px;
-  }
-  
-  .chord-library-empty {
-    font-size: 0.9em;
-    opacity: 0.7;
-  }
-  
-  .chord-library-item {
-    padding: 4px 6px;
-    margin-bottom: 4px;
-    border: 1px solid #666;
-    border-radius: 4px;
-    cursor: pointer;
-    background: #e6e6e6;
-    color: #111;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 4px;
-    font-size: 0.9em;
-  }
-  
-  .chord-library-item.selected {
-    background: #bdbdbd;
-  }
-  
-  .chord-library-remove {
-    background: transparent;
-    border: 1px solid #888;
-    border-radius: 4px;
-    padding: 0 6px;
-    cursor: pointer;
-    color: inherit;
-  }
-  
-  .chord-library-hint {
-    margin-top: 8px;
-    font-size: 0.8em;
-    opacity: 0.7;
-  }
-  
-  /* ============================= */
-  /* ===== DARK MODE OVERRIDES === */
-  /* ============================= */
-  
-  @media (prefers-color-scheme: dark) {
-    /* Header step numbers (1–16) */
-    .drum-header-cell {
-      background: #2a2a2a;
-      color: #ddd;
-    }
-  
-    /* Track labels: kick, snare, hihat, Chords */
-    .drum-name {
-      background: #2a2a2a;
-      color: #ddd;
-    }
-  
-    /* Empty steps */
-    .drum-step {
-      background: #202020;
-    }
-  
-    /* Active drum steps */
-    .drum-step.active {
-      background: #ff6a2d;
-    }
-  
-    /* Chord start */
-    .chord-step.chord-start {
-      background: #3fa94a;
-    }
-  
-    /* Chord sustain */
-    .chord-step.chord-sustain {
-      background: #78c47f;
-    }
-  
-    /* Chord library container */
-    .chord-library {
-      border-left: 1px solid #333;
-    }
-  
-    /* Chord library items */
-    .chord-library-item {
-      background: #2b2b2b;
-      color: #eaeaea;
-      border: 1px solid #444;
-    }
-  
-    .chord-library-item.selected {
-      background: #3a3a3a;
-    }
-  
-    .chord-library-remove {
-      border: 1px solid #666;
-      color: #eaeaea;
-    }
-  
-    .chord-library-hint {
-      color: #aaa;
-    }
-  
-    .chord-library-empty {
-      color: #aaa;
-    }
-  
-    /* Generator panel inputs */
-    .generator-panel input,
-    .generator-panel select {
-      background: #2a2a2a;
-      color: #eee;
-      border: 1px solid #555;
-    }
-  
-    .generator-panel button {
-      background: #2f2f2f;
-      color: #eee;
-      border: 1px solid #666;
-    }
-  
-    .generator-panel button:hover {
-      background: #3a3a3a;
-    }
-  
-    /* Muted labels */
-    .mute-label {
-      color: #aaa;
-    }
-  }
-  
+  display: flex;
+  gap: 16px;
+}
+
+/* ============================= */
+/* ===== GENERATOR PANEL ===== */
+/* ============================= */
+
+.generator-panel {
+  margin-bottom: 20px;
+  padding: 12px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #262626;
+}
+
+.gen-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.gen-row select,
+.gen-row input,
+.gen-row button {
+  padding: 4px 6px;
+  background: #2f2f2f;
+  border: 1px solid #555;
+  color: #e0e0e0;
+  border-radius: 4px;
+}
+
+.gen-row button {
+  cursor: pointer;
+}
+
+.gen-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================= */
+/* ===== DRUM GRID ===== */
+/* ============================= */
+
+.drum-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 140px repeat(16, 40px);
+  gap: 2px;
+}
+
+.drum-row {
+  display: contents;
+}
+
+.drum-cell {
+  border: 1px solid #444;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #252525;
+}
+
+.drum-header-cell {
+  background: #2c2c2c;
+  font-weight: bold;
+  color: #ccc;
+}
+
+.drum-name {
+  background: #2a2a2a;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.drum-name.muted {
+  opacity: 0.4;
+  font-style: italic;
+}
+
+.mute-label {
+  font-size: 0.8em;
+  margin-left: 4px;
+}
+
+/* ============================= */
+/* ===== DRUM STEPS ===== */
+/* ============================= */
+
+.drum-step {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.drum-step.active {
+  background: linear-gradient(135deg, #ff7043, #ff5722) !important;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
+}
+
+/* ============================= */
+/* ===== CHORD STEPS ===== */
+/* ============================= */
+
+.chord-step {
+  position: relative;
+}
+
+.chord-start {
+  background: linear-gradient(135deg, #4caf50, #388e3c) !important;
+  color: white;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
+}
+
+.chord-sustain {
+  background: linear-gradient(135deg, #81c784, #66bb6a) !important;
+  box-shadow: inset 0 0 3px rgba(0,0,0,0.2);
+}
+
+/* ============================= */
+/* ===== PLAYING ANIMATION ===== */
+/* ============================= */
+
+.playing {
+  animation: pulse 0.5s ease-in-out infinite alternate;
+  box-shadow: 0 0 8px rgba(255, 220, 0, 0.6);
+}
+
+@keyframes pulse {
+  from { background-color: #665c00; }
+  to   { background-color: #bfa600; }
+}
+
+.drum-cell.playing {
+  animation: stepGlow 0.35s ease-in-out;
+}
+
+@keyframes stepGlow {
+  0%   { transform: scale(1);   background-color: rgba(255,220,0,0.25); }
+  50%  { transform: scale(1.1); background-color: rgba(255,220,0,0.45); }
+  100% { transform: scale(1);   background-color: rgba(255,220,0,0.25); }
+}
+
+/* ============================= */
+/* ===== CHORD LIBRARY ===== */
+/* ============================= */
+
+.chord-library {
+  width: 220px;
+  border-left: 1px solid #444;
+  padding-left: 8px;
+}
+
+.chord-library-empty {
+  font-size: 0.9em;
+  opacity: 0.6;
+}
+
+.chord-library-item {
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #2b2b2b;
+  color: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 0.9em;
+}
+
+.chord-library-item.selected {
+  background: #3a3a3a;
+  border-color: #777;
+}
+
+.chord-library-remove {
+  background: transparent;
+  border: 1px solid #666;
+  border-radius: 4px;
+  padding: 0 6px;
+  cursor: pointer;
+  color: #e0e0e0;
+}
+
+.chord-library-remove:hover {
+  background: #444;
+}
+
+.chord-library-hint {
+  margin-top: 8px;
+  font-size: 0.8em;
+  opacity: 0.6;
+}

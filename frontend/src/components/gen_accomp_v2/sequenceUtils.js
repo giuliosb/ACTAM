@@ -58,14 +58,13 @@ export function changeChordSustain(sequence, stepIndex, chordIndex, delta) {
       ev.start
   );
 
-  // Se non troviamo lo start, non facciamo niente
+  // If no chord start is found, do nothing
   if (!startObj) return sequence;
 
   const id = startObj.id;
 
-  // 1️⃣ Calcola la lunghezza ATTUALE scorrendo in avanti
-  //    (così siamo sicuri che sia coerente con le celle di sustain esistenti)
-  let currentLen = 1; // almeno la cella di start
+  // 1️. Calculate the CURRENT sustain length by scanning forward
+  let currentLen = 1; // includes the start cell
   for (let i = stepIndex + 1; i < STEPS; i++) {
     const evs = newSeq[i] || [];
     const hasSustain = evs.some(
@@ -79,14 +78,25 @@ export function changeChordSustain(sequence, stepIndex, chordIndex, delta) {
     currentLen++;
   }
 
-  // 2️⃣ Nuova lunghezza (= vecchia + delta), clampata tra 1 e fine griglia
+  // 2️. Compute the NEW length (with min/max bounds)
   let newLen = currentLen + delta;
   if (newLen < 1) newLen = 1;
 
-  const maxLen = STEPS - stepIndex;
-  if (newLen > maxLen) newLen = maxLen;
+  // Hard stop when another chord is encountered
+  const hardLimit = (() => {
+    for (let i = stepIndex + 1; i < STEPS; i++) {
+      const evs = newSeq[i] || [];
+      const hasOtherChord = evs.some(
+        (ev) => ev.type === "chord" && ev.id !== id
+      );
+      if (hasOtherChord) return i - stepIndex;
+    }
+    return STEPS - stepIndex;
+  })();
 
-  // 3️⃣ Rimuovi TUTTE le celle di sustain per questo accordo (dallo step successivo in poi)
+  if (newLen > hardLimit) newLen = hardLimit;
+
+  // 3️. Remove ALL existing sustain cells for this chord
   for (let i = stepIndex + 1; i < STEPS; i++) {
     const evs = newSeq[i] || [];
     if (!evs.length) continue;
@@ -96,15 +106,17 @@ export function changeChordSustain(sequence, stepIndex, chordIndex, delta) {
     );
   }
 
-  // 4️⃣ Aggiungi le nuove celle di sustain:
-  //     newLen = 1 → nessuna cella extra
-  //     newLen = 2 → 1 cella (stepIndex + 1)
-  //     newLen = 3 → 2 celle (stepIndex + 1, stepIndex + 2), ecc.
+  // 4️. Add new sustain cells ONLY on empty steps
   for (let offset = 1; offset < newLen; offset++) {
     const s = stepIndex + offset;
     if (s >= STEPS) break;
 
     const evs = newSeq[s] || [];
+
+    // Stop immediately if any chord already exists on this step
+    const hasAnyChord = evs.some((ev) => ev.type === "chord");
+    if (hasAnyChord) break;
+
     newSeq[s] = [
       ...evs,
       {
@@ -116,12 +128,11 @@ export function changeChordSustain(sequence, stepIndex, chordIndex, delta) {
     ];
   }
 
-  // 5️⃣ Aggiorna anche il valore numerico di sustain sullo start
+  // 5️. Update the numeric sustain value on the start cell
   startObj.sustain = newLen;
 
   return newSeq;
 }
-
 // ------------------------------------------------------
 // REMOVE CHORD (start + sustain)
 // ------------------------------------------------------
