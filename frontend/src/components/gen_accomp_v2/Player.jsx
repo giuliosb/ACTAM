@@ -274,7 +274,8 @@ export default function Player({
   const playChord = useCallback(
     (index, freqs, sustain, time) => {
       const chain = chordSynthRef.current;
-      if (!chain) return;
+      if (!chain || !chain.synth) return;
+      if (chain.ready === false) return;
 
       if (!Array.isArray(freqs) || freqs.length === 0) return;
 
