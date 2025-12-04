@@ -302,24 +302,20 @@ export default function Player({
      Chords (synth unico, con volume globale)
   ------------------------------------------------ */
   const playChord = useCallback(
-    (index, freqs, sustain, time) => {
-      const chain = chordSynth.current;
-      if (!chain) return;
+  (index, freqs, sustain, time) => {
+    const chain = chordSynth.current;
+    if (!chain) return;
 
-      const tracksSnap = tracksRef.current || {};
-      const chordTracks = tracksSnap.chords || [];
-      const t = chordTracks[index] ?? {};
+    if (!Array.isArray(freqs) || freqs.length === 0) return;
 
-      if (t.enabled === false) return;
-      if (!Array.isArray(freqs) || freqs.length === 0) return;
+    const vol = chordVolumeRef.current ?? 0;
+    chain.synth.volume.value = vol;
 
-      const vol = chordVolumeRef.current ?? 0;
-      chain.synth.volume.value = vol;
+    chain.synth.triggerAttackRelease(freqs, sustain, time);
+  },
+  [chordSynth]
+);
 
-      chain.synth.triggerAttackRelease(freqs, sustain, time);
-    },
-    [chordSynth]
-  );
 
   /* -----------------------------------------------
      Step playback (DRUMS + CHORDS)
@@ -374,36 +370,52 @@ export default function Player({
       }
 
       // --- CHORD EVENTS ---
-      for (const ev of evs) {
-        if (!ev || ev.type !== "chord" || !ev.start) continue;
+const chordTracksArr = tracksSnap.chords || [];
+// unica traccia globale per tutti i chords
+const chordGlobalTrack = chordTracksArr[0] || {};
+const chordsEnabledGlobal =
+  chordGlobalTrack.enabled === undefined
+    ? true
+    : chordGlobalTrack.enabled;
 
-        const chord = chordsSnap[ev.chordIndex];
-        if (!chord) continue;
+for (const ev of evs) {
+  if (!ev || ev.type !== "chord" || !ev.start) continue;
 
-        const notes = Array.isArray(chord.notes) ? chord.notes : [];
-        if (notes.length === 0) continue;
+  // se la traccia globale è mutata, non suoniamo alcun accordo
+  if (!chordsEnabledGlobal) break;
 
-        const chordTrack = tracksSnap.chords?.[ev.chordIndex] ?? {};
-        if (chordTrack.enabled === false) continue;
+  const chord = chordsSnap[ev.chordIndex];
+  if (!chord) continue;
 
-        const freqs = notes
-          .map(
-            (n) => n && typeof n.freq === "number" && n.freq > 0 && n.freq
-          )
-          .filter(Boolean);
+  // opzionale: se in futuro vuoi un flag per singolo chord (es. chords[i].enabled = false)
+  if (chord.enabled === false) continue;
 
-        if (freqs.length === 0) continue;
+  const notes = Array.isArray(chord.notes) ? chord.notes : [];
+  if (notes.length === 0) continue;
 
-        const stepDur = 60 / bpmSnap / 4;
-        const sustainFactor =
-          typeof ev.sustain === "number" && isFinite(ev.sustain)
-            ? ev.sustain
-            : 1;
-        const sustain = Math.max(0.03, sustainFactor * stepDur);
+  const freqs = notes
+    .map(
+      (n) =>
+        n &&
+        typeof n.freq === "number" &&
+        n.freq > 0 &&
+        n.freq
+    )
+    .filter(Boolean);
 
-        playChord(ev.chordIndex, freqs, sustain, time);
-        break; // un solo accordo per step
-      }
+  if (freqs.length === 0) continue;
+
+  const stepDur = 60 / bpmSnap / 4;
+  const sustainFactor =
+    typeof ev.sustain === "number" && isFinite(ev.sustain)
+      ? ev.sustain
+      : 1;
+  const sustain = Math.max(0.03, sustainFactor * stepDur);
+
+  playChord(ev.chordIndex, freqs, sustain, time);
+  break; // un solo accordo per step
+}
+
     },
     [kick, snare, hihat, playChord]
   );
