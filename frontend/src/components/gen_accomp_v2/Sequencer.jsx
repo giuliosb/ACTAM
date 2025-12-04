@@ -25,35 +25,43 @@ export default function Sequencer({
   openTrack,
   setOpenTrack,
   onRemoveChord,
+  isPlaying, // <-- nuova prop dal parent
 }) {
   const [a4Frequency, setA4Frequency] = useState(440);
   const [rootNote, setRootNote] = useState("C");
   const [octave, setOctave] = useState(4);
   const [triad, setTriad] = useState("Major");
   const [extension, setExtension] = useState("");
+  const [selectedChordIndex, setSelectedChordIndex] = useState(null);
 
   const safeSequence = Array.isArray(sequence) ? sequence : [];
+  const safeChords = Array.isArray(chords) ? chords : [];
 
   const update = (updater) =>
     onSequenceChange((prevSequence) => {
+      if (isPlaying) return prevSequence; // blocca modifiche mentre suona
       const prevSafe = Array.isArray(prevSequence) ? prevSequence : [];
       const next = updater(prevSafe);
       return Array.isArray(next) ? next : prevSafe;
     });
 
   const toggleDrum = (step, drumId) => {
+    if (isPlaying) return;
     update((prev) => toggleDrumEvent(prev, step, drumId));
   };
 
   const addChordAt = (step, chordIndex) => {
+    if (isPlaying) return;
     update((prev) => addChordEvent(prev, step, chordIndex));
   };
 
   const changeSustain = (stepIndex, chordIndex, delta) => {
+    if (isPlaying) return;
     update((prev) => changeChordSustain(prev, stepIndex, chordIndex, delta));
   };
 
   const removeChordAt = (step, chordIndex) => {
+    if (isPlaying) return;
     update((prev) => removeChordEvent(prev, step, chordIndex));
   };
 
@@ -82,43 +90,49 @@ export default function Sequencer({
     });
   };
 
-    const isDuplicateChord = (root, triad, extension) => {
+  const isDuplicateChord = (root, triadName, extensionName) => {
     const list = Array.isArray(chords) ? chords : [];
     return list.some(
       (ch) =>
         ch &&
         ch.root === root &&
-        ch.triad === triad &&
-        (ch.extension || "") === (extension || "")
+        ch.triad === triadName &&
+        (ch.extension || "") === (extensionName || "")
     );
   };
 
-    const addChord = () => {
-    // se già esiste un accordo con stessa root/triad/extension, non lo aggiungo
+  const addChord = () => {
+    if (isPlaying) return;
     if (isDuplicateChord(rootNote, triad, extension)) {
       console.warn("Chord already exists, skipping");
-      // opzionale: alert("Questo accordo esiste già nella lista");
       return;
     }
 
     const notes = buildChordNotes();
 
-    onChordsChange([
+    const newChords = [
       ...(Array.isArray(chords) ? chords : []),
       { root: rootNote, triad, extension, notes },
-    ]);
+    ];
 
+    onChordsChange(newChords);
+
+    // assicurati che esista almeno UNA track per i chords (una sola riga)
     onTracksChange((prev) => {
       const safePrev = prev || {};
-      return {
-        ...safePrev,
-        chords: [...(safePrev.chords || []), { ...DEFAULT_CHORD_TRACK }],
-      };
+      const prevChordsTracks = safePrev.chords || [];
+      if (prevChordsTracks.length === 0) {
+        return {
+          ...safePrev,
+          chords: [{ ...DEFAULT_CHORD_TRACK }],
+        };
+      }
+      return safePrev;
     });
   };
 
-
   const toggleDrumTrackEnabled = (drumId) => {
+    if (isPlaying) return;
     onTracksChange((prev) => {
       const safePrev = prev || {};
       const prevDrums = safePrev.drums || {};
@@ -139,33 +153,41 @@ export default function Sequencer({
     });
   };
 
-  const toggleChordTrackEnabled = (index) => {
+  // Ora consideriamo un solo track per TUTTI i chords
+  const toggleChordTrackEnabled = () => {
+    if (isPlaying) return;
     onTracksChange((prev) => {
       const safePrev = prev || {};
-      const prevChords = safePrev.chords || [];
+      const prevChordsTracks = safePrev.chords || [];
+      const track = prevChordsTracks[0] || { ...DEFAULT_CHORD_TRACK };
+
+      const currentlyEnabled =
+        track.enabled === undefined ? true : track.enabled;
+
+      const newTrack = {
+        ...DEFAULT_CHORD_TRACK,
+        ...track,
+        enabled: !currentlyEnabled,
+      };
+
       return {
         ...safePrev,
-        chords: prevChords.map((t, i) => {
-          if (i !== index) return t;
-          const track = t || { ...DEFAULT_CHORD_TRACK };
-          const currentlyEnabled =
-            track.enabled === undefined ? true : track.enabled;
-
-          return {
-            ...DEFAULT_CHORD_TRACK,
-            ...track,
-            enabled: !currentlyEnabled,
-          };
-        }),
+        chords: [newTrack],
       };
     });
   };
 
   const drumTracks = tracks?.drums || {};
   const chordTracks = tracks?.chords || [];
+  const chordTrack = chordTracks[0] || {};
+  const chordsEnabled = chordTrack.enabled !== false;
 
   return (
-    <div className="music-sequencer">
+    <div
+      className={
+        "music-sequencer" + (isPlaying ? " sequencer-locked" : "")
+      }
+    >
       <div className="generator-panel">
         <h2>Chord Generator</h2>
 
@@ -177,12 +199,14 @@ export default function Sequencer({
             max="480"
             value={a4Frequency}
             onChange={(e) => setA4Frequency(Number(e.target.value))}
+            disabled={isPlaying}
           />
 
           <label>Root:</label>
           <select
             value={rootNote}
             onChange={(e) => setRootNote(e.target.value)}
+            disabled={isPlaying}
           >
             {NOTES.map((n) => (
               <option key={n}>{n}</option>
@@ -190,7 +214,11 @@ export default function Sequencer({
           </select>
 
           <label>Triad:</label>
-          <select value={triad} onChange={(e) => setTriad(e.target.value)}>
+          <select
+            value={triad}
+            onChange={(e) => setTriad(e.target.value)}
+            disabled={isPlaying}
+          >
             {Object.keys(TRIADS).map((t) => (
               <option key={t}>{t}</option>
             ))}
@@ -200,6 +228,7 @@ export default function Sequencer({
           <select
             value={extension}
             onChange={(e) => setExtension(e.target.value)}
+            disabled={isPlaying}
           >
             {Object.keys(EXTENSIONS).map((ext) => (
               <option key={ext} value={ext}>
@@ -212,6 +241,7 @@ export default function Sequencer({
           <select
             value={octave}
             onChange={(e) => setOctave(Number(e.target.value))}
+            disabled={isPlaying}
           >
             {[2, 3, 4, 5, 6].map((o) => (
               <option key={o}>{o}</option>
@@ -220,113 +250,223 @@ export default function Sequencer({
 
           <button
             onClick={addChord}
-            disabled={isDuplicateChord(rootNote, triad, extension)}
+            disabled={
+              isPlaying || isDuplicateChord(rootNote, triad, extension)
+            }
           >
             {isDuplicateChord(rootNote, triad, extension)
               ? "Already added"
               : "Add"}
           </button>
-
         </div>
       </div>
 
-      <div className="drum-grid">
-        <div className="drum-row drum-header">
-          <div className="drum-cell" />
-          {Array.from({ length: STEPS }).map((_, i) => (
+      {/* Corpo: grid + libreria chords affiancata */}
+      <div className="sequencer-body" style={{ display: "flex", gap: "16px" }}>
+        {/* GRID (drums + unica riga chords) */}
+        <div className="drum-grid" style={{ flex: 1 }}>
+          <div className="drum-row drum-header">
+            <div className="drum-cell" />
+            {Array.from({ length: STEPS }).map((_, i) => (
+              <div
+                key={i}
+                className={
+                  "drum-cell drum-header-cell" +
+                  (currentStep === i ? " playing" : "")
+                }
+              >
+                {i + 1}
+              </div>
+            ))}
+          </div>
+
+          {["kick", "snare", "hihat"].map((drumId) => {
+            const t = drumTracks[drumId] || {};
+            const enabled = t.enabled !== false;
+
+            return (
+              <div key={drumId} className="drum-row">
+                <div
+                  className={
+                    "drum-cell drum-name" + (enabled ? "" : " muted")
+                  }
+                  style={{ cursor: "pointer" }}
+                  onClick={(e) => {
+                    if (isPlaying) return;
+                    if (e.ctrlKey || e.metaKey) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleDrumTrackEnabled(drumId);
+                    } else {
+                      setOpenTrack({ type: "drum", id: drumId });
+                    }
+                  }}
+                >
+                  {drumId}
+                  {!enabled && <span className="mute-label"> (muted)</span>}
+                </div>
+
+                {Array.from({ length: STEPS }).map((_, step) => {
+                  const stepEventsRaw = safeSequence[step];
+                  const stepEvents = Array.isArray(stepEventsRaw)
+                    ? stepEventsRaw
+                    : [];
+                  const active = stepEvents.some(
+                    (ev) => ev.type === "drum" && ev.drum === drumId
+                  );
+
+                  return (
+                    <div
+                      key={step}
+                      className={
+                        "drum-cell drum-step" +
+                        (active ? " active" : "") +
+                        (currentStep === step ? " playing" : "")
+                      }
+                      onClick={() => {
+                        if (isPlaying) return;
+                        toggleDrum(step, drumId);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
+
+          {/* --- UNICA RIGA DEI CHORDS --- */}
+          <div className="drum-row">
             <div
-              key={i}
               className={
-                "drum-cell drum-header-cell" +
-                (currentStep === i ? " playing" : "")
+                "drum-cell drum-name" + (chordsEnabled ? "" : " muted")
               }
+              style={{ cursor: "pointer" }}
+              onClick={(e) => {
+                if (isPlaying) return;
+                if (e.ctrlKey || e.metaKey) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleChordTrackEnabled();
+                } else {
+                  setOpenTrack({ type: "chord", index: 0 });
+                }
+              }}
             >
-              {i + 1}
+              Chords
+              {!chordsEnabled && (
+                <span className="mute-label"> (muted)</span>
+              )}
             </div>
-          ))}
+
+            {Array.from({ length: STEPS }).map((_, step) => {
+              const stepEventsRaw = safeSequence[step];
+              const stepEvents = Array.isArray(stepEventsRaw)
+                ? stepEventsRaw
+                : [];
+
+              // prendiamo eventualmente il "primo" evento chord a questo step
+              const obj = stepEvents.find(
+                (ev) => ev && ev.type === "chord"
+              );
+
+              const isStart = obj?.start;
+              const isSustain = obj && !obj.start;
+
+              return (
+                <div
+                  key={step}
+                  className={
+                    "drum-cell drum-step chord-step" +
+                    (isStart ? " chord-start" : "") +
+                    (isSustain ? " chord-sustain" : "") +
+                    (currentStep === step ? " playing" : "")
+                  }
+                  onClick={(e) => {
+                    if (isPlaying) return;
+                    if (e.shiftKey) {
+                      if (isStart && obj) {
+                        changeSustain(step, obj.chordIndex, +1);
+                      }
+                    } else {
+                      if (!obj) {
+                        // step vuoto: aggiungo il chord selezionato
+                        if (
+                          selectedChordIndex !== null &&
+                          selectedChordIndex >= 0 &&
+                          selectedChordIndex < safeChords.length
+                        ) {
+                          addChordAt(step, selectedChordIndex);
+                        } else {
+                          console.warn(
+                            "Nessun chord selezionato nella libreria"
+                          );
+                        }
+                      } else if (isStart) {
+                        // rimuovo il chord esistente
+                        removeChordAt(step, obj.chordIndex);
+                      }
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
         </div>
 
-        {["kick", "snare", "hihat"].map((drumId) => {
-          const t = drumTracks[drumId] || {};
-          const enabled = t.enabled !== false;
-
-          return (
-            <div key={drumId} className="drum-row">
-              <div
-                className={
-                  "drum-cell drum-name" + (enabled ? "" : " muted")
-                }
-                style={{ cursor: "pointer" }}
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleDrumTrackEnabled(drumId);
-                  } else {
-                    setOpenTrack({ type: "drum", id: drumId });
-                  }
-                }}
-              >
-                {drumId}
-                {!enabled && <span className="mute-label"> (muted)</span>}
-              </div>
-
-              {Array.from({ length: STEPS }).map((_, step) => {
-                const stepEventsRaw = safeSequence[step];
-                const stepEvents = Array.isArray(stepEventsRaw)
-                  ? stepEventsRaw
-                  : [];
-                const active = stepEvents.some(
-                  (ev) => ev.type === "drum" && ev.drum === drumId
-                );
-
-                return (
-                  <div
-                    key={step}
-                    className={
-                      "drum-cell drum-step" +
-                      (active ? " active" : "") +
-                      (currentStep === step ? " playing" : "")
-                    }
-                    onClick={() => toggleDrum(step, drumId)}
-                  />
-                );
-              })}
+        {/* LIBRERIA CHORDS A LATO */}
+        <div
+          className="chord-library"
+          style={{
+            width: "220px",
+            borderLeft: "1px solid #444",
+            paddingLeft: "8px",
+          }}
+        >
+          <h3>Chord Library</h3>
+          {safeChords.length === 0 && (
+            <div style={{ fontSize: "0.9em", opacity: 0.7 }}>
+              Nessun accordo ancora. Usare il Chord Generator sopra per crearne
+              uno.
             </div>
-          );
-        })}
+          )}
 
-        {chords.map((ch, chordIndex) => {
-          const t = chordTracks[chordIndex] || {};
-          const enabled = t.enabled !== false;
-
-          return (
-            <div key={chordIndex} className="drum-row">
+          {safeChords.map((ch, i) => {
+            const isSelected = selectedChordIndex === i;
+            return (
               <div
+                key={i}
                 className={
-                  "drum-cell drum-name" + (enabled ? "" : " muted")
+                  "chord-library-item" + (isSelected ? " selected" : "")
                 }
-                style={{ cursor: "pointer" }}
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleChordTrackEnabled(chordIndex);
-                  } else {
-                    setOpenTrack({ type: "chord", index: chordIndex });
-                  }
+                style={{
+                  padding: "4px 6px",
+                  marginBottom: "4px",
+                  border: "1px solid #666",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  background: isSelected ? "#444" : "transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "4px",
+                  fontSize: "0.9em",
                 }}
+                onClick={() => setSelectedChordIndex(i)}
               >
-                {ch.root} {ch.triad} {ch.extension}
-                {!enabled && <span className="mute-label"> (muted)</span>}
+                <span>
+                  {ch.root} {ch.triad} {ch.extension}
+                </span>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onRemoveChord) onRemoveChord(chordIndex);
+                    if (isPlaying) return;
+                    if (onRemoveChord) onRemoveChord(i);
+                    if (selectedChordIndex === i) {
+                      setSelectedChordIndex(null);
+                    }
                   }}
                   style={{
-                    marginLeft: "8px",
                     background: "transparent",
                     border: "1px solid #888",
                     borderRadius: "4px",
@@ -337,49 +477,19 @@ export default function Sequencer({
                   ✕
                 </button>
               </div>
-
-              {Array.from({ length: STEPS }).map((_, step) => {
-                const stepEventsRaw = safeSequence[step];
-                const stepEvents = Array.isArray(stepEventsRaw)
-                  ? stepEventsRaw
-                  : [];
-
-                const obj = stepEvents.find(
-                  (ev) =>
-                    ev &&
-                    ev.type === "chord" &&
-                    ev.chordIndex === chordIndex
-                );
-
-                const isStart = obj?.start;
-                const isSustain = obj && !obj.start;
-
-                return (
-                  <div
-                    key={step}
-                    className={
-                      "drum-cell drum-step chord-step" +
-                      (isStart ? " chord-start" : "") +
-                      (isSustain ? " chord-sustain" : "") +
-                      (currentStep === step ? " playing" : "")
-                    }
-                    onClick={(e) => {
-                      if (e.shiftKey) {
-                        if (isStart) changeSustain(step, chordIndex, +1);
-                      } else {
-                        if (!obj) {
-                          addChordAt(step, chordIndex);
-                        } else if (isStart) {
-                          removeChordAt(step, chordIndex);
-                        }
-                      }
-                    }}
-                  />
-                );
-              })}
-            </div>
-          );
-        })}
+            );
+          })}
+          <div
+            style={{
+              marginTop: "8px",
+              fontSize: "0.8em",
+              opacity: 0.7,
+            }}
+          >
+            Seleziona un accordo e poi clicca su uno step vuoto della riga
+            "Chords" nel sequencer per inserirlo.
+          </div>
+        </div>
       </div>
     </div>
   );

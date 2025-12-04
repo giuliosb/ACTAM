@@ -25,7 +25,7 @@ function useToneEngine(bpm, masterVolume) {
         threshold: -18,
         ratio: 3,
         attack: 0.003,
-        release: 0.25,
+        release: 0,
       }).connect(Tone.Destination);
 
       Tone.Transport.bpm.value = bpm;
@@ -100,7 +100,7 @@ function useChordSynth(Tone) {
     const limiter = new Tone.Limiter(-1);
 
     const synth = new Tone.PolySynth(Tone.FMSynth, {
-      envelope: { attack: 0.03, decay: 0.3, sustain: 0.5, release: 1.0 },
+      envelope: { attack: 0.03, decay: 0.3, sustain: 0.5, release: 0 },
     });
 
     synth.chain(filter, chorus, reverb, panner, limiter, Tone.Destination);
@@ -154,7 +154,6 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
       (time) => {
         const s = stepCounter.current;
 
-        // safety: se steps è 0 o negativo, non facciamo nulla
         if (!Number.isFinite(steps) || steps <= 0) return;
 
         onStep(s);
@@ -205,20 +204,34 @@ export default function Player({
   tracks,
   onStep,
   onTracksChange,
+  onPlayStateChange, // callback per il parent
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [masterVolume, setMasterVolume] = useState(0);
+  const [chordVolume, setChordVolume] = useState(0); // dB per gli accordi
+
+  // wrapper che aggiorna stato locale + notifica il parent
+  const setPlaying = useCallback(
+    (value) => {
+      setIsPlaying(value);
+      if (typeof onPlayStateChange === "function") {
+        onPlayStateChange(value);
+      }
+    },
+    [onPlayStateChange]
+  );
 
   const { Tone, isReady } = useToneEngine(bpm, masterVolume);
   const { kick, snare, hihat } = useDrums(Tone);
   const chordSynth = useChordSynth(Tone);
 
-  // refs per ultima versione di sequence/chords/tracks/bpm
+  // refs per ultima versione di sequence/chords/tracks/bpm/vol accordi
   const sequenceRef = useRef(sequence);
   const chordsRef = useRef(chords);
   const tracksRef = useRef(tracks);
   const bpmRef = useRef(bpm);
+  const chordVolumeRef = useRef(chordVolume);
 
   useEffect(() => {
     sequenceRef.current = Array.isArray(sequence) ? sequence : [];
@@ -235,6 +248,10 @@ export default function Player({
   useEffect(() => {
     bpmRef.current = bpm;
   }, [bpm]);
+
+  useEffect(() => {
+    chordVolumeRef.current = chordVolume;
+  }, [chordVolume]);
 
   const handleDrumVolumeChange = (drumId, value) => {
     if (!onTracksChange) return;
@@ -259,7 +276,7 @@ export default function Player({
   };
 
   /* -----------------------------------------------
-     Chords (synth unico, senza parametri per track)
+     Chords (synth unico, con volume globale)
   ------------------------------------------------ */
   const playChord = useCallback(
     (index, freqs, sustain, time) => {
@@ -270,10 +287,14 @@ export default function Player({
       const chordTracks = tracks.chords || [];
       const t = chordTracks[index] ?? {};
 
-      // manteniamo solo il mute per track
+      // mute per track
       if (t.enabled === false) return;
 
       if (!Array.isArray(freqs) || freqs.length === 0) return;
+
+      // volume globale accordi in dB
+      const vol = chordVolumeRef.current ?? 0;
+      chain.synth.volume.value = vol;
 
       chain.synth.triggerAttackRelease(freqs, sustain, time);
     },
@@ -369,7 +390,7 @@ export default function Player({
     steps: STEPS,
     onStep,
     playStep,
-    setIsPlaying,
+    setIsPlaying: setPlaying,
   });
 
   return (
@@ -443,6 +464,20 @@ export default function Player({
             </div>
           );
         })}
+      </div>
+
+      <div style={{ marginTop: "10px" }}>
+        <h4>Chord Volume (dB)</h4>
+        <input
+          type="range"
+          min="-30"
+          max="6"
+          step="1"
+          value={chordVolume}
+          onChange={(e) => setChordVolume(Number(e.target.value))}
+          style={{ width: "200px" }}
+        />
+        <span style={{ marginLeft: "8px" }}>{chordVolume} dB</span>
       </div>
     </div>
   );

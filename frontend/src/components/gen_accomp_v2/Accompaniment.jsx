@@ -4,10 +4,11 @@ import Player from "./Player.jsx";
 import { STEPS, createEmptySequence } from "./musicConfig.js";
 
 export default function Accompaniment() {
-  // Total number of steps in the sequencer
+  // sequence & chords
   const [sequence, setSequence] = useState(createEmptySequence());
   const [chords, setChords] = useState([]);
 
+  // tracks (drums + chords)
   const [tracks, setTracks] = useState({
     drums: {
       kick: { volume: 0 },
@@ -19,6 +20,9 @@ export default function Accompaniment() {
 
   const [currentStep, setCurrentStep] = useState(-1);
   const [openTrack, setOpenTrack] = useState(null);
+
+  // nuovo stato globale di play
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const removeChord = (index) => {
     // 1) aggiorna chords
@@ -40,7 +44,6 @@ export default function Accompaniment() {
     // 3) pulisci la sequence
     const prevSeq = Array.isArray(sequence) ? sequence : [];
     let newSeq = prevSeq.map((step) =>
-      // step dovrebbe essere sempre un array, ma nel dubbio fallback a []
       (Array.isArray(step) ? step : []).filter(
         (ev) => ev.type !== "chord" || ev.chordIndex !== index
       )
@@ -73,6 +76,7 @@ export default function Accompaniment() {
         openTrack={openTrack}
         setOpenTrack={setOpenTrack}
         onRemoveChord={removeChord}
+        isPlaying={isPlaying}          // <-- bloccaremo l’editing qui dentro
       />
 
       <Player
@@ -81,6 +85,7 @@ export default function Accompaniment() {
         chords={chords}
         onStep={setCurrentStep}
         onTracksChange={setTracks}
+        onPlayStateChange={setIsPlaying}  // <-- Player notifica play/stop
       />
     </div>
   );
