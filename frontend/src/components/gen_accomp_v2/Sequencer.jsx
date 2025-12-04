@@ -25,7 +25,7 @@ export default function Sequencer({
   openTrack,
   setOpenTrack,
   onRemoveChord,
-  isPlaying, // <-- nuova prop dal parent
+  isPlaying,
 }) {
   const [a4Frequency, setA4Frequency] = useState(440);
   const [rootNote, setRootNote] = useState("C");
@@ -39,7 +39,7 @@ export default function Sequencer({
 
   const update = (updater) =>
     onSequenceChange((prevSequence) => {
-      if (isPlaying) return prevSequence; // blocca modifiche mentre suona
+      if (isPlaying) return prevSequence;
       const prevSafe = Array.isArray(prevSequence) ? prevSequence : [];
       const next = updater(prevSafe);
       return Array.isArray(next) ? next : prevSafe;
@@ -103,10 +103,7 @@ export default function Sequencer({
 
   const addChord = () => {
     if (isPlaying) return;
-    if (isDuplicateChord(rootNote, triad, extension)) {
-      console.warn("Chord already exists, skipping");
-      return;
-    }
+    if (isDuplicateChord(rootNote, triad, extension)) return;
 
     const notes = buildChordNotes();
 
@@ -117,7 +114,6 @@ export default function Sequencer({
 
     onChordsChange(newChords);
 
-    // assicurati che esista almeno UNA track per i chords (una sola riga)
     onTracksChange((prev) => {
       const safePrev = prev || {};
       const prevChordsTracks = safePrev.chords || [];
@@ -153,7 +149,6 @@ export default function Sequencer({
     });
   };
 
-  // Ora consideriamo un solo track per TUTTI i chords
   const toggleChordTrackEnabled = () => {
     if (isPlaying) return;
     onTracksChange((prev) => {
@@ -183,11 +178,7 @@ export default function Sequencer({
   const chordsEnabled = chordTrack.enabled !== false;
 
   return (
-    <div
-      className={
-        "music-sequencer" + (isPlaying ? " sequencer-locked" : "")
-      }
-    >
+    <div className={"music-sequencer" + (isPlaying ? " sequencer-locked" : "")}>
       <div className="generator-panel">
         <h2>Chord Generator</h2>
 
@@ -250,9 +241,7 @@ export default function Sequencer({
 
           <button
             onClick={addChord}
-            disabled={
-              isPlaying || isDuplicateChord(rootNote, triad, extension)
-            }
+            disabled={isPlaying || isDuplicateChord(rootNote, triad, extension)}
           >
             {isDuplicateChord(rootNote, triad, extension)
               ? "Already added"
@@ -261,10 +250,8 @@ export default function Sequencer({
         </div>
       </div>
 
-      {/* Corpo: grid + libreria chords affiancata */}
-      <div className="sequencer-body" style={{ display: "flex", gap: "16px" }}>
-        {/* GRID (drums + unica riga chords) */}
-        <div className="drum-grid" style={{ flex: 1 }}>
+      <div className="sequencer-body">
+        <div className="drum-grid">
           <div className="drum-row drum-header">
             <div className="drum-cell" />
             {Array.from({ length: STEPS }).map((_, i) => (
@@ -290,16 +277,10 @@ export default function Sequencer({
                   className={
                     "drum-cell drum-name" + (enabled ? "" : " muted")
                   }
-                  style={{ cursor: "pointer" }}
                   onClick={(e) => {
                     if (isPlaying) return;
-                    if (e.ctrlKey || e.metaKey) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleDrumTrackEnabled(drumId);
-                    } else {
-                      setOpenTrack({ type: "drum", id: drumId });
-                    }
+                    if (e.ctrlKey || e.metaKey) toggleDrumTrackEnabled(drumId);
+                    else setOpenTrack({ type: "drum", id: drumId });
                   }}
                 >
                   {drumId}
@@ -307,9 +288,8 @@ export default function Sequencer({
                 </div>
 
                 {Array.from({ length: STEPS }).map((_, step) => {
-                  const stepEventsRaw = safeSequence[step];
-                  const stepEvents = Array.isArray(stepEventsRaw)
-                    ? stepEventsRaw
+                  const stepEvents = Array.isArray(safeSequence[step])
+                    ? safeSequence[step]
                     : [];
                   const active = stepEvents.some(
                     (ev) => ev.type === "drum" && ev.drum === drumId
@@ -323,10 +303,7 @@ export default function Sequencer({
                         (active ? " active" : "") +
                         (currentStep === step ? " playing" : "")
                       }
-                      onClick={() => {
-                        if (isPlaying) return;
-                        toggleDrum(step, drumId);
-                      }}
+                      onClick={() => toggleDrum(step, drumId)}
                     />
                   );
                 })}
@@ -334,22 +311,15 @@ export default function Sequencer({
             );
           })}
 
-          {/* --- UNICA RIGA DEI CHORDS --- */}
           <div className="drum-row">
             <div
               className={
                 "drum-cell drum-name" + (chordsEnabled ? "" : " muted")
               }
-              style={{ cursor: "pointer" }}
               onClick={(e) => {
                 if (isPlaying) return;
-                if (e.ctrlKey || e.metaKey) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toggleChordTrackEnabled();
-                } else {
-                  setOpenTrack({ type: "chord", index: 0 });
-                }
+                if (e.ctrlKey || e.metaKey) toggleChordTrackEnabled();
+                else setOpenTrack({ type: "chord", index: 0 });
               }}
             >
               Chords
@@ -359,15 +329,10 @@ export default function Sequencer({
             </div>
 
             {Array.from({ length: STEPS }).map((_, step) => {
-              const stepEventsRaw = safeSequence[step];
-              const stepEvents = Array.isArray(stepEventsRaw)
-                ? stepEventsRaw
+              const stepEvents = Array.isArray(safeSequence[step])
+                ? safeSequence[step]
                 : [];
-
-              // prendiamo eventualmente il "primo" evento chord a questo step
-              const obj = stepEvents.find(
-                (ev) => ev && ev.type === "chord"
-              );
+              const obj = stepEvents.find((ev) => ev?.type === "chord");
 
               const isStart = obj?.start;
               const isSustain = obj && !obj.start;
@@ -383,28 +348,13 @@ export default function Sequencer({
                   }
                   onClick={(e) => {
                     if (isPlaying) return;
-                    if (e.shiftKey) {
-                      if (isStart && obj) {
-                        changeSustain(step, obj.chordIndex, +1);
-                      }
-                    } else {
-                      if (!obj) {
-                        // step vuoto: aggiungo il chord selezionato
-                        if (
-                          selectedChordIndex !== null &&
-                          selectedChordIndex >= 0 &&
-                          selectedChordIndex < safeChords.length
-                        ) {
-                          addChordAt(step, selectedChordIndex);
-                        } else {
-                          console.warn(
-                            "Nessun chord selezionato nella libreria"
-                          );
-                        }
-                      } else if (isStart) {
-                        // rimuovo il chord esistente
-                        removeChordAt(step, obj.chordIndex);
-                      }
+                    if (e.shiftKey && isStart) {
+                      changeSustain(step, obj.chordIndex, +1);
+                    } else if (!obj) {
+                      if (selectedChordIndex !== null)
+                        addChordAt(step, selectedChordIndex);
+                    } else if (isStart) {
+                      removeChordAt(step, obj.chordIndex);
                     }
                   }}
                 />
@@ -413,18 +363,11 @@ export default function Sequencer({
           </div>
         </div>
 
-        {/* LIBRERIA CHORDS A LATO */}
-        <div
-          className="chord-library"
-          style={{
-            width: "220px",
-            borderLeft: "1px solid #444",
-            paddingLeft: "8px",
-          }}
-        >
+        <div className="chord-library">
           <h3>Chord Library</h3>
+
           {safeChords.length === 0 && (
-            <div style={{ fontSize: "0.9em", opacity: 0.7 }}>
+            <div className="chord-library-empty">
               Nessun accordo ancora. Usare il Chord Generator sopra per crearne
               uno.
             </div>
@@ -438,19 +381,6 @@ export default function Sequencer({
                 className={
                   "chord-library-item" + (isSelected ? " selected" : "")
                 }
-                style={{
-                  padding: "4px 6px",
-                  marginBottom: "4px",
-                  border: "1px solid #666",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  background: isSelected ? "#444" : "transparent",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "4px",
-                  fontSize: "0.9em",
-                }}
                 onClick={() => setSelectedChordIndex(i)}
               >
                 <span>
@@ -458,20 +388,12 @@ export default function Sequencer({
                 </span>
                 <button
                   type="button"
+                  className="chord-library-remove"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (isPlaying) return;
                     if (onRemoveChord) onRemoveChord(i);
-                    if (selectedChordIndex === i) {
+                    if (selectedChordIndex === i)
                       setSelectedChordIndex(null);
-                    }
-                  }}
-                  style={{
-                    background: "transparent",
-                    border: "1px solid #888",
-                    borderRadius: "4px",
-                    padding: "0 6px",
-                    cursor: "pointer",
                   }}
                 >
                   ✕
@@ -479,13 +401,8 @@ export default function Sequencer({
               </div>
             );
           })}
-          <div
-            style={{
-              marginTop: "8px",
-              fontSize: "0.8em",
-              opacity: 0.7,
-            }}
-          >
+
+          <div className="chord-library-hint">
             Seleziona un accordo e poi clicca su uno step vuoto della riga
             "Chords" nel sequencer per inserirlo.
           </div>

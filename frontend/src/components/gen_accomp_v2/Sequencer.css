@@ -1,0 +1,148 @@
+.sequencer-body {
+    display: flex;
+    gap: 16px;
+  }
+  
+  .drum-grid {
+    flex: 1;
+  }
+  
+  /* ============================= */
+  /* ===== CHORD LIBRARY BASE ==== */
+  /* ============================= */
+  
+  .chord-library {
+    width: 220px;
+    border-left: 1px solid #444;
+    padding-left: 8px;
+  }
+  
+  .chord-library-empty {
+    font-size: 0.9em;
+    opacity: 0.7;
+  }
+  
+  .chord-library-item {
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    border: 1px solid #666;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #e6e6e6;
+    color: #111;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    font-size: 0.9em;
+  }
+  
+  .chord-library-item.selected {
+    background: #bdbdbd;
+  }
+  
+  .chord-library-remove {
+    background: transparent;
+    border: 1px solid #888;
+    border-radius: 4px;
+    padding: 0 6px;
+    cursor: pointer;
+    color: inherit;
+  }
+  
+  .chord-library-hint {
+    margin-top: 8px;
+    font-size: 0.8em;
+    opacity: 0.7;
+  }
+  
+  /* ============================= */
+  /* ===== DARK MODE OVERRIDES === */
+  /* ============================= */
+  
+  @media (prefers-color-scheme: dark) {
+    /* Header step numbers (1–16) */
+    .drum-header-cell {
+      background: #2a2a2a;
+      color: #ddd;
+    }
+  
+    /* Track labels: kick, snare, hihat, Chords */
+    .drum-name {
+      background: #2a2a2a;
+      color: #ddd;
+    }
+  
+    /* Empty steps */
+    .drum-step {
+      background: #202020;
+    }
+  
+    /* Active drum steps */
+    .drum-step.active {
+      background: #ff6a2d;
+    }
+  
+    /* Chord start */
+    .chord-step.chord-start {
+      background: #3fa94a;
+    }
+  
+    /* Chord sustain */
+    .chord-step.chord-sustain {
+      background: #78c47f;
+    }
+  
+    /* Chord library container */
+    .chord-library {
+      border-left: 1px solid #333;
+    }
+  
+    /* Chord library items */
+    .chord-library-item {
+      background: #2b2b2b;
+      color: #eaeaea;
+      border: 1px solid #444;
+    }
+  
+    .chord-library-item.selected {
+      background: #3a3a3a;
+    }
+  
+    .chord-library-remove {
+      border: 1px solid #666;
+      color: #eaeaea;
+    }
+  
+    .chord-library-hint {
+      color: #aaa;
+    }
+  
+    .chord-library-empty {
+      color: #aaa;
+    }
+  
+    /* Generator panel inputs */
+    .generator-panel input,
+    .generator-panel select {
+      background: #2a2a2a;
+      color: #eee;
+      border: 1px solid #555;
+    }
+  
+    .generator-panel button {
+      background: #2f2f2f;
+      color: #eee;
+      border: 1px solid #666;
+    }
+  
+    .generator-panel button:hover {
+      background: #3a3a3a;
+    }
+  
+    /* Muted labels */
+    .mute-label {
+      color: #aaa;
+    }
+  }
+  
