@@ -14,6 +14,62 @@ import {
   removeChordEvent,
 } from "./sequenceUtils";
 
+const ROOT_CLASS_MAP = {
+  C: "c",
+  G: "g",
+  D: "d",
+  A: "a",
+  E: "e",
+  B: "b",
+  "F#": "fsharp",
+  "C#": "csharp",
+  "D#": "dsharp",
+  "G#": "gsharp",
+  "A#": "asharp",
+  Db: "db",
+  Eb: "eb",
+  Ab: "ab",
+  Bb: "bb",
+  F: "f",
+};
+
+const TRIAD_CLASS_MAP = {
+  Major: "major",
+  Minor: "minor",
+  "Dim (-)": "dim",
+  "Aug (+)" : "aug",
+};
+const TRIAD_LABEL_MAP = {
+  "Dim (-)": "-",
+  "Aug (+)": "+",
+}
+const EXT_LABEL_MAP = {
+  "": "",
+  "6": "6",
+  "7": "7",
+  m7: "m7",
+  Maj7: "Δ7",
+  "9": "9",
+  "11": "11",
+  "13": "13",
+  Add9: "add9",
+  Sus2: "sus2",
+  Sus4: "sus4",
+};
+
+
+const getChordVisuals = (chord) => {
+  if (!chord) return {};
+  const rootClass = ROOT_CLASS_MAP[chord.root] || "";
+  const triadClass = TRIAD_CLASS_MAP[chord.triad] || "";
+  const triadPrefix = TRIAD_LABEL_MAP[chord.triad] || "";
+  const extSuffix =
+    EXT_LABEL_MAP[chord.extension] ?? chord.extension ?? "";
+  const extLabel = `${triadPrefix}${extSuffix}`;
+ 
+  return { rootClass, triadClass, extLabel };
+};
+
 export default function Sequencer({
   sequence,
   onSequenceChange,
@@ -334,6 +390,15 @@ export default function Sequencer({
                 : [];
               const obj = stepEvents.find((ev) => ev?.type === "chord");
 
+              const chordMeta = obj
+                ? getChordVisuals(safeChords[obj.chordIndex])
+                : {};
+              const rootClass = chordMeta.rootClass
+                ? ` chord-root-${chordMeta.rootClass}`
+                : "";
+              const triadClass = chordMeta.triadClass
+                ? ` triad-${chordMeta.triadClass}`
+                : "";
               const isStart = obj?.start;
               const isSustain = obj && !obj.start;
 
@@ -344,8 +409,11 @@ export default function Sequencer({
                     "drum-cell drum-step chord-step" +
                     (isStart ? " chord-start" : "") +
                     (isSustain ? " chord-sustain" : "") +
-                    (currentStep === step ? " playing" : "")
+                    (currentStep === step ? " playing" : "") +
+                    rootClass +
+                    triadClass
                   }
+                  data-ext-label={chordMeta.extLabel || ""}
                   onClick={(e) => {
                     if (isPlaying) return;
                     if (e.shiftKey && isStart) {
@@ -375,16 +443,21 @@ export default function Sequencer({
 
           {safeChords.map((ch, i) => {
             const isSelected = selectedChordIndex === i;
+            const chordMeta = getChordVisuals(ch);
             return (
               <div
                 key={i}
                 className={
                   "chord-library-item" + (isSelected ? " selected" : "")
+                  + (chordMeta.rootClass ? ` chord-root-${chordMeta.rootClass}` : "")
+                  + (chordMeta.triadClass ? ` triad-${chordMeta.triadClass}` : "")
                 }
                 onClick={() => setSelectedChordIndex(i)}
               >
-                <span>
-                  {ch.root} {ch.triad} {ch.extension}
+                <span className="chord-library-name">
+                  <span>{ch.root} </span>
+                  <span>{ch.triad} </span>
+                  {ch.extension && <span>{ch.extension}</span>}
                 </span>
                 <button
                   type="button"

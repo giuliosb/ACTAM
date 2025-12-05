@@ -8,8 +8,8 @@ export const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 export const TRIADS = {
   Major: [0, 4, 7],
   Minor: [0, 3, 7],
-  Dim:   [0, 3, 6],
-  Aug:   [0, 4, 8],
+  "Dim (-)" :   [0, 3, 6],
+  "Aug (+)" :   [0, 4, 8],
 };
 
 export const EXTENSIONS = {
