@@ -1,6 +1,6 @@
 // Global musical configuration and default track shapes
 
-export const STEPS = 16;
+export const STEPS = 64;
 
 // Pitch system
 export const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];

@@ -57,9 +57,16 @@
 
 .drum-grid {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drum-grid-block {
   display: grid;
   grid-template-columns: 140px repeat(16, 40px);
   gap: 2px;
+  width: 100%;
 }
 
 .drum-row {
@@ -269,4 +276,3 @@
 .chord-step[data-ext-label=""]::after {
   display: none;
 }
-

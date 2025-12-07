@@ -57,6 +57,8 @@ const EXT_LABEL_MAP = {
   Sus4: "sus4",
 };
 
+const STEPS_PER_BLOCK = 16;
+
 
 const getChordVisuals = (chord) => {
   if (!chord) return {};
@@ -232,6 +234,16 @@ export default function Sequencer({
   const chordTracks = tracks?.chords || [];
   const chordTrack = chordTracks[0] || {};
   const chordsEnabled = chordTrack.enabled !== false;
+  const blockCount = Math.ceil(STEPS / STEPS_PER_BLOCK);
+  const blocks = Array.from({ length: blockCount }, (_, blockIndex) => {
+    const start = blockIndex * STEPS_PER_BLOCK;
+    const end = Math.min(STEPS, start + STEPS_PER_BLOCK);
+    const steps = Array.from(
+      { length: Math.max(end - start, 0) },
+      (_, idx) => start + idx
+    );
+    return { start, steps };
+  });
 
   return (
     <div className={"music-sequencer" + (isPlaying ? " sequencer-locked" : "")}>
@@ -308,127 +320,138 @@ export default function Sequencer({
 
       <div className="sequencer-body">
         <div className="drum-grid">
-          <div className="drum-row drum-header">
-            <div className="drum-cell" />
-            {Array.from({ length: STEPS }).map((_, i) => (
-              <div
-                key={i}
-                className={
-                  "drum-cell drum-header-cell" +
-                  (currentStep === i ? " playing" : "")
-                }
-              >
-                {i + 1}
+          {blocks.map((block) => (
+            <div
+              key={`block-${block.start}`}
+              className="drum-grid-block"
+              style={{
+                gridTemplateColumns: `140px repeat(${block.steps.length}, 40px)`,
+              }}
+            >
+              <div className="drum-row drum-header">
+                <div className="drum-cell" />
+                {block.steps.map((step) => (
+                  <div
+                    key={step}
+                    className={
+                      "drum-cell drum-header-cell" +
+                      (currentStep === step ? " playing" : "")
+                    }
+                  >
+                    {step + 1}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {["kick", "snare", "hihat"].map((drumId) => {
-            const t = drumTracks[drumId] || {};
-            const enabled = t.enabled !== false;
+              {["kick", "snare", "hihat"].map((drumId) => {
+                const t = drumTracks[drumId] || {};
+                const enabled = t.enabled !== false;
 
-            return (
-              <div key={drumId} className="drum-row">
+                return (
+                  <div key={`${drumId}-${block.start}`} className="drum-row">
+                    <div
+                      className={
+                        "drum-cell drum-name" + (enabled ? "" : " muted")
+                      }
+                      onClick={(e) => {
+                        if (isPlaying) return;
+                        if (e.ctrlKey || e.metaKey)
+                          toggleDrumTrackEnabled(drumId);
+                        else setOpenTrack({ type: "drum", id: drumId });
+                      }}
+                    >
+                      {drumId}
+                      {!enabled && <span className="mute-label"> (muted)</span>}
+                    </div>
+
+                    {block.steps.map((step) => {
+                      const stepEvents = Array.isArray(safeSequence[step])
+                        ? safeSequence[step]
+                        : [];
+                      const active = stepEvents.some(
+                        (ev) => ev.type === "drum" && ev.drum === drumId
+                      );
+
+                      return (
+                        <div
+                          key={`${step}-${drumId}`}
+                          className={
+                            "drum-cell drum-step" +
+                            (active ? " active" : "") +
+                            (currentStep === step ? " playing" : "")
+                          }
+                          onClick={() => toggleDrum(step, drumId)}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              })}
+
+              <div className="drum-row">
                 <div
                   className={
-                    "drum-cell drum-name" + (enabled ? "" : " muted")
+                    "drum-cell drum-name" + (chordsEnabled ? "" : " muted")
                   }
                   onClick={(e) => {
                     if (isPlaying) return;
-                    if (e.ctrlKey || e.metaKey) toggleDrumTrackEnabled(drumId);
-                    else setOpenTrack({ type: "drum", id: drumId });
+                    if (e.ctrlKey || e.metaKey) toggleChordTrackEnabled();
+                    else setOpenTrack({ type: "chord", index: 0 });
                   }}
                 >
-                  {drumId}
-                  {!enabled && <span className="mute-label"> (muted)</span>}
+                  Chords
+                  {!chordsEnabled && (
+                    <span className="mute-label"> (muted)</span>
+                  )}
                 </div>
 
-                {Array.from({ length: STEPS }).map((_, step) => {
+                {block.steps.map((step) => {
                   const stepEvents = Array.isArray(safeSequence[step])
                     ? safeSequence[step]
                     : [];
-                  const active = stepEvents.some(
-                    (ev) => ev.type === "drum" && ev.drum === drumId
-                  );
+                  const obj = stepEvents.find((ev) => ev?.type === "chord");
+
+                  const chordMeta = obj
+                    ? getChordVisuals(safeChords[obj.chordIndex])
+                    : {};
+                  const rootClass = chordMeta.rootClass
+                    ? ` chord-root-${chordMeta.rootClass}`
+                    : "";
+                  const triadClass = chordMeta.triadClass
+                    ? ` triad-${chordMeta.triadClass}`
+                    : "";
+                  const isStart = obj?.start;
+                  const isSustain = obj && !obj.start;
 
                   return (
                     <div
-                      key={step}
+                      key={`chord-${step}`}
                       className={
-                        "drum-cell drum-step" +
-                        (active ? " active" : "") +
-                        (currentStep === step ? " playing" : "")
+                        "drum-cell drum-step chord-step" +
+                        (isStart ? " chord-start" : "") +
+                        (isSustain ? " chord-sustain" : "") +
+                        (currentStep === step ? " playing" : "") +
+                        rootClass +
+                        triadClass
                       }
-                      onClick={() => toggleDrum(step, drumId)}
+                      data-ext-label={chordMeta.extLabel || ""}
+                      onClick={(e) => {
+                        if (isPlaying) return;
+                        if (e.shiftKey && isStart) {
+                          changeSustain(step, obj.chordIndex, +1);
+                        } else if (!obj) {
+                          if (selectedChordIndex !== null)
+                            addChordAt(step, selectedChordIndex);
+                        } else if (isStart) {
+                          removeChordAt(step, obj.chordIndex);
+                        }
+                      }}
                     />
                   );
                 })}
               </div>
-            );
-          })}
-
-          <div className="drum-row">
-            <div
-              className={
-                "drum-cell drum-name" + (chordsEnabled ? "" : " muted")
-              }
-              onClick={(e) => {
-                if (isPlaying) return;
-                if (e.ctrlKey || e.metaKey) toggleChordTrackEnabled();
-                else setOpenTrack({ type: "chord", index: 0 });
-              }}
-            >
-              Chords
-              {!chordsEnabled && (
-                <span className="mute-label"> (muted)</span>
-              )}
             </div>
-
-            {Array.from({ length: STEPS }).map((_, step) => {
-              const stepEvents = Array.isArray(safeSequence[step])
-                ? safeSequence[step]
-                : [];
-              const obj = stepEvents.find((ev) => ev?.type === "chord");
-
-              const chordMeta = obj
-                ? getChordVisuals(safeChords[obj.chordIndex])
-                : {};
-              const rootClass = chordMeta.rootClass
-                ? ` chord-root-${chordMeta.rootClass}`
-                : "";
-              const triadClass = chordMeta.triadClass
-                ? ` triad-${chordMeta.triadClass}`
-                : "";
-              const isStart = obj?.start;
-              const isSustain = obj && !obj.start;
-
-              return (
-                <div
-                  key={step}
-                  className={
-                    "drum-cell drum-step chord-step" +
-                    (isStart ? " chord-start" : "") +
-                    (isSustain ? " chord-sustain" : "") +
-                    (currentStep === step ? " playing" : "") +
-                    rootClass +
-                    triadClass
-                  }
-                  data-ext-label={chordMeta.extLabel || ""}
-                  onClick={(e) => {
-                    if (isPlaying) return;
-                    if (e.shiftKey && isStart) {
-                      changeSustain(step, obj.chordIndex, +1);
-                    } else if (!obj) {
-                      if (selectedChordIndex !== null)
-                        addChordAt(step, selectedChordIndex);
-                    } else if (isStart) {
-                      removeChordAt(step, obj.chordIndex);
-                    }
-                  }}
-                />
-              );
-            })}
-          </div>
+          ))}
         </div>
 
         <div className="chord-library">
