@@ -5,6 +5,14 @@ import ChordSynth, {
   DEFAULT_CHORD_SYNTH_SETTINGS,
 } from "./ChordSynth.jsx";
 
+const HUMANIZE_MAX_DELAY = 0.03; // seconds of max note spread inside a chord
+const VELOCITY_BASE = 0.95;
+const VELOCITY_VARIATION = 0.25;
+const VELOCITY_MIN = 0.6;
+const VELOCITY_MAX = 1;
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
 /* -----------------------------------------------
    1. Tone Engine
 ------------------------------------------------ */
@@ -281,6 +289,13 @@ export default function Player({
 
       const vol = chordVolumeRef.current ?? 0;
       chain.synth.volume.value = vol;
+      
+      const maxSpread = Math.min(
+        HUMANIZE_MAX_DELAY,
+        Math.max(0, sustain) * 0.45
+      );
+      const spreadSteps = Math.max(freqs.length - 1, 1);
+      const startTime = Number.isFinite(time) ? time : undefined;
 
       try {
         chain.synth.triggerAttackRelease(freqs, sustain, time);
