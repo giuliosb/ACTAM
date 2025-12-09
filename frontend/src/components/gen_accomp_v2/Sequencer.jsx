@@ -374,7 +374,7 @@ export default function Sequencer({
         ))}
       </div>
 
-      {["kick", "snare", "hihat"].map((drumId) =>
+      {DRUM_IDS.map((drumId) =>
         renderDrumRow(drumId, block.steps, block.start)
       )}
 
