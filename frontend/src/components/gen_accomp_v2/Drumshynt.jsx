@@ -14,6 +14,13 @@ export const DEFAULT_DRUM_SYNTH_SETTINGS = {
   openhatResonance: 5400,
 };
 
+const DRUM_SAMPLE_URLS = {
+  kick: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+  snare: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+  hihat: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
+  openhat: "https://oramics.github.io/sampled/DM/TR-909/Detroit/samples/hihat-open-1.wav",
+};
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const safeNumber = (value, fallback) => {
   const parsed = Number(value);
@@ -115,68 +122,116 @@ export default function Drumshynt({ Tone, targetRef, settings }) {
     const bus = new Tone.Gain(normalizedSettings.busGain);
     bus.chain(compressor, reverb, limiter, Tone.Destination);
 
-    const kick = new Tone.MembraneSynth({
-      pitchDecay: normalizedSettings.kickPitchDecay,
-      octaves: normalizedSettings.kickOctaves,
-      envelope: {
-        attack: 0.001,
-        decay: normalizedSettings.kickDecay,
-        sustain: 0.01,
-        release: 0.2,
-      },
-    });
-    kick.connect(bus);
-
-    const snare = new Tone.NoiseSynth({
-      noise: { type: "white" },
-      envelope: {
-        attack: 0.001,
-        decay: normalizedSettings.snareDecay,
-        sustain: 0,
-        release: 0.08,
-      },
-    });
-    snare.connect(bus);
-
-    const hihat = new Tone.MetalSynth({
-      envelope: {
-        attack: 0.001,
-        decay: normalizedSettings.hihatDecay,
-        release: 0.05,
-      },
-      harmonicity: 5.1,
-      modulationIndex: 32,
-      resonance: normalizedSettings.hihatResonance,
-      octaves: 1.5,
-      volume: -8,
-    });
-    hihat.connect(bus);
-
-    const openhat = new Tone.MetalSynth({
-      envelope: {
-        attack: 0.001,
-        decay: normalizedSettings.openhatDecay,
-        release: 0.1,
-      },
-      harmonicity: 4.5,
-      modulationIndex: 28,
-      resonance: normalizedSettings.openhatResonance,
-      octaves: 1.8,
-      volume: -6,
-    });
-    openhat.connect(bus);
-
-    chainRef.current = {
-      kick,
-      snare,
-      hihat,
-      openhat,
+    const chain = {
       bus,
       compressor,
       reverb,
       limiter,
-      ready: true,
+      ready: false,
     };
+    chainRef.current = chain;
+
+    let pendingLoads = 0;
+
+    const markReady = () => {
+      pendingLoads = Math.max(0, pendingLoads - 1);
+      if (pendingLoads === 0 && chainRef.current) chainRef.current.ready = true;
+    };
+
+    const buildSampleOr = (id, createFallback) => {
+      const url = DRUM_SAMPLE_URLS[id];
+      let fallback;
+      const getFallback = () => {
+        if (!fallback) fallback = createFallback();
+        return fallback;
+      };
+
+      if (!url) return getFallback();
+
+      try {
+        pendingLoads += 1;
+        const player = new Tone.Player({
+          url,
+          onload: markReady,
+          onerror: (err) => {
+            console.warn(`Drum sample ${id} failed to load`, err);
+            markReady();
+            if (chainRef.current) {
+              chainRef.current[id]?.dispose?.();
+              const fb = getFallback();
+              chainRef.current[id] = fb;
+            }
+          },
+        }).connect(bus);
+        return player;
+      } catch (err) {
+        console.warn(`Drum sample ${id} initialization failed`, err);
+        markReady();
+        return getFallback();
+      }
+    };
+
+    const kick = buildSampleOr("kick", () =>
+      new Tone.MembraneSynth({
+        pitchDecay: normalizedSettings.kickPitchDecay,
+        octaves: normalizedSettings.kickOctaves,
+        envelope: {
+          attack: 0.001,
+          decay: normalizedSettings.kickDecay,
+          sustain: 0.01,
+          release: 0.2,
+        },
+      }).connect(bus)
+    );
+
+    const snare = buildSampleOr("snare", () =>
+      new Tone.NoiseSynth({
+        noise: { type: "white" },
+        envelope: {
+          attack: 0.001,
+          decay: normalizedSettings.snareDecay,
+          sustain: 0,
+          release: 0.08,
+        },
+      }).connect(bus)
+    );
+
+    const hihat = buildSampleOr("hihat", () =>
+      new Tone.MetalSynth({
+        envelope: {
+          attack: 0.001,
+          decay: normalizedSettings.hihatDecay,
+          release: 0.05,
+        },
+        harmonicity: 5.1,
+        modulationIndex: 32,
+        resonance: normalizedSettings.hihatResonance,
+        octaves: 1.5,
+        volume: -8,
+      }).connect(bus)
+    );
+
+    const openhat = buildSampleOr("openhat", () =>
+      new Tone.MetalSynth({
+        envelope: {
+          attack: 0.001,
+          decay: normalizedSettings.openhatDecay,
+          release: 0.1,
+        },
+        harmonicity: 4.5,
+        modulationIndex: 28,
+        resonance: normalizedSettings.openhatResonance,
+        octaves: 1.8,
+        volume: -6,
+      }).connect(bus)
+    );
+
+    chain.kick = kick;
+    chain.snare = snare;
+    chain.hihat = hihat;
+    chain.openhat = openhat;
+    chain.ready = pendingLoads === 0;
+    chainRef.current = chain;
 
     if (targetRef) targetRef.current = chainRef.current;
 

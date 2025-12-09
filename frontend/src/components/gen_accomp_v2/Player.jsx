@@ -306,6 +306,21 @@ export default function Player({
         drumTracks.enabled === undefined ? true : drumTracks.enabled;
 
       const drums = drumSynthRef.current || {};
+      if (drums.ready === false) return;
+
+      const triggerDrum = (node, note, duration, when) => {
+        if (!node) return;
+        try {
+          if (typeof node.start === "function") {
+            node.start(when);
+          } else if (typeof node.triggerAttackRelease === "function") {
+            node.triggerAttackRelease(note, duration, when);
+          }
+        } catch (err) {
+          console.warn("Drum trigger failed", err);
+        }
+      };
+
       const kick = drums.kick;
       const snare = drums.snare;
       const hihat = drums.hihat;
@@ -325,22 +340,22 @@ export default function Player({
         if (ev.drum === "kick") {
           const t = drumTracks.kick || {};
           if (t.enabled === false) continue;
-          kick?.triggerAttackRelease("C1", "8n", time);
+          triggerDrum(kick, "C1", "8n", time);
         }
         if (ev.drum === "snare") {
           const t = drumTracks.snare || {};
           if (t.enabled === false) continue;
-          snare?.triggerAttackRelease("8n", time);
+          triggerDrum(snare, undefined, "8n", time);
         }
         if (ev.drum === "hihat") {
           const t = drumTracks.hihat || {};
           if (t.enabled === false) continue;
-          hihat?.triggerAttackRelease("8n", time);
+          triggerDrum(hihat, undefined, "8n", time);
         }
         if (ev.drum === "openhat") {
           const t = drumTracks.openhat || {};
           if (t.enabled === false) continue;
-          openhat?.triggerAttackRelease("4n", time);
+          triggerDrum(openhat, undefined, "4n", time);
         }
       }
 
