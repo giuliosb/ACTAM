@@ -14,6 +14,8 @@ import {
   removeChordEvent,
 } from "./sequenceUtils";
 
+const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
+
 export default function Sequencer({
   sequence,
   onSequenceChange,
@@ -267,7 +269,7 @@ export default function Sequencer({
             ))}
           </div>
 
-          {["kick", "snare", "hihat"].map((drumId) => {
+          {DRUM_IDS.map((drumId) => {
             const t = drumTracks[drumId] || {};
             const enabled = t.enabled !== false;
 

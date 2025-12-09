@@ -4,12 +4,14 @@ import ChordSynth, {
   CHORD_INSTRUMENTS,
   DEFAULT_CHORD_SYNTH_SETTINGS,
 } from "./ChordSynth.jsx";
+import Drumshynt from "./Drumshynt.jsx";
 
 const HUMANIZE_MAX_DELAY = 0.03; // seconds of max note spread inside a chord
 const VELOCITY_BASE = 0.95;
 const VELOCITY_VARIATION = 0.25;
 const VELOCITY_MIN = 0.6;
 const VELOCITY_MAX = 1;
+const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -70,33 +72,7 @@ function useToneEngine(bpm, masterVolume) {
 }
 
 /* -----------------------------------------------
-   2. Drums
------------------------------------------------- */
-function useDrums(Tone) {
-  const kick = useRef(null);
-  const snare = useRef(null);
-  const hihat = useRef(null);
-
-  useEffect(() => {
-    if (!Tone) return;
-    if (kick.current) return;
-
-    kick.current = new Tone.MembraneSynth().toDestination();
-    snare.current = new Tone.NoiseSynth().toDestination();
-    hihat.current = new Tone.MetalSynth().toDestination();
-
-    return () => {
-      kick.current?.dispose();
-      snare.current?.dispose();
-      hihat.current?.dispose();
-    };
-  }, [Tone]);
-
-  return { kick, snare, hihat };
-}
-
-/* -----------------------------------------------
-   3. Transport
+   2. Transport
 ------------------------------------------------ */
 
 function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
@@ -182,7 +158,7 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
 
 
 /* -----------------------------------------------
-   4. Player Component
+   3. Player Component
    (sequencer "freezato" al Play)
 ------------------------------------------------ */
 export default function Player({
@@ -213,7 +189,7 @@ export default function Player({
   );
 
   const { Tone, isReady } = useToneEngine(bpm, masterVolume);
-  const { kick, snare, hihat } = useDrums(Tone);
+  const drumSynthRef = useRef(null);
   const chordSynthRef = useRef(null);
 
   // snapshot fisso di sequence/chords (congelato al Play)
@@ -329,13 +305,17 @@ export default function Player({
       const drumsEnabledGlobal =
         drumTracks.enabled === undefined ? true : drumTracks.enabled;
 
+      const drums = drumSynthRef.current || {};
+      const kick = drums.kick;
+      const snare = drums.snare;
+      const hihat = drums.hihat;
+      const openhat = drums.openhat;
+
       // volumi drums (live)
-      if (kick.current)
-        kick.current.volume.value = drumTracks.kick?.volume ?? 0;
-      if (snare.current)
-        snare.current.volume.value = drumTracks.snare?.volume ?? 0;
-      if (hihat.current)
-        hihat.current.volume.value = drumTracks.hihat?.volume ?? 0;
+      if (kick) kick.volume.value = drumTracks.kick?.volume ?? 0;
+      if (snare) snare.volume.value = drumTracks.snare?.volume ?? 0;
+      if (hihat) hihat.volume.value = drumTracks.hihat?.volume ?? 0;
+      if (openhat) openhat.volume.value = drumTracks.openhat?.volume ?? 0;
 
       // --- DRUM EVENTS ---
       for (const ev of evs) {
@@ -345,69 +325,74 @@ export default function Player({
         if (ev.drum === "kick") {
           const t = drumTracks.kick || {};
           if (t.enabled === false) continue;
-          kick.current?.triggerAttackRelease("C1", "8n", time);
+          kick?.triggerAttackRelease("C1", "8n", time);
         }
         if (ev.drum === "snare") {
           const t = drumTracks.snare || {};
           if (t.enabled === false) continue;
-          snare.current?.triggerAttackRelease("8n", time);
+          snare?.triggerAttackRelease("8n", time);
         }
         if (ev.drum === "hihat") {
           const t = drumTracks.hihat || {};
           if (t.enabled === false) continue;
-          hihat.current?.triggerAttackRelease("8n", time);
+          hihat?.triggerAttackRelease("8n", time);
+        }
+        if (ev.drum === "openhat") {
+          const t = drumTracks.openhat || {};
+          if (t.enabled === false) continue;
+          openhat?.triggerAttackRelease("4n", time);
         }
       }
 
       // --- CHORD EVENTS ---
-const chordTracksArr = tracksSnap.chords || [];
-// unica traccia globale per tutti i chords
-const chordGlobalTrack = chordTracksArr[0] || {};
-const chordsEnabledGlobal =
-  chordGlobalTrack.enabled === undefined
-    ? true
-    : chordGlobalTrack.enabled;
+      const chordTracksArr = tracksSnap.chords || [];
+      // unica traccia globale per tutti i chords
+      const chordGlobalTrack = chordTracksArr[0] || {};
+      const chordsEnabledGlobal =
+        chordGlobalTrack.enabled === undefined
+          ? true
+          : chordGlobalTrack.enabled;
 
-for (const ev of evs) {
-  if (!ev || ev.type !== "chord" || !ev.start) continue;
+      for (const ev of evs) {
+        if (!ev || ev.type !== "chord" || !ev.start) continue;
 
-  // se la traccia globale è mutata, non suoniamo alcun accordo
-  if (!chordsEnabledGlobal) break;
+        // se la traccia globale è mutata, non suoniamo alcun accordo
+        if (!chordsEnabledGlobal) break;
 
-  const chord = chordsSnap[ev.chordIndex];
-  if (!chord) continue;
+        const chord = chordsSnap[ev.chordIndex];
+        if (!chord) continue;
 
-  // opzionale: se in futuro vuoi un flag per singolo chord (es. chords[i].enabled = false)
-  if (chord.enabled === false) continue;
+        // opzionale: se in futuro vuoi un flag per singolo chord (es. chords[i].enabled = false)
+        if (chord.enabled === false) continue;
 
-  const notes = Array.isArray(chord.notes) ? chord.notes : [];
-  if (notes.length === 0) continue;
+        const notes = Array.isArray(chord.notes) ? chord.notes : [];
+        if (notes.length === 0) continue;
 
-  const freqs = notes
-    .map(
-      (n) =>
-        n &&
-        typeof n.freq === "number" &&
-        n.freq > 0 &&
-        n.freq
-    )
-    .filter(Boolean);
+        const freqs = notes
+          .map(
+            (n) =>
+              n &&
+              typeof n.freq === "number" &&
+              n.freq > 0 &&
+              n.freq
+          )
+          .filter(Boolean);
 
-  if (freqs.length === 0) continue;
+        if (freqs.length === 0) continue;
 
-  const stepDur = 60 / bpmSnap / 4;
-  const sustainFactor =
-    typeof ev.sustain === "number" && isFinite(ev.sustain)
-      ? ev.sustain
-      : 1;
-  const sustain = Math.max(0.03, sustainFactor * stepDur);
+        const stepDur = 60 / bpmSnap / 4;
+        const sustainFactor =
+          typeof ev.sustain === "number" && isFinite(ev.sustain)
+            ? ev.sustain
+            : 1;
+        const sustain = Math.max(0.03, sustainFactor * stepDur);
 
-  playChord(ev.chordIndex, freqs, sustain, time);
-  break; // un solo accordo per step
-}
+        playChord(ev.chordIndex, freqs, sustain, time);
+        break; // un solo accordo per step
+      }
 
     },
-    [kick, snare, hihat, playChord]
+    [playChord]
   );
 
   const { start, stop } = useTransport(Tone, {
@@ -426,6 +411,7 @@ for (const ev of evs) {
 
   return (
     <div style={{ marginBottom: "20px" }}>
+      <Drumshynt Tone={Tone} targetRef={drumSynthRef} />
       <ChordSynth
         Tone={Tone}
         targetRef={chordSynthRef}
@@ -470,7 +456,7 @@ for (const ev of evs) {
 
       <div style={{ marginTop: "10px" }}>
         <h4>Drum Volumes (dB)</h4>
-        {["kick", "snare", "hihat"].map((drumId) => {
+        {DRUM_IDS.map((drumId) => {
           const drumTracks = tracks?.drums || {};
           const vol = drumTracks[drumId]?.volume ?? 0;
 

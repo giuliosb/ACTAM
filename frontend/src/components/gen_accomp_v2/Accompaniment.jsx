@@ -14,6 +14,7 @@ export default function Accompaniment() {
       kick: { volume: 0 },
       snare: { volume: 0 },
       hihat: { volume: 0 },
+      openhat: { volume: 0 },
     },
     chords: [],
   });
