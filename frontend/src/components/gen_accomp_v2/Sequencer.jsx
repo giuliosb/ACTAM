@@ -12,6 +12,7 @@ import {
   addChordEvent,
   changeChordSustain,
   removeChordEvent,
+  clearChordSustainFromStep,
 } from "./sequenceUtils";
 
 const ROOT_CLASS_MAP = {
@@ -343,6 +344,19 @@ export default function Sequencer({
                   addChordAt(step, selectedChordIndex);
               } else if (isStart) {
                 removeChordAt(step, obj.chordIndex);
+              }
+              else {
+                if (selectedChordIndex === null) return;
+
+                update((prev) => {
+                  const trimmed = clearChordSustainFromStep(
+                    prev,
+                    step,
+                    obj.id,
+                    steps
+                  );
+                  return addChordEvent(trimmed, step, selectedChordIndex);
+                });
               }
             }}
           />

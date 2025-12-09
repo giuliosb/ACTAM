@@ -143,6 +143,68 @@ export function changeChordSustain(
 
   return newSeq;
 }
+
+export function clearChordSustainFromStep(
+  sequence,
+  step,
+  chordId,
+  steps = DEFAULT_STEPS
+) {
+  const newSeq = cloneSequence(sequence);
+  const maxSteps = ensureSteps(steps);
+
+  for (let i = step; i < maxSteps; i++) {
+    const events = newSeq[i] || [];
+    const filtered = events.filter(
+      (ev) =>
+        !(
+          ev.type === "chord" &&
+          ev.id === chordId &&
+          !ev.start
+        )
+    );
+    if (filtered.length === events.length) break;
+    newSeq[i] = filtered;
+  }
+
+  let startStep = null;
+  for (let i = step - 1; i >= 0; i--) {
+    const events = newSeq[i] || [];
+    if (
+      events.some(
+        (ev) => ev.type === "chord" && ev.id === chordId && ev.start
+      )
+    ) {
+      startStep = i;
+      break;
+    }
+  }
+
+  if (startStep !== null) {
+    const events = newSeq[startStep] || [];
+    const startObj = events.find(
+      (ev) => ev.type === "chord" && ev.id === chordId && ev.start
+    );
+
+    if (startObj) {
+      let newSustain = 1;
+      for (let i = startStep + 1; i < maxSteps; i++) {
+        const stepEvents = newSeq[i] || [];
+        const hasSustain = stepEvents.some(
+          (ev) =>
+            ev.type === "chord" &&
+            ev.id === chordId &&
+            !ev.start
+        );
+        if (!hasSustain) break;
+        newSustain++;
+      }
+      startObj.sustain = newSustain;
+    }
+  }
+
+  return newSeq;
+}
 // ------------------------------------------------------
 // REMOVE CHORD (start + sustain)
 // ------------------------------------------------------
