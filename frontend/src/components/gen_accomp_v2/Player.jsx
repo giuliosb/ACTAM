@@ -1,5 +1,20 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { DEFAULT_STEPS } from "./musicConfig";
+import ChordSynth, {
+  CHORD_INSTRUMENTS,
+  DEFAULT_CHORD_SYNTH_SETTINGS,
+} from "./ChordSynth.jsx";
+import Drumshynt, {
+  DEFAULT_DRUM_SOUND_SELECTION,
+  DEFAULT_DRUM_SYNTH_SETTINGS,
+  DRUM_SOUND_OPTIONS,
+} from "./Drumshynt.jsx";
+
+const HUMANIZE_MAX_DELAY = 0.03; // seconds of max note spread inside a chord
+
+const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 /* -----------------------------------------------
    1. Tone Engine
@@ -58,81 +73,7 @@ function useToneEngine(bpm, masterVolume) {
 }
 
 /* -----------------------------------------------
-   2. Drums
------------------------------------------------- */
-function useDrums(Tone) {
-  const kick = useRef(null);
-  const snare = useRef(null);
-  const hihat = useRef(null);
-
-  useEffect(() => {
-    if (!Tone) return;
-    if (kick.current) return;
-
-    kick.current = new Tone.MembraneSynth().toDestination();
-    snare.current = new Tone.NoiseSynth().toDestination();
-    hihat.current = new Tone.MetalSynth().toDestination();
-
-    return () => {
-      kick.current?.dispose();
-      snare.current?.dispose();
-      hihat.current?.dispose();
-    };
-  }, [Tone]);
-
-  return { kick, snare, hihat };
-}
-
-/* -----------------------------------------------
-   3. Chord Synth (unico, default)
------------------------------------------------- */
-function useChordSynth(Tone) {
-  const chordChainRef = useRef(null);
-
-  useEffect(() => {
-    if (!Tone) return;
-    if (chordChainRef.current) return; // già creato
-
-    const filter = new Tone.Filter(1500, "lowpass");
-    const chorus = new Tone.Chorus(4, 2.5).start();
-    const reverb = new Tone.Reverb({ decay: 3, preDelay: 0.01 });
-    const panner = new Tone.Panner(0);
-    const limiter = new Tone.Limiter(-1);
-
-    const synth = new Tone.PolySynth(Tone.FMSynth, {
-      envelope: { attack: 0.03, decay: 0.3, sustain: 0.5, release: 0 },
-    });
-
-    synth.chain(filter, chorus, reverb, panner, limiter, Tone.Destination);
-
-    chordChainRef.current = {
-      synth,
-      filter,
-      chorus,
-      reverb,
-      panner,
-      limiter,
-    };
-  }, [Tone]);
-
-  useEffect(() => {
-    return () => {
-      const chain = chordChainRef.current;
-      if (!chain) return;
-      chain.synth?.dispose();
-      chain.filter?.dispose();
-      chain.chorus?.dispose();
-      chain.reverb?.dispose();
-      chain.panner?.dispose();
-      chain.limiter?.dispose();
-    };
-  }, []);
-
-  return chordChainRef;
-}
-
-/* -----------------------------------------------
-   4. Transport
+   2. Transport
 ------------------------------------------------ */
 
 function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
@@ -218,7 +159,7 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
 
 
 /* -----------------------------------------------
-   5. Player Component
+   3. Player Component
    (sequencer "freezato" al Play)
 ------------------------------------------------ */
 export default function Player({
@@ -234,6 +175,13 @@ export default function Player({
   const [bpm, setBpm] = useState(120);
   const [masterVolume, setMasterVolume] = useState(0);
   const [chordVolume, setChordVolume] = useState(0); // dB per gli accordi
+  const [chordSynthSettings, setChordSynthSettings] = useState(
+    DEFAULT_CHORD_SYNTH_SETTINGS
+  );
+  const [drumSynthSettings, setDrumSynthSettings] = useState(() => ({
+    ...DEFAULT_DRUM_SYNTH_SETTINGS,
+    soundSelection: { ...DEFAULT_DRUM_SOUND_SELECTION },
+  }));
 
   // wrapper che aggiorna stato locale + notifica il parent
   const setPlaying = useCallback(
@@ -247,8 +195,8 @@ export default function Player({
   );
 
   const { Tone, isReady } = useToneEngine(bpm, masterVolume);
-  const { kick, snare, hihat } = useDrums(Tone);
-  const chordSynth = useChordSynth(Tone);
+  const drumSynthRef = useRef(null);
+  const chordSynthRef = useRef(null);
 
   // snapshot fisso di sequence/chords (congelato al Play)
   const sequenceRef = useRef(Array.isArray(sequence) ? sequence : []);
@@ -277,6 +225,35 @@ export default function Player({
     chordsRef.current = Array.isArray(chords) ? chords : [];
   }, [sequence, chords]);
 
+  const updateSynthSetting = useCallback(
+    (key, value) => {
+      if (isPlaying) return;
+      setChordSynthSettings((prev) => ({
+        ...prev,
+        [key]: value,
+      }));
+    },
+    [isPlaying]
+  );
+
+  const updateDrumSound = useCallback(
+    (drumId, soundId) => {
+      if (isPlaying) return;
+      setDrumSynthSettings((prev) => {
+        const prevSelection =
+          prev?.soundSelection || DEFAULT_DRUM_SOUND_SELECTION;
+        return {
+          ...prev,
+          soundSelection: {
+            ...prevSelection,
+            [drumId]: soundId,
+          },
+        };
+      });
+    },
+    [isPlaying]
+  );
+
   const handleDrumVolumeChange = (drumId, value) => {
     if (!onTracksChange) return;
     const vol = Number(value);
@@ -303,19 +280,31 @@ export default function Player({
      Chords (synth unico, con volume globale)
   ------------------------------------------------ */
   const playChord = useCallback(
-  (index, freqs, sustain, time) => {
-    const chain = chordSynth.current;
-    if (!chain) return;
+    (index, freqs, sustain, time) => {
+      const chain = chordSynthRef.current;
+      if (!chain || !chain.synth) return;
+      if (chain.ready === false) return;
 
-    if (!Array.isArray(freqs) || freqs.length === 0) return;
+      if (!Array.isArray(freqs) || freqs.length === 0) return;
 
-    const vol = chordVolumeRef.current ?? 0;
-    chain.synth.volume.value = vol;
+      const vol = chordVolumeRef.current ?? 0;
+      chain.synth.volume.value = vol;
+      
+      const maxSpread = Math.min(
+        HUMANIZE_MAX_DELAY,
+        Math.max(0, sustain) * 0.45
+      );
+      const spreadSteps = Math.max(freqs.length - 1, 1);
+      const startTime = Number.isFinite(time) ? time : undefined;
 
-    chain.synth.triggerAttackRelease(freqs, sustain, time);
-  },
-  [chordSynth]
-);
+      try {
+        chain.synth.triggerAttackRelease(freqs, sustain, time);
+      } catch (err) {
+        console.warn("Chord playback failed", err);
+      }
+    },
+    [chordSynthRef]
+  );
 
 
   /* -----------------------------------------------
@@ -340,13 +329,32 @@ export default function Player({
       const drumsEnabledGlobal =
         drumTracks.enabled === undefined ? true : drumTracks.enabled;
 
+      const drums = drumSynthRef.current || {};
+      if (drums.ready === false) return;
+
+      const triggerDrum = (node, note, duration, when) => {
+        if (!node) return;
+        try {
+          if (typeof node.start === "function") {
+            node.start(when);
+          } else if (typeof node.triggerAttackRelease === "function") {
+            node.triggerAttackRelease(note, duration, when);
+          }
+        } catch (err) {
+          console.warn("Drum trigger failed", err);
+        }
+      };
+
+      const kick = drums.kick;
+      const snare = drums.snare;
+      const hihat = drums.hihat;
+      const openhat = drums.openhat;
+
       // volumi drums (live)
-      if (kick.current)
-        kick.current.volume.value = drumTracks.kick?.volume ?? 0;
-      if (snare.current)
-        snare.current.volume.value = drumTracks.snare?.volume ?? 0;
-      if (hihat.current)
-        hihat.current.volume.value = drumTracks.hihat?.volume ?? 0;
+      if (kick) kick.volume.value = drumTracks.kick?.volume ?? 0;
+      if (snare) snare.volume.value = drumTracks.snare?.volume ?? 0;
+      if (hihat) hihat.volume.value = drumTracks.hihat?.volume ?? 0;
+      if (openhat) openhat.volume.value = drumTracks.openhat?.volume ?? 0;
 
       // --- DRUM EVENTS ---
       for (const ev of evs) {
@@ -356,69 +364,74 @@ export default function Player({
         if (ev.drum === "kick") {
           const t = drumTracks.kick || {};
           if (t.enabled === false) continue;
-          kick.current?.triggerAttackRelease("C1", "8n", time);
+          triggerDrum(kick, "C1", "8n", time);
         }
         if (ev.drum === "snare") {
           const t = drumTracks.snare || {};
           if (t.enabled === false) continue;
-          snare.current?.triggerAttackRelease("8n", time);
+          triggerDrum(snare, undefined, "8n", time);
         }
         if (ev.drum === "hihat") {
           const t = drumTracks.hihat || {};
           if (t.enabled === false) continue;
-          hihat.current?.triggerAttackRelease("8n", time);
+          triggerDrum(hihat, undefined, "8n", time);
+        }
+        if (ev.drum === "openhat") {
+          const t = drumTracks.openhat || {};
+          if (t.enabled === false) continue;
+          triggerDrum(openhat, undefined, "4n", time);
         }
       }
 
       // --- CHORD EVENTS ---
-const chordTracksArr = tracksSnap.chords || [];
-// unica traccia globale per tutti i chords
-const chordGlobalTrack = chordTracksArr[0] || {};
-const chordsEnabledGlobal =
-  chordGlobalTrack.enabled === undefined
-    ? true
-    : chordGlobalTrack.enabled;
+      const chordTracksArr = tracksSnap.chords || [];
+      // unica traccia globale per tutti i chords
+      const chordGlobalTrack = chordTracksArr[0] || {};
+      const chordsEnabledGlobal =
+        chordGlobalTrack.enabled === undefined
+          ? true
+          : chordGlobalTrack.enabled;
 
-for (const ev of evs) {
-  if (!ev || ev.type !== "chord" || !ev.start) continue;
+      for (const ev of evs) {
+        if (!ev || ev.type !== "chord" || !ev.start) continue;
 
-  // se la traccia globale è mutata, non suoniamo alcun accordo
-  if (!chordsEnabledGlobal) break;
+        // se la traccia globale è mutata, non suoniamo alcun accordo
+        if (!chordsEnabledGlobal) break;
 
-  const chord = chordsSnap[ev.chordIndex];
-  if (!chord) continue;
+        const chord = chordsSnap[ev.chordIndex];
+        if (!chord) continue;
 
-  // opzionale: se in futuro vuoi un flag per singolo chord (es. chords[i].enabled = false)
-  if (chord.enabled === false) continue;
+        // opzionale: se in futuro vuoi un flag per singolo chord (es. chords[i].enabled = false)
+        if (chord.enabled === false) continue;
 
-  const notes = Array.isArray(chord.notes) ? chord.notes : [];
-  if (notes.length === 0) continue;
+        const notes = Array.isArray(chord.notes) ? chord.notes : [];
+        if (notes.length === 0) continue;
 
-  const freqs = notes
-    .map(
-      (n) =>
-        n &&
-        typeof n.freq === "number" &&
-        n.freq > 0 &&
-        n.freq
-    )
-    .filter(Boolean);
+        const freqs = notes
+          .map(
+            (n) =>
+              n &&
+              typeof n.freq === "number" &&
+              n.freq > 0 &&
+              n.freq
+          )
+          .filter(Boolean);
 
-  if (freqs.length === 0) continue;
+        if (freqs.length === 0) continue;
 
-  const stepDur = 60 / bpmSnap / 4;
-  const sustainFactor =
-    typeof ev.sustain === "number" && isFinite(ev.sustain)
-      ? ev.sustain
-      : 1;
-  const sustain = Math.max(0.03, sustainFactor * stepDur);
+        const stepDur = 60 / bpmSnap / 4;
+        const sustainFactor =
+          typeof ev.sustain === "number" && isFinite(ev.sustain)
+            ? ev.sustain
+            : 1;
+        const sustain = Math.max(0.03, sustainFactor * stepDur);
 
-  playChord(ev.chordIndex, freqs, sustain, time);
-  break; // un solo accordo per step
-}
+        playChord(ev.chordIndex, freqs, sustain, time);
+        break; // un solo accordo per step
+      }
 
     },
-    [kick, snare, hihat, playChord]
+    [playChord]
   );
 
   const { start, stop } = useTransport(Tone, {
@@ -437,6 +450,16 @@ for (const ev of evs) {
 
   return (
     <div style={{ marginBottom: "20px" }}>
+      <Drumshynt
+        Tone={Tone}
+        targetRef={drumSynthRef}
+        settings={drumSynthSettings}
+      />
+      <ChordSynth
+        Tone={Tone}
+        targetRef={chordSynthRef}
+        settings={chordSynthSettings}
+      />
       <button onClick={isPlaying ? stop : handleStart} disabled={!isReady}>
         {isPlaying ? "Stop" : "Play"}
       </button>
@@ -470,15 +493,53 @@ for (const ev of evs) {
           onChange={(e) => setMasterVolume(Number(e.target.value))}
           step="1"
           style={{ width: "200px" }}
-        />
-        {masterVolume} dB
-      </div>
+      />
+      {masterVolume} dB
+    </div>
 
-      <div style={{ marginTop: "10px" }}>
-        <h4>Drum Volumes (dB)</h4>
-        {["kick", "snare", "hihat"].map((drumId) => {
-          const drumTracks = tracks?.drums || {};
-          const vol = drumTracks[drumId]?.volume ?? 0;
+    <div style={{ marginTop: "10px" }}>
+      <h4>Drum Sounds</h4>
+      {DRUM_IDS.map((drumId) => {
+        const selected =
+          drumSynthSettings.soundSelection?.[drumId] ??
+          DEFAULT_DRUM_SOUND_SELECTION[drumId];
+        const options = DRUM_SOUND_OPTIONS[drumId] || [];
+
+        return (
+          <div key={drumId} style={{ marginBottom: "6px" }}>
+            <label
+              htmlFor={`drum-sound-${drumId}`}
+              style={{
+                width: "90px",
+                display: "inline-block",
+                textTransform: "capitalize",
+              }}
+            >
+              {drumId} sound:
+            </label>
+            <select
+              id={`drum-sound-${drumId}`}
+              value={selected}
+              onChange={(e) => updateDrumSound(drumId, e.target.value)}
+              disabled={isPlaying}
+              style={{ marginLeft: "6px" }}
+            >
+              {options.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      })}
+    </div>
+
+    <div style={{ marginTop: "10px" }}>
+      <h4>Drum Volumes (dB)</h4>
+      {DRUM_IDS.map((drumId) => {
+        const drumTracks = tracks?.drums || {};
+        const vol = drumTracks[drumId]?.volume ?? 0;
 
           return (
             <div key={drumId} style={{ marginBottom: "6px" }}>
@@ -520,6 +581,150 @@ for (const ev of evs) {
           style={{ width: "200px" }}
         />
         <span style={{ marginLeft: "8px" }}>{chordVolume} dB</span>
+      </div>
+
+      <div style={{ marginTop: "10px" }}>
+        <h4>Chord Synth</h4>
+        <label htmlFor="chord-instrument">Instrument: </label>
+        <select
+          id="chord-instrument"
+          value={chordSynthSettings.instrument}
+          onChange={(e) => updateSynthSetting("instrument", e.target.value)}
+          disabled={isPlaying}
+          style={{ marginLeft: "10px" }}
+        >
+          {CHORD_INSTRUMENTS.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <div style={{ marginTop: "10px" }}>
+          <label style={{ display: "inline-block", width: "80px" }}>
+            Attack
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.01"
+            disabled={isPlaying}
+            value={chordSynthSettings.attack}
+            onChange={(e) =>
+              updateSynthSetting("attack", Number(e.target.value))
+            }
+            style={{ width: "200px" }}
+          />
+          <span style={{ marginLeft: "8px" }}>
+            {chordSynthSettings.attack.toFixed(2)}s
+          </span>
+        </div>
+
+        <div style={{ marginTop: "6px" }}>
+          <label style={{ display: "inline-block", width: "80px" }}>
+            Decay
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.01"
+            disabled={isPlaying}
+            value={chordSynthSettings.decay}
+            onChange={(e) =>
+              updateSynthSetting("decay", Number(e.target.value))
+            }
+            style={{ width: "200px" }}
+          />
+          <span style={{ marginLeft: "8px" }}>
+            {chordSynthSettings.decay.toFixed(2)}s
+          </span>
+        </div>
+
+        <div style={{ marginTop: "6px" }}>
+          <label style={{ display: "inline-block", width: "80px" }}>
+            Sustain
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            disabled={isPlaying}
+            value={chordSynthSettings.sustain}
+            onChange={(e) =>
+              updateSynthSetting("sustain", Number(e.target.value))
+            }
+            style={{ width: "200px" }}
+          />
+          <span style={{ marginLeft: "8px" }}>
+            {chordSynthSettings.sustain.toFixed(2)}
+          </span>
+        </div>
+
+        <div style={{ marginTop: "6px" }}>
+          <label style={{ display: "inline-block", width: "80px" }}>
+            Release
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="4"
+            step="0.05"
+            disabled={isPlaying}
+            value={chordSynthSettings.release}
+            onChange={(e) =>
+              updateSynthSetting("release", Number(e.target.value))
+            }
+            style={{ width: "200px" }}
+          />
+          <span style={{ marginLeft: "8px" }}>
+            {chordSynthSettings.release.toFixed(2)}s
+          </span>
+        </div>
+
+        <div style={{ marginTop: "6px" }}>
+          <label style={{ display: "inline-block", width: "80px" }}>
+            Filter
+          </label>
+          <input
+            type="range"
+            min="200"
+            max="8000"
+            step="50"
+            disabled={isPlaying}
+            value={chordSynthSettings.filterCutoff}
+            onChange={(e) =>
+              updateSynthSetting("filterCutoff", Number(e.target.value))
+            }
+            style={{ width: "200px" }}
+          />
+          <span style={{ marginLeft: "8px" }}>
+            {Math.round(chordSynthSettings.filterCutoff)} Hz
+          </span>
+        </div>
+
+        <div style={{ marginTop: "6px" }}>
+          <label style={{ display: "inline-block", width: "80px" }}>
+            Reverb
+          </label>
+          <input
+            type="range"
+            min="0.1"
+            max="10"
+            step="0.1"
+            disabled={isPlaying}
+            value={chordSynthSettings.reverbDecay}
+            onChange={(e) =>
+              updateSynthSetting("reverbDecay", Number(e.target.value))
+            }
+            style={{ width: "200px" }}
+          />
+          <span style={{ marginLeft: "8px" }}>
+            {chordSynthSettings.reverbDecay.toFixed(1)}s
+          </span>
+        </div>
       </div>
     </div>
   );
