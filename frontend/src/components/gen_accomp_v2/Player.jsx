@@ -1,5 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { DEFAULT_STEPS } from "./musicConfig";
+import ChordSynth, {
+  CHORD_INSTRUMENTS,
+  DEFAULT_CHORD_SYNTH_SETTINGS,
+} from "./ChordSynth.jsx";
 import Drumshynt, {
   DEFAULT_DRUM_SOUND_SELECTION,
   DEFAULT_DRUM_SYNTH_SETTINGS,
