@@ -486,6 +486,7 @@ export default function Sequencer({
                 </span>
                 <button
                   type="button"
+                  style={{ display: isPlaying ? "none" : "block" }}
                   className="chord-library-remove"
                   onClick={(e) => {
                     e.stopPropagation();

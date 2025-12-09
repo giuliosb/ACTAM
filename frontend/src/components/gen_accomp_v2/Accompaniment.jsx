@@ -6,7 +6,8 @@ import { DEFAULT_STEPS, createEmptySequence } from "./musicConfig.js";
 export default function Accompaniment() {
   // sequence & chords
   const [steps, setSteps] = useState(DEFAULT_STEPS);
-  const [stepsPerBlock, setStepsPerBlock] = useState(22);
+  const [blocks, setBlocks] = useState(2);
+  const [stepsPerBlock, setStepsPerBlock] = useState(16);
   const [sequence, setSequence] = useState(() =>
     createEmptySequence(DEFAULT_STEPS)
   );
@@ -87,30 +88,39 @@ export default function Accompaniment() {
     <div style={{ padding: "20px" }}>
       <h1>Music Sequencer</h1>
       <div style={{ marginBottom: "12px" }}>
-        <label style={{ marginRight: "10px" }}>Steps:</label>
-        <input
-          type="number"
-          min="1"
-          value={steps}
+        <label style={{ marginRight: "10px" }}>Number of blocks:</label>
+        <select
+          value={blocks}
           onChange={(e) => {
-            const parsed = Number(e.target.value);
-            if (!Number.isFinite(parsed)) return;
-            setSteps(Math.max(1, Math.floor(parsed)));
+              setBlocks(Number(e.target.value));
+              setSteps(Number(e.target.value) * stepsPerBlock);
           }}
-          style={{ width: "100px", marginRight: "20px" }}
-        />
-        <label style={{ marginRight: "10px" }}>Steps per row:</label>
-        <input
-          type="number"
-          min="1"
+          disabled={isPlaying}
+          style={{ width: "130px" }}
+        >
+          <option value={'1'}>1</option>
+          <option value={'2'}>2</option>
+          <option value={'3'}>3</option>
+          <option value={'4'}>4</option>
+        </select>
+
+        <label style={{ marginRight: "10px" }}>Metre:</label>
+        <select
           value={stepsPerBlock}
           onChange={(e) => {
-            const parsed = Number(e.target.value);
-            if (!Number.isFinite(parsed)) return;
-            setStepsPerBlock(Math.max(1, Math.floor(parsed)));
+            setStepsPerBlock(Number(e.target.value));
+            setSteps(blocks * Number(e.target.value));
           }}
-          style={{ width: "100px" }}
-        />
+          disabled={isPlaying}
+          style={{ width: "130px" }}
+        >
+          <option value={16}>4/4</option>
+          <option value={12}>3/4</option>
+          <option value={20}>5/4</option>
+          <option value={14}>7/8</option>
+          <option value={18}>9/8</option>
+          <option value={22}>11/8</option>
+        </select>
       </div>
 
       <Sequencer
@@ -124,7 +134,7 @@ export default function Accompaniment() {
         openTrack={openTrack}
         setOpenTrack={setOpenTrack}
         onRemoveChord={removeChord}
-        isPlaying={isPlaying}          // <-- bloccaremo l’editing qui dentro
+        isPlaying={isPlaying}          // <-- bloccaremo l’editing qui dentro blablablalba
         steps={steps}
         stepsPerBlock={stepsPerBlock}
       />
