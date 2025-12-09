@@ -70,7 +70,7 @@ export const DRUM_SOUND_OPTIONS = {
     },
     {
       id: "openhat-909.2",
-      label: "TR-808",
+      label: "TR-909.2",
       url: "https://oramics.github.io/sampled/DM/TR-909/Detroit/samples/hihat-open-2.wav",
       volume: -6,
       playbackRate: 0.95,
@@ -78,7 +78,7 @@ export const DRUM_SOUND_OPTIONS = {
     {
       id: "openhat-cr78",
       label: "CR-78",
-      url: "https://oramics.github.io/sampled/DM/TR-909/Detroit/samples/hihat-open-1.wav",
+      url: "https://raw.githubusercontent.com/fluid-music/open-drums/main/tr-909/hihat-open.wav",
       volume: -5,
       playbackRate: 1.05,
     },
