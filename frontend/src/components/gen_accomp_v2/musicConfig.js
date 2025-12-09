@@ -1,6 +1,6 @@
 // Global musical configuration and default track shapes
 
-export const DEFAULT_STEPS = 32;
+export const STEPS = 16;
 
 // Pitch system
 export const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -8,8 +8,8 @@ export const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 export const TRIADS = {
   Major: [0, 4, 7],
   Minor: [0, 3, 7],
-  "Dim (-)" :   [0, 3, 6],
-  "Aug (+)" :   [0, 4, 8],
+  Dim:   [0, 3, 6],
+  Aug:   [0, 4, 8],
 };
 
 export const EXTENSIONS = {
@@ -37,5 +37,5 @@ export const DEFAULT_CHORD_TRACK = {
 };
 
 // Utility per creare una sequenza vuota
-export const createEmptySequence = (steps = DEFAULT_STEPS) =>
+export const createEmptySequence = (steps = STEPS) =>
   Array.from({ length: steps }, () => []);

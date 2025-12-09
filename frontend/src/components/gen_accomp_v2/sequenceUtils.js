@@ -1,8 +1,5 @@
 // sequenceUtils.js
-import { DEFAULT_STEPS } from "./musicConfig";
-
-const ensureSteps = (steps) =>
-  Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
+import { STEPS } from "./musicConfig";
 
 // Funzione di utilità per copiare la sequenza (copia shallow di ogni step)
 const cloneSequence = (sequence) =>
@@ -50,15 +47,8 @@ export function addChordEvent(sequence, step, chordIndex) {
 // ------------------------------------------------------
 // CHANGE SUSTAIN
 // ------------------------------------------------------
-export function changeChordSustain(
-  sequence,
-  stepIndex,
-  chordIndex,
-  delta,
-  steps = DEFAULT_STEPS
-) {
+export function changeChordSustain(sequence, stepIndex, chordIndex, delta) {
   const newSeq = cloneSequence(sequence);
-  const maxSteps = ensureSteps(steps);
 
   const stepEvents = newSeq[stepIndex] || [];
   const startObj = stepEvents.find(
@@ -75,7 +65,7 @@ export function changeChordSustain(
 
   // 1️. Calculate the CURRENT sustain length by scanning forward
   let currentLen = 1; // includes the start cell
-  for (let i = stepIndex + 1; i < maxSteps; i++) {
+  for (let i = stepIndex + 1; i < STEPS; i++) {
     const evs = newSeq[i] || [];
     const hasSustain = evs.some(
       (ev) =>
@@ -94,20 +84,20 @@ export function changeChordSustain(
 
   // Hard stop when another chord is encountered
   const hardLimit = (() => {
-    for (let i = stepIndex + 1; i < maxSteps; i++) {
+    for (let i = stepIndex + 1; i < STEPS; i++) {
       const evs = newSeq[i] || [];
       const hasOtherChord = evs.some(
         (ev) => ev.type === "chord" && ev.id !== id
       );
       if (hasOtherChord) return i - stepIndex;
     }
-    return maxSteps - stepIndex;
+    return STEPS - stepIndex;
   })();
 
   if (newLen > hardLimit) newLen = hardLimit;
 
   // 3️. Remove ALL existing sustain cells for this chord
-  for (let i = stepIndex + 1; i < maxSteps; i++) {
+  for (let i = stepIndex + 1; i < STEPS; i++) {
     const evs = newSeq[i] || [];
     if (!evs.length) continue;
 
@@ -119,7 +109,7 @@ export function changeChordSustain(
   // 4️. Add new sustain cells ONLY on empty steps
   for (let offset = 1; offset < newLen; offset++) {
     const s = stepIndex + offset;
-    if (s >= maxSteps) break;
+    if (s >= STEPS) break;
 
     const evs = newSeq[s] || [];
 
@@ -146,14 +136,8 @@ export function changeChordSustain(
 // ------------------------------------------------------
 // REMOVE CHORD (start + sustain)
 // ------------------------------------------------------
-export function removeChordEvent(
-  sequence,
-  step,
-  chordIndex,
-  steps = DEFAULT_STEPS
-) {
+export function removeChordEvent(sequence, step, chordIndex) {
   const newSeq = cloneSequence(sequence);
-  const maxSteps = ensureSteps(steps);
 
   const startEvents = newSeq[step] || [];
   const startObj = startEvents.find(
@@ -170,7 +154,7 @@ export function removeChordEvent(
   newSeq[step] = startEvents.filter((ev) => ev.id !== id);
 
   // Rimuovi la "scia" di sustain
-  for (let i = step + 1; i < maxSteps; i++) {
+  for (let i = step + 1; i < STEPS; i++) {
     const stepEvents = newSeq[i] || [];
     if (!stepEvents.length) continue;
 
