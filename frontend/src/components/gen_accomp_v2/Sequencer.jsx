@@ -1,7 +1,7 @@
 import { useState } from "react";
 import "./Sequencer.css";
 import {
-  STEPS,
+  DEFAULT_STEPS,
   NOTES,
   TRIADS,
   EXTENSIONS,
@@ -57,8 +57,7 @@ const EXT_LABEL_MAP = {
   Sus4: "sus4",
 };
 
-const STEPS_PER_BLOCK = 16;
-
+const DEFAULT_STEPS_PER_BLOCK = 22; // If we want something other than 4/4, this should be changed
 
 const getChordVisuals = (chord) => {
   if (!chord) return {};
@@ -84,6 +83,8 @@ export default function Sequencer({
   setOpenTrack,
   onRemoveChord,
   isPlaying,
+  steps = DEFAULT_STEPS,
+  stepsPerBlock = DEFAULT_STEPS_PER_BLOCK,
 }) {
   const [a4Frequency, setA4Frequency] = useState(440);
   const [rootNote, setRootNote] = useState("C");
@@ -115,12 +116,14 @@ export default function Sequencer({
 
   const changeSustain = (stepIndex, chordIndex, delta) => {
     if (isPlaying) return;
-    update((prev) => changeChordSustain(prev, stepIndex, chordIndex, delta));
+    update((prev) =>
+      changeChordSustain(prev, stepIndex, chordIndex, delta, steps)
+    );
   };
 
   const removeChordAt = (step, chordIndex) => {
     if (isPlaying) return;
-    update((prev) => removeChordEvent(prev, step, chordIndex));
+    update((prev) => removeChordEvent(prev, step, chordIndex, steps));
   };
 
   const noteFrequency = (note, octave) => {
@@ -234,15 +237,15 @@ export default function Sequencer({
   const chordTracks = tracks?.chords || [];
   const chordTrack = chordTracks[0] || {};
   const chordsEnabled = chordTrack.enabled !== false;
-  const blockCount = Math.ceil(STEPS / STEPS_PER_BLOCK);
+  const blockCount = Math.ceil(steps / stepsPerBlock);
   const blocks = Array.from({ length: blockCount }, (_, blockIndex) => {
-    const start = blockIndex * STEPS_PER_BLOCK;
-    const end = Math.min(STEPS, start + STEPS_PER_BLOCK);
-    const steps = Array.from(
+    const start = blockIndex * stepsPerBlock;
+    const end = Math.min(steps, start + stepsPerBlock);
+    const blockSteps = Array.from(
       { length: Math.max(end - start, 0) },
       (_, idx) => start + idx
     );
-    return { start, steps };
+    return { start, steps: blockSteps };
   });
 
   const renderDrumRow = (drumId, blockSteps, blockStart) => {

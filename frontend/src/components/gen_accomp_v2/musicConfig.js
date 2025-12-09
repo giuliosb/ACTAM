@@ -1,6 +1,6 @@
 // Global musical configuration and default track shapes
 
-export const STEPS = 64;
+export const DEFAULT_STEPS = 80;
 
 // Pitch system
 export const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -37,5 +37,5 @@ export const DEFAULT_CHORD_TRACK = {
 };
 
 // Utility per creare una sequenza vuota
-export const createEmptySequence = (steps = STEPS) =>
+export const createEmptySequence = (steps = DEFAULT_STEPS) =>
   Array.from({ length: steps }, () => []);

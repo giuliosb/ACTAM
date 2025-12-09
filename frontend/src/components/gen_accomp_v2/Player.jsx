@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { STEPS } from "./musicConfig";
+import { DEFAULT_STEPS } from "./musicConfig";
 
 /* -----------------------------------------------
    1. Tone Engine
@@ -228,6 +228,7 @@ export default function Player({
   onStep,
   onTracksChange,
   onPlayStateChange,
+  steps = DEFAULT_STEPS,
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
@@ -421,7 +422,7 @@ for (const ev of evs) {
   );
 
   const { start, stop } = useTransport(Tone, {
-    steps: STEPS,
+    steps,
     onStep,
     playStep,
     setIsPlaying: setPlaying,
