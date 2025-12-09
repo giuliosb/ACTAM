@@ -4,13 +4,14 @@ import ChordSynth, {
   CHORD_INSTRUMENTS,
   DEFAULT_CHORD_SYNTH_SETTINGS,
 } from "./ChordSynth.jsx";
-import Drumshynt from "./Drumshynt.jsx";
+import Drumshynt, {
+  DEFAULT_DRUM_SOUND_SELECTION,
+  DEFAULT_DRUM_SYNTH_SETTINGS,
+  DRUM_SOUND_OPTIONS,
+} from "./Drumshynt.jsx";
 
 const HUMANIZE_MAX_DELAY = 0.03; // seconds of max note spread inside a chord
-const VELOCITY_BASE = 0.95;
-const VELOCITY_VARIATION = 0.25;
-const VELOCITY_MIN = 0.6;
-const VELOCITY_MAX = 1;
+
 const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -176,6 +177,10 @@ export default function Player({
   const [chordSynthSettings, setChordSynthSettings] = useState(
     DEFAULT_CHORD_SYNTH_SETTINGS
   );
+  const [drumSynthSettings, setDrumSynthSettings] = useState(() => ({
+    ...DEFAULT_DRUM_SYNTH_SETTINGS,
+    soundSelection: { ...DEFAULT_DRUM_SOUND_SELECTION },
+  }));
 
   // wrapper che aggiorna stato locale + notifica il parent
   const setPlaying = useCallback(
@@ -226,6 +231,24 @@ export default function Player({
         ...prev,
         [key]: value,
       }));
+    },
+    [isPlaying]
+  );
+
+  const updateDrumSound = useCallback(
+    (drumId, soundId) => {
+      if (isPlaying) return;
+      setDrumSynthSettings((prev) => {
+        const prevSelection =
+          prev?.soundSelection || DEFAULT_DRUM_SOUND_SELECTION;
+        return {
+          ...prev,
+          soundSelection: {
+            ...prevSelection,
+            [drumId]: soundId,
+          },
+        };
+      });
     },
     [isPlaying]
   );
@@ -426,7 +449,11 @@ export default function Player({
 
   return (
     <div style={{ marginBottom: "20px" }}>
-      <Drumshynt Tone={Tone} targetRef={drumSynthRef} />
+      <Drumshynt
+        Tone={Tone}
+        targetRef={drumSynthRef}
+        settings={drumSynthSettings}
+      />
       <ChordSynth
         Tone={Tone}
         targetRef={chordSynthRef}
@@ -465,15 +492,53 @@ export default function Player({
           onChange={(e) => setMasterVolume(Number(e.target.value))}
           step="1"
           style={{ width: "200px" }}
-        />
-        {masterVolume} dB
-      </div>
+      />
+      {masterVolume} dB
+    </div>
 
-      <div style={{ marginTop: "10px" }}>
-        <h4>Drum Volumes (dB)</h4>
-        {DRUM_IDS.map((drumId) => {
-          const drumTracks = tracks?.drums || {};
-          const vol = drumTracks[drumId]?.volume ?? 0;
+    <div style={{ marginTop: "10px" }}>
+      <h4>Drum Sounds</h4>
+      {DRUM_IDS.map((drumId) => {
+        const selected =
+          drumSynthSettings.soundSelection?.[drumId] ??
+          DEFAULT_DRUM_SOUND_SELECTION[drumId];
+        const options = DRUM_SOUND_OPTIONS[drumId] || [];
+
+        return (
+          <div key={drumId} style={{ marginBottom: "6px" }}>
+            <label
+              htmlFor={`drum-sound-${drumId}`}
+              style={{
+                width: "90px",
+                display: "inline-block",
+                textTransform: "capitalize",
+              }}
+            >
+              {drumId} sound:
+            </label>
+            <select
+              id={`drum-sound-${drumId}`}
+              value={selected}
+              onChange={(e) => updateDrumSound(drumId, e.target.value)}
+              disabled={isPlaying}
+              style={{ marginLeft: "6px" }}
+            >
+              {options.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      })}
+    </div>
+
+    <div style={{ marginTop: "10px" }}>
+      <h4>Drum Volumes (dB)</h4>
+      {DRUM_IDS.map((drumId) => {
+        const drumTracks = tracks?.drums || {};
+        const vol = drumTracks[drumId]?.volume ?? 0;
 
           return (
             <div key={drumId} style={{ marginBottom: "6px" }}>

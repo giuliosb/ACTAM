@@ -1,5 +1,98 @@
 import { useEffect, useMemo, useRef } from "react";
 
+export const DRUM_SOUND_OPTIONS = {
+  kick: [
+    {
+      id: "kick-cr78",
+      label: "CR-78",
+      url: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+      volume: -2,
+    },
+    {
+      id: "kick-808",
+      label: "TR-808",
+      url: "https://tonejs.github.io/audio/drum-samples/808/kick.mp3",
+      volume: -1,
+    },
+    {
+      id: "kick-909",
+      label: "TR-909",
+      url: "https://tonejs.github.io/audio/drum-samples/909/kick.mp3",
+      volume: -1,
+    },
+  ],
+  snare: [
+    {
+      id: "snare-cr78",
+      label: "CR-78",
+      url: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+      volume: -4,
+    },
+    {
+      id: "snare-808",
+      label: "TR-808",
+      url: "https://tonejs.github.io/audio/drum-samples/808/snare.mp3",
+      volume: -3,
+    },
+    {
+      id: "snare-909",
+      label: "TR-909",
+      url: "https://tonejs.github.io/audio/drum-samples/909/snare.mp3",
+      volume: -3,
+    },
+  ],
+  hihat: [
+    {
+      id: "hihat-cr78",
+      label: "CR-78",
+      url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
+      volume: -6,
+    },
+    {
+      id: "hihat-808",
+      label: "TR-808",
+      url: "https://tonejs.github.io/audio/drum-samples/808/hihat.mp3",
+      volume: -5,
+    },
+    {
+      id: "hihat-909",
+      label: "TR-909",
+      url: "https://tonejs.github.io/audio/drum-samples/909/hihat.mp3",
+      volume: -6,
+    },
+  ],
+  openhat: [
+    {
+      id: "openhat-909",
+      label: "TR-909",
+      url: "https://oramics.github.io/sampled/DM/TR-909/Detroit/samples/hihat-open-1.wav",
+      volume: -4,
+    },
+    {
+      id: "openhat-909.2",
+      label: "TR-808",
+      url: "https://oramics.github.io/sampled/DM/TR-909/Detroit/samples/hihat-open-2.wav",
+      volume: -6,
+      playbackRate: 0.95,
+    },
+    {
+      id: "openhat-cr78",
+      label: "CR-78",
+      url: "https://oramics.github.io/sampled/DM/TR-909/Detroit/samples/hihat-open-1.wav",
+      volume: -5,
+      playbackRate: 1.05,
+    },
+  ],
+};
+
+export const DEFAULT_DRUM_SOUND_SELECTION = Object.entries(DRUM_SOUND_OPTIONS).reduce(
+  (acc, [drumId, options]) => {
+    acc[drumId] = options?.[0]?.id || "";
+    return acc;
+  },
+  {}
+);
+
 export const DEFAULT_DRUM_SYNTH_SETTINGS = {
   busGain: 1,
   reverbDecay: 1.4,
@@ -12,13 +105,7 @@ export const DEFAULT_DRUM_SYNTH_SETTINGS = {
   hihatResonance: 5200,
   openhatDecay: 0.32,
   openhatResonance: 5400,
-};
-
-const DRUM_SAMPLE_URLS = {
-  kick: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
-  snare: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
-  hihat: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
-  openhat: "https://oramics.github.io/sampled/DM/TR-909/Detroit/samples/hihat-open-1.wav",
+  soundSelection: DEFAULT_DRUM_SOUND_SELECTION,
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -49,6 +136,22 @@ export default function Drumshynt({ Tone, targetRef, settings }) {
 
   const normalizedSettings = useMemo(() => {
     const merged = { ...DEFAULT_DRUM_SYNTH_SETTINGS, ...(settings || {}) };
+    const desiredSelection = {
+      ...DEFAULT_DRUM_SOUND_SELECTION,
+      ...(merged.soundSelection || {}),
+    };
+    const soundSelection = Object.entries(DRUM_SOUND_OPTIONS).reduce(
+      (acc, [drumId, options]) => {
+        const wanted = desiredSelection[drumId];
+        const valid = options.some((opt) => opt.id === wanted);
+        acc[drumId] = valid
+          ? wanted
+          : DEFAULT_DRUM_SOUND_SELECTION[drumId] || options?.[0]?.id || "";
+        return acc;
+      },
+      {}
+    );
+
     return {
       busGain: clamp(safeNumber(merged.busGain, DEFAULT_DRUM_SYNTH_SETTINGS.busGain), 0.2, 2.5),
       reverbDecay: clamp(
@@ -97,6 +200,7 @@ export default function Drumshynt({ Tone, targetRef, settings }) {
         1000,
         10000
       ),
+      soundSelection,
     };
   }, [settings]);
 
@@ -138,93 +242,64 @@ export default function Drumshynt({ Tone, targetRef, settings }) {
       if (pendingLoads === 0 && chainRef.current) chainRef.current.ready = true;
     };
 
-    const buildSampleOr = (id, createFallback) => {
-      const url = DRUM_SAMPLE_URLS[id];
-      let fallback;
-      const getFallback = () => {
-        if (!fallback) fallback = createFallback();
-        return fallback;
-      };
-
-      if (!url) return getFallback();
+    const createSamplePlayer = (drumId, soundOption, fallbackOption) => {
+      if (!soundOption?.url) return null;
 
       try {
         pendingLoads += 1;
         const player = new Tone.Player({
-          url,
+          url: soundOption.url,
           onload: markReady,
           onerror: (err) => {
-            console.warn(`Drum sample ${id} failed to load`, err);
+            console.warn(`Drum sample ${drumId} (${soundOption.id}) failed to load`, err);
             markReady();
-            if (chainRef.current) {
-              chainRef.current[id]?.dispose?.();
-              const fb = getFallback();
-              chainRef.current[id] = fb;
+            if (chainRef.current) chainRef.current[drumId]?.dispose?.();
+            if (fallbackOption) {
+              const fb = createSamplePlayer(drumId, fallbackOption);
+              if (chainRef.current) chainRef.current[drumId] = fb;
             }
           },
         }).connect(bus);
+
+        if (typeof soundOption.volume === "number") {
+          player.volume.value = soundOption.volume;
+        }
+
+        if (typeof soundOption.playbackRate === "number") {
+          player.playbackRate = soundOption.playbackRate;
+        }
+
         return player;
       } catch (err) {
-        console.warn(`Drum sample ${id} initialization failed`, err);
+        console.warn(`Drum sample ${drumId} (${soundOption?.id}) initialization failed`, err);
         markReady();
-        return getFallback();
+        return null;
       }
     };
 
-    const kick = buildSampleOr("kick", () =>
-      new Tone.MembraneSynth({
-        pitchDecay: normalizedSettings.kickPitchDecay,
-        octaves: normalizedSettings.kickOctaves,
-        envelope: {
-          attack: 0.001,
-          decay: normalizedSettings.kickDecay,
-          sustain: 0.01,
-          release: 0.2,
-        },
-      }).connect(bus)
-    );
+    const selectOption = (drumId) => {
+      const selection = normalizedSettings.soundSelection || {};
+      const options = DRUM_SOUND_OPTIONS[drumId] || [];
+      const selectedId = selection[drumId];
+      return options.find((opt) => opt.id === selectedId) || options[0];
+    };
 
-    const snare = buildSampleOr("snare", () =>
-      new Tone.NoiseSynth({
-        noise: { type: "white" },
-        envelope: {
-          attack: 0.001,
-          decay: normalizedSettings.snareDecay,
-          sustain: 0,
-          release: 0.08,
-        },
-      }).connect(bus)
-    );
+    const buildDrumNode = (drumId) => {
+      const options = DRUM_SOUND_OPTIONS[drumId] || [];
+      const option = selectOption(drumId);
+      const fallbackOpt = options.find((opt) => opt.id !== option?.id);
+      const node = createSamplePlayer(drumId, option, fallbackOpt);
+      if (node) return node;
 
-    const hihat = buildSampleOr("hihat", () =>
-      new Tone.MetalSynth({
-        envelope: {
-          attack: 0.001,
-          decay: normalizedSettings.hihatDecay,
-          release: 0.05,
-        },
-        harmonicity: 5.1,
-        modulationIndex: 32,
-        resonance: normalizedSettings.hihatResonance,
-        octaves: 1.5,
-        volume: -8,
-      }).connect(bus)
-    );
+      if (fallbackOpt) return createSamplePlayer(drumId, fallbackOpt);
 
-    const openhat = buildSampleOr("openhat", () =>
-      new Tone.MetalSynth({
-        envelope: {
-          attack: 0.001,
-          decay: normalizedSettings.openhatDecay,
-          release: 0.1,
-        },
-        harmonicity: 4.5,
-        modulationIndex: 28,
-        resonance: normalizedSettings.openhatResonance,
-        octaves: 1.8,
-        volume: -6,
-      }).connect(bus)
-    );
+      return null;
+    };
+
+    const kick = buildDrumNode("kick");
+    const snare = buildDrumNode("snare");
+    const hihat = buildDrumNode("hihat");
+    const openhat = buildDrumNode("openhat");
 
     chain.kick = kick;
     chain.snare = snare;
