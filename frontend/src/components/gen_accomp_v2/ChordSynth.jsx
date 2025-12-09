@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
 
 export const CHORD_INSTRUMENTS = [
+  { id: "real-piano", label: "Grand Piano (real)" },
+  { id: "real-strings", label: "String Ensemble (real)" },
+  { id: "real-guitar", label: "Acoustic Guitar (real)" },
   { id: "fm", label: "FM Piano" },
   { id: "sinepad", label: "Sine Pad" },
   { id: "saw", label: "Saw Lead" },
@@ -9,14 +12,83 @@ export const CHORD_INSTRUMENTS = [
 ];
 
 export const DEFAULT_CHORD_SYNTH_SETTINGS = {
-  instrument: "fm",
-  attack: 0.03,
-  decay: 0.3,
-  sustain: 0.5,
-  release: 1,
-  filterCutoff: 1500,
-  reverbDecay: 3,
+  instrument: "real-piano",
+  attack: 0.01,
+  decay: 0.25,
+  sustain: 0.6,
+  release: 2.5,
+  filterCutoff: 4500,
+  reverbDecay: 2.4,
 };
+
+const SAMPLER_LIBRARY = {
+  "real-piano": {
+    urls: {
+      A0: "A0.mp3",
+      C1: "C1.mp3",
+      "D#1": "Ds1.mp3",
+      "F#1": "Fs1.mp3",
+      A1: "A1.mp3",
+      C2: "C2.mp3",
+      "D#2": "Ds2.mp3",
+      "F#2": "Fs2.mp3",
+      A2: "A2.mp3",
+      C3: "C3.mp3",
+      "D#3": "Ds3.mp3",
+      "F#3": "Fs3.mp3",
+      A3: "A3.mp3",
+      C4: "C4.mp3",
+      "D#4": "Ds4.mp3",
+      "F#4": "Fs4.mp3",
+      A4: "A4.mp3",
+      C5: "C5.mp3",
+      "D#5": "Ds5.mp3",
+      "F#5": "Fs5.mp3",
+      A5: "A5.mp3",
+      C6: "C6.mp3",
+    },
+    baseUrl: "https://tonejs.github.io/audio/salamander/",
+    volume: -4,
+    release: 3.5,
+  },
+  "real-strings": {
+    urls: {
+      C2: "C2.mp3",
+      G2: "G2.mp3",
+      C3: "C3.mp3",
+      G3: "G3.mp3",
+      C4: "C4.mp3",
+      G4: "G4.mp3",
+      C5: "C5.mp3",
+      G5: "G5.mp3",
+    },
+    baseUrl:
+      "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/string_ensemble_1-mp3/",
+    volume: -6,
+    attack: 0.04,
+    release: 4,
+  },
+  "real-guitar": {
+    urls: {
+      C2: "C2.mp3",
+      G2: "G2.mp3",
+      C3: "C3.mp3",
+      E3: "E3.mp3",
+      A3: "A3.mp3",
+      C4: "C4.mp3",
+      E4: "E4.mp3",
+      A4: "A4.mp3",
+      C5: "C5.mp3",
+    },
+    baseUrl:
+      "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_guitar_nylon-mp3/",
+    volume: -3,
+    attack: 0.015,
+    release: 3,
+  },
+};
+
+const VALID_INSTRUMENT_IDS = new Set(CHORD_INSTRUMENTS.map((opt) => opt.id));
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const safeNumber = (value, fallback) => {
@@ -24,8 +96,31 @@ const safeNumber = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const createSynth = (Tone, instrument, envelope) => {
+const createSynth = (Tone, instrument, envelope, onReady, onError) => {
   const env = envelope || DEFAULT_CHORD_SYNTH_SETTINGS;
+  const samplerDef = SAMPLER_LIBRARY[instrument];
+
+  if (samplerDef) {
+    try {
+      const sampler = new Tone.Sampler({
+        urls: samplerDef.urls,
+        baseUrl: samplerDef.baseUrl,
+        attack: samplerDef.attack ?? env.attack,
+        release: samplerDef.release ?? env.release,
+        onload: () => onReady?.(),
+        onerror: (err) => onError?.(err),
+      });
+
+      if (typeof samplerDef.volume === "number") {
+        sampler.volume.value = samplerDef.volume;
+      }
+
+      return sampler;
+    } catch (err) {
+      onError?.(err);
+    }
+  }
+
   switch (instrument) {
     case "sinepad":
       return new Tone.PolySynth(Tone.Synth, {
@@ -114,8 +209,12 @@ export default function ChordSynth({ Tone, targetRef, settings }) {
       12
     );
 
+    const instrument = VALID_INSTRUMENT_IDS.has(merged.instrument)
+      ? merged.instrument
+      : DEFAULT_CHORD_SYNTH_SETTINGS.instrument;
+
     return {
-      instrument: merged.instrument || DEFAULT_CHORD_SYNTH_SETTINGS.instrument,
+      instrument,
       attack,
       decay,
       sustain,
@@ -131,7 +230,9 @@ export default function ChordSynth({ Tone, targetRef, settings }) {
     disposeChain(chordChainRef.current);
 
     const filter = new Tone.Filter(normalizedSettings.filterCutoff, "lowpass");
-    const chorus = new Tone.Chorus(4, 2.5).start();
+    const chorus = new Tone.Chorus(1.6, 1.2).start();
+    chorus.wet.value = 0.35;
+
     const reverb = new Tone.Reverb({
       decay: normalizedSettings.reverbDecay,
       preDelay: 0.01,
@@ -139,24 +240,68 @@ export default function ChordSynth({ Tone, targetRef, settings }) {
     const panner = new Tone.Panner(0);
     const limiter = new Tone.Limiter(-1);
 
-    const synth = createSynth(Tone, normalizedSettings.instrument, {
-      attack: normalizedSettings.attack,
-      decay: normalizedSettings.decay,
-      sustain: normalizedSettings.sustain,
-      release: normalizedSettings.release,
-    });
+    const isSampler = !!SAMPLER_LIBRARY[normalizedSettings.instrument];
+    let chain;
+    let samplerUsed = isSampler;
+    let instrumentUsed = normalizedSettings.instrument;
+
+    const markReady = () => {
+      if (chain) chain.ready = true;
+    };
+
+    const primarySynth = createSynth(
+      Tone,
+      normalizedSettings.instrument,
+      {
+        attack: normalizedSettings.attack,
+        decay: normalizedSettings.decay,
+        sustain: normalizedSettings.sustain,
+        release: normalizedSettings.release,
+      },
+      isSampler ? markReady : undefined,
+      (err) => {
+        console.warn("Chord sampler failed to load", err);
+        markReady();
+      }
+    );
+
+    const synth =
+      primarySynth ||
+      createSynth(
+        Tone,
+        "fm",
+        {
+          attack: normalizedSettings.attack,
+          decay: normalizedSettings.decay,
+          sustain: normalizedSettings.sustain,
+          release: normalizedSettings.release,
+        }
+      );
+
+    if (!primarySynth && synth) {
+      samplerUsed = false;
+      instrumentUsed = "fm";
+    }
+
+    if (!synth?.chain) {
+      console.warn("Chord synth not initialized; skipping chain build");
+      return;
+    }
 
     synth.chain(filter, chorus, reverb, panner, limiter, Tone.Destination);
 
-    chordChainRef.current = {
+    chain = {
       synth,
       filter,
       chorus,
       reverb,
       panner,
       limiter,
-      instrument: normalizedSettings.instrument,
+      instrument: instrumentUsed,
+      ready: samplerUsed ? !!synth?.loaded : true,
     };
+
+    chordChainRef.current = chain;
 
     if (targetRef) targetRef.current = chordChainRef.current;
   }, [Tone, normalizedSettings, targetRef]);

@@ -71,6 +71,8 @@ const getChordVisuals = (chord) => {
   return { rootClass, triadClass, extLabel };
 };
 
+const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
+
 export default function Sequencer({
   sequence,
   onSequenceChange,
@@ -372,7 +374,7 @@ export default function Sequencer({
         ))}
       </div>
 
-      {["kick", "snare", "hihat"].map((drumId) =>
+      {DRUM_IDS.map((drumId) =>
         renderDrumRow(drumId, block.steps, block.start)
       )}
 
