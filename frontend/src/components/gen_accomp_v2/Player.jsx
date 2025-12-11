@@ -1,4 +1,11 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { DEFAULT_STEPS } from "./musicConfig";
 import ChordSynth, {
   CHORD_INSTRUMENTS,
@@ -162,15 +169,18 @@ function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
    3. Player Component
    (sequencer "freezato" al Play)
 ------------------------------------------------ */
-export default function Player({
-  sequence,
-  chords,
-  tracks,
-  onStep,
-  onTracksChange,
-  onPlayStateChange,
-  steps = DEFAULT_STEPS,
-}) {
+const Player = forwardRef(function Player(
+  {
+    sequence,
+    chords,
+    tracks,
+    onStep,
+    onTracksChange,
+    onPlayStateChange,
+    steps = DEFAULT_STEPS,
+  },
+  ref
+) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [masterVolume, setMasterVolume] = useState(0);
@@ -252,6 +262,73 @@ export default function Player({
       });
     },
     [isPlaying]
+  );
+
+  const drumSoundSelection = {
+    ...DEFAULT_DRUM_SOUND_SELECTION,
+    ...(drumSynthSettings.soundSelection || {}),
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getState: () => ({
+        bpm,
+        masterVolume,
+        chordVolume,
+        chordSynthSettings,
+        chordInstrument: chordSynthSettings.instrument,
+        drumSounds: {
+          kick: drumSoundSelection.kick,
+          snare: drumSoundSelection.snare,
+          hihat: drumSoundSelection.hihat,
+          openhat: drumSoundSelection.openhat,
+        },
+      }),
+      setState: ({
+        bpm: incomingBpm,
+        masterVolume: incomingMaster,
+        chordVolume: incomingChordVolume,
+        chordSynthSettings: incomingChordSynth,
+        chordInstrument: incomingChordInstrument,
+        drumSounds: incomingDrumSounds,
+      } = {}) => {
+        if (typeof incomingBpm === "number") setBpm(incomingBpm);
+        if (typeof incomingMaster === "number")
+          setMasterVolume(incomingMaster);
+        if (typeof incomingChordVolume === "number")
+          setChordVolume(incomingChordVolume);
+        if (
+          incomingChordSynth &&
+          typeof incomingChordSynth === "object"
+        ) {
+          setChordSynthSettings((prev) => ({
+            ...prev,
+            ...incomingChordSynth,
+          }));
+        }
+        if (incomingChordInstrument) {
+          updateSynthSetting("instrument", incomingChordInstrument);
+        }
+        if (incomingDrumSounds && typeof incomingDrumSounds === "object") {
+          DRUM_IDS.forEach((drumId) => {
+            const nextSound = incomingDrumSounds[drumId];
+            if (nextSound) {
+              updateDrumSound(drumId, nextSound);
+            }
+          });
+        }
+      },
+    }),
+    [
+      bpm,
+      masterVolume,
+      chordVolume,
+      chordSynthSettings,
+      drumSoundSelection,
+      updateDrumSound,
+      updateSynthSetting,
+    ]
   );
 
   const handleDrumVolumeChange = (drumId, value) => {
@@ -584,4 +661,6 @@ export default function Player({
       </div>
     </div>
   );
-}
+});
+
+export default Player;

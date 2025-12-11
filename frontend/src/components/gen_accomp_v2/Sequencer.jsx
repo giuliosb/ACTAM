@@ -74,6 +74,84 @@ const getChordVisuals = (chord) => {
 
 const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
 
+
+
+export function getSequencerSnapshot({ sequence, steps = DEFAULT_STEPS }) {
+  const safeSequence = Array.isArray(sequence) ? sequence : [];
+  const stepCount =
+    Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
+
+  return Array.from({ length: stepCount }, (_, stepIndex) => {
+    const events = Array.isArray(safeSequence[stepIndex])
+      ? safeSequence[stepIndex]
+      : [];
+
+    const drums = DRUM_IDS.reduce((acc, drumId) => {
+      acc[drumId] = events.some(
+        (ev) => ev.type === "drum" && ev.drum === drumId
+      );
+      return acc;
+    }, {});
+
+    const chords = events
+      .filter((ev) => ev.type === "chord")
+      .map((ev) => ({
+        id: ev.id,
+        chordIndex: Number.isFinite(ev.chordIndex) ? ev.chordIndex : null,
+        start: Boolean(ev.start),
+        sustain:
+          ev.start && Number.isFinite(ev.sustain) ? ev.sustain : undefined,
+      }));
+
+    return {
+      step: stepIndex,
+      drums,
+      chords,
+    };
+  });
+}
+
+export function buildSequenceFromSnapshot(snapshot, steps = DEFAULT_STEPS) {
+  const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
+  const stepCount =
+    Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
+
+  return Array.from({ length: stepCount }, (_, stepIndex) => {
+    const entry = safeSnapshot[stepIndex] || {};
+    const drums = entry.drums || {};
+    const chordRows = Array.isArray(entry.chords) ? entry.chords : [];
+
+    const events = [];
+
+    for (const drumId of DRUM_IDS) {
+      if (drums[drumId]) {
+        events.push({
+          id: `drum-${stepIndex}-${drumId}-${Math.random().toString(36)}`,
+          type: "drum",
+          drum: drumId,
+        });
+      }
+    }
+
+    for (const chord of chordRows) {
+      if (!chord || typeof chord !== "object") continue;
+      const { id, chordIndex, start, sustain } = chord;
+      const chordEvent = {
+        id: id ?? Math.random(),
+        type: "chord",
+        chordIndex: Number.isFinite(chordIndex) ? chordIndex : null,
+        start: Boolean(start),
+      };
+      if (chordEvent.start && Number.isFinite(sustain)) {
+        chordEvent.sustain = sustain;
+      }
+      events.push(chordEvent);
+    }
+
+    return events;
+  });
+}
+
 export default function Sequencer({
   sequence,
   onSequenceChange,
