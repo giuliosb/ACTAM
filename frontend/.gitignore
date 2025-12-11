@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# allow tracking the sample directories even though global ignore covers .wav/.mp3
+!public/samples/
+!public/samples/**
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

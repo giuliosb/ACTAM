@@ -5,68 +5,68 @@ export const DRUM_SOUND_OPTIONS = {
     {
       id: "kick-cr78",
       label: "CR-78",
-      url: "/samples/kick/Kick1.wav",
+      url: "/samples/drums/kick/Kick1.wav",
     },
     {
       id: "kick-808",
       label: "TR-808",
-      url: "/samples/kick/Kick2.wav",
+      url: "/samples/drums/kick/Kick2.wav",
     },
     {
       id: "kick-909",
       label: "TR-909",
-      url: "/samples/kick/Kick3.wav",
+      url: "/samples/drums/kick/Kick3.wav",
     },
   ],
   snare: [
     {
       id: "snare-cr78",
       label: "CR-78",
-      url: "/samples/snare/SN1.wav",
+      url: "/samples/drums/snare/SN1.wav",
     },
     {
       id: "snare-808",
       label: "TR-808",
-      url: "samples/snare/SN2.wav",
+      url: "/samples/drums/snare/SN2.wav",
     },
     {
       id: "snare-909",
       label: "TR-909",
-      url: "samples/snare/SN3.wav",
+      url: "/samples/drums/snare/SN3.wav",
     },
   ],
   hihat: [
     {
       id: "hihat-cr78",
       label: "CR-78",
-      url: "samples/clh/CLH1.wav",
+      url: "/samples/drums/clh/CLH1.wav",
     },
     {
       id: "hihat-808",
       label: "TR-808",
-      url: "samples/clh/CLH2.wav",
+      url: "/samples/drums/clh/CLH2.wav",
     },
     {
       id: "hihat-909",
       label: "TR-909",
-      url: "samples/clh/CLH3.wav",
+      url: "/samples/drums/clh/CLH3.wav",
     },
   ],
   openhat: [
     {
       id: "openhat-909",
       label: "TR-909",
-      url: "samples/oh/OH1.wav",
+      url: "/samples/drums/oh/OH1.wav",
     },
     {
       id: "openhat-909.2",
       label: "TR-909.2",
-      url: "samples/oh/OH2.wav",
+      url: "/samples/drums/oh/OH2.wav",
     },
     {
       id: "openhat-cr78",
       label: "CR-78",
-      url: "samples/oh/OH3.wav",
+      url: "/samples/drums/oh/OH3.wav",
     },
   ],
 };
