@@ -6,19 +6,16 @@ export const DRUM_SOUND_OPTIONS = {
       id: "kick-cr78",
       label: "CR-78",
       url: "/samples/kick/Kick1.wav",
-      volume: -2,
     },
     {
       id: "kick-808",
       label: "TR-808",
       url: "/samples/kick/Kick2.wav",
-      volume: -1,
     },
     {
       id: "kick-909",
       label: "TR-909",
       url: "/samples/kick/Kick3.wav",
-      volume: -1,
     },
   ],
   snare: [
@@ -26,19 +23,16 @@ export const DRUM_SOUND_OPTIONS = {
       id: "snare-cr78",
       label: "CR-78",
       url: "/samples/snare/SN1.wav",
-      volume: -4,
     },
     {
       id: "snare-808",
       label: "TR-808",
       url: "samples/snare/SN2.wav",
-      volume: -3,
     },
     {
       id: "snare-909",
       label: "TR-909",
       url: "samples/snare/SN3.wav",
-      volume: -3,
     },
   ],
   hihat: [
@@ -46,19 +40,16 @@ export const DRUM_SOUND_OPTIONS = {
       id: "hihat-cr78",
       label: "CR-78",
       url: "samples/clh/CLH1.wav",
-      volume: -6,
     },
     {
       id: "hihat-808",
       label: "TR-808",
       url: "samples/clh/CLH2.wav",
-      volume: -5,
     },
     {
       id: "hihat-909",
       label: "TR-909",
       url: "samples/clh/CLH3.wav",
-      volume: -6,
     },
   ],
   openhat: [
@@ -66,21 +57,16 @@ export const DRUM_SOUND_OPTIONS = {
       id: "openhat-909",
       label: "TR-909",
       url: "samples/oh/OH1.wav",
-      volume: -4,
     },
     {
       id: "openhat-909.2",
       label: "TR-909.2",
       url: "samples/oh/OH2.wav",
-      volume: -6,
-      playbackRate: 0.95,
     },
     {
       id: "openhat-cr78",
       label: "CR-78",
       url: "samples/oh/OH3.wav",
-      volume: -5,
-      playbackRate: 1.05,
     },
   ],
 };
