@@ -1,19 +1,48 @@
 import { useState } from "react";
+import axios from "axios";
 import "./App.css";
 
 import Menu from "./components/Menu";
 import AudioProcessor from "./components/audio_accomp/AudioProcessor";
 import Accompaniment from "./components/gen_accomp_v2/Accompaniment";
 
+
 function App() {
   const [currentCard, setCurrentCard] = useState("menu"); // menu | generated | audio
+  const [bpm, setBpm] = useState(null);
+  const [bpmLoading, setBpmLoading] = useState(false);
+  const [bpmError, setBpmError] = useState(null);
+
+  const handleTestBpm = async () => {
+    setBpm(null);
+    setBpmError(null);
+    setBpmLoading(true);
+    try {
+      const res = await axios.get("http://127.0.0.1:8000/getBppmDetector");
+      setBpm(res.data.bpm);
+    } catch (err) {
+      setBpmError(err?.response?.data?.detail || err.message);
+    } finally {
+      setBpmLoading(false);
+    }
+  };
 
   const renderCard = () => {
     switch (currentCard) {
       case "generated":
         return <Accompaniment />;
       case "audio":
-        return <AudioProcessor />;
+        return (
+          <>
+            <AudioProcessor />
+            <button onClick={handleTestBpm} style={{ marginLeft: "10px" }}>Detect BPM</button>
+            {bpmLoading && <span style={{ marginLeft: "10px" }}>Detecting BPM...</span>}
+            {bpm !== null && !bpmLoading && (
+              <span style={{ marginLeft: "10px" }}> BPM: <b>{bpm.toFixed(2)}</b></span>
+            )}
+            {bpmError && <span style={{ color: "red", marginLeft: "10px" }}>{bpmError}</span>}
+          </>
+        );
       case "menu":
       default:
         return <Menu onSelect={setCurrentCard} />;

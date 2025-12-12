@@ -9,6 +9,8 @@ import os
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
+from typing import Optional
+
 app = FastAPI(title="Audio Processor API")
 
 
@@ -25,6 +27,22 @@ CURRENT_FILE_PATH = None
 
 # --- GLOBAL ORIGINAL AND CURRENT TUNING OF UPLOADED AUDIO ---
 ORIGINAL_TUNING = 440
+
+
+# --- BPM DETECTOR ENDPOINT ---
+@app.get("/getBppmDetector")
+async def get_bpm_detector():
+    """Detect the BPM of the last uploaded audio file using librosa."""
+    global CURRENT_FILE_PATH
+    if CURRENT_FILE_PATH is None or not os.path.exists(CURRENT_FILE_PATH):
+        raise HTTPException(status_code=404, detail="No file uploaded yet")
+    try:
+        y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
+        # Use librosa's beat tracker
+        tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+        return {"bpm": float(tempo)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"BPM detection failed: {str(e)}")
 
 class ProcessRequest(BaseModel):
     stretch_rate: float
