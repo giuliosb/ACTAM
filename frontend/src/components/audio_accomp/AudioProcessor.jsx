@@ -1,17 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
+import AudioVisualizer from "./AudioVisualizer";
+
 
 const API = "http://127.0.0.1:8000";
 
 export default function AudioProcessor() {
   const [file, setFile] = useState(null);
   const [uploadResponse, setUploadResponse] = useState(null);
-  const [stretchRate, setStretchRate] = useState(0);
-  const [tuning, setTuning] = useState(0);
+
+  const [tuning, setTuning] = useState(440);
+  const [original_tuning, setOGTuning] = useState(440);
   const [processing, setProcessing] = useState(false);
 
   const [processedAudioBlob, setProcessedAudioBlob] = useState(null);
   const [processedAudioURL, setProcessedAudioURL] = useState(null);
+
+  const [uploadedAudioBlob, setUploadedAudioBlob] = useState(null);
+ 
 
   const [logs, setLogs] = useState([]);
 
@@ -32,6 +38,8 @@ export default function AudioProcessor() {
     const form = new FormData();
     form.append("file", file);
 
+    setUploadedAudioBlob(file);
+
     try {
       const res = await axios.post(`${API}/upload`, form, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -48,8 +56,11 @@ export default function AudioProcessor() {
         error: tuning_detection_error || null,
       });
 
+
       setTuning(tuning);
+      setOGTuning(tuning);
       log(`🎵 Detected tuning: ${tuning}`);
+      getAudio()
     } catch (err) {
       log("❌ Upload failed");
       log(err.toString());
@@ -58,6 +69,28 @@ export default function AudioProcessor() {
   };
 
   // ----------------------------------
+  // REQUEST TUNING
+  // ----------------------------------
+
+  const getTuning = async () => {
+    log("🎧 Requesting tuning...");
+
+    try {
+      const res = await axios.get(`${API}/get-tuning`, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const { tuning } = res.data;
+      setTuning(tuning);
+      getAudio();
+      log(`🎵 Got tuning: ${tuning}`);
+    } catch (err) {
+      log("❌ Get tuning failed");
+      log(err.toString());
+      alert("Get tuning failed");
+    }
+  };
+  
+  // ----------------------------------
   // REQUEST PROCESSED AUDIO
   // ----------------------------------
   const getAudio = async () => {
@@ -65,8 +98,8 @@ export default function AudioProcessor() {
 
     try {
       const requestBody = {
-        stretch_rate: Number(stretchRate),
-        target_tuning: Number(tuning),
+        //stretch_rate: Number(stretchRate),
+        target_tuning: Number(tuning)
       };
 
       setProcessing(true);
@@ -87,11 +120,17 @@ export default function AudioProcessor() {
     } catch (err) {
       log("❌ Failed to fetch processed audio");
       log(err.toString());
-      alert("Error receiving audio");
+      if (!err.toString().endsWith("404")) {
+        alert("Error receiving audio");
+      }
     } finally {
       setProcessing(false);
     }
   };
+
+  useEffect(() => {
+    getTuning();
+  }, []);
 
   // ----------------------------------
   // UI
@@ -101,7 +140,7 @@ export default function AudioProcessor() {
       <h2>Audio Processor</h2>
 
       <div style={{ marginTop: "20px" }}>
-        <strong>Detected tuning:</strong> {tuning} Hz
+        <strong>Original tuning:</strong> {original_tuning} Hz
       </div>
 
       {/* Upload section */}
@@ -124,15 +163,8 @@ export default function AudioProcessor() {
 
       {/* Controls */}
       <div style={{ marginTop: "20px" }}>
-        <label>Stretch Rate: </label>
-        <input
-          type="number"
-          step="0.1"
-          value={stretchRate}
-          onChange={(e) => setStretchRate(Number(e.target.value))}
-        />
-
-        <label style={{ marginLeft: "20px" }}>Target Tuning (Hz): </label>
+       
+        <label style={{ marginLeft: "20px" }}>Tuning (Hz): </label>
         <input
           type="number"
           step="1"
@@ -156,18 +188,25 @@ export default function AudioProcessor() {
 
           <audio controls src={processedAudioURL} />
 
+          {processedAudioBlob && (
+            <div style={{ marginTop: "20px" }}>
+              <h3>Processed Audio Waveform</h3>
+              <AudioVisualizer audioFile={processedAudioBlob}/>
+            </div>
+          )}
+
           {/* Download button */}
-          <button
+          {/* <button
             style={{ marginTop: "10px" }}
             onClick={() => {
               const a = document.createElement("a");
               a.href = processedAudioURL;
-              a.download = "processed_audio.wav";
+              a.download = "processed_audio.flac";
               a.click();
             }}
           >
             Download Processed Audio
-          </button>
+          </button> */}
         </div>
       )}
 

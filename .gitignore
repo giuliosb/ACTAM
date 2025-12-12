@@ -49,3 +49,6 @@ backend/.venv/
 
 # --- Environment files ---
 .env
+frontend/package-lock.json
+frontend/package-lock.json
+.DS_Store
