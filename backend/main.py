@@ -1,31 +1,4 @@
-# --- TONALITY DETECTOR ENDPOINT ---
-@app.get("/getTonality")
-async def get_tonality():
-    """Detect the tonality (key) of the last uploaded audio file using librosa."""
-    global CURRENT_FILE_PATH
-    if CURRENT_FILE_PATH is None or not os.path.exists(CURRENT_FILE_PATH):
-        raise HTTPException(status_code=404, detail="No file uploaded yet")
-    try:
-        y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
-        chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
-        chroma_mean = chroma.mean(axis=1)
-        # Major and minor key templates (Krumhansl-Schmuckler)
-        major_template = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
-        minor_template = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
-        # Correlate with all 12 keys
-        major_scores = [np.corrcoef(np.roll(chroma_mean, -i), major_template)[0, 1] for i in range(12)]
-        minor_scores = [np.corrcoef(np.roll(chroma_mean, -i), minor_template)[0, 1] for i in range(12)]
-        best_major = int(np.argmax(major_scores))
-        best_minor = int(np.argmax(minor_scores))
-        if max(major_scores) > max(minor_scores):
-            key = librosa.midi_to_note(60 + best_major, octave=False) + ' major'
-            confidence = float(max(major_scores))
-        else:
-            key = librosa.midi_to_note(60 + best_minor, octave=False) + ' minor'
-            confidence = float(max(minor_scores))
-        return {"key": key, "confidence": confidence}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Tonality detection failed: {str(e)}")
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.responses import StreamingResponse
@@ -56,6 +29,34 @@ CURRENT_FILE_PATH = None
 # --- GLOBAL ORIGINAL AND CURRENT TUNING OF UPLOADED AUDIO ---
 ORIGINAL_TUNING = 440
 
+# --- TONALITY DETECTOR ENDPOINT ---
+@app.get("/getTonality")
+async def get_tonality():
+    """Detect the tonality (key) of the last uploaded audio file using librosa."""
+    global CURRENT_FILE_PATH
+    if CURRENT_FILE_PATH is None or not os.path.exists(CURRENT_FILE_PATH):
+        raise HTTPException(status_code=404, detail="No file uploaded yet")
+    try:
+        y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+        chroma_mean = chroma.mean(axis=1)
+        # Major and minor key templates (Krumhansl-Schmuckler)
+        major_template = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+        minor_template = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+        # Correlate with all 12 keys
+        major_scores = [np.corrcoef(np.roll(chroma_mean, -i), major_template)[0, 1] for i in range(12)]
+        minor_scores = [np.corrcoef(np.roll(chroma_mean, -i), minor_template)[0, 1] for i in range(12)]
+        best_major = int(np.argmax(major_scores))
+        best_minor = int(np.argmax(minor_scores))
+        if max(major_scores) > max(minor_scores):
+            key = librosa.midi_to_note(60 + best_major, octave=False) + ' major'
+            confidence = float(max(major_scores))
+        else:
+            key = librosa.midi_to_note(60 + best_minor, octave=False) + ' minor'
+            confidence = float(max(minor_scores))
+        return {"key": key, "confidence": confidence}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tonality detection failed: {str(e)}")
 
 # --- BPM DETECTOR ENDPOINT ---
 @app.get("/getBppmDetector")
@@ -195,8 +196,12 @@ async def get_and_process_audio(req: ProcessRequest):
                 semitones = 12 * np.log2(req.target_tuning / original_tuning)
 
                 # Apply pitch shifting
-                y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
 
+                y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
+                # --- Amplitude normalization after pitch shift 
+                if np.max(np.abs(y_shifted)) > 0:
+                    y_shifted = y_shifted / np.max(np.abs(y_shifted)) * np.max(np.abs(y))
+                # --- End normalization ---
                 y = y_shifted
 
                 

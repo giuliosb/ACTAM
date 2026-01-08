@@ -24,7 +24,7 @@ npm -v # Should print "11.6.2".
 
 # Install Node.js to your pc (Windows):
 
-powershell -c "irm https://community.chocolatey.org/install.ps1|iex"
+powershell -c "irm https://community.chocolatey.org /install.ps1|iex"
 
 choco install nodejs --version="24.11.1"
 
