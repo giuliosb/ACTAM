@@ -64,28 +64,31 @@ async def upload_audio(file: UploadFile = File(...)):
         except Exception as e:
             print(f"Failed to delete previous file: {e}")
 
-    # Save the new file
-    contents = await file.read()
-    with open(temp_filename, "wb") as f:
-        f.write(contents)
+    # --- Save the new file (streaming, no full RAM read) ---
+    with open(temp_filename, "wb") as out:
+        while True:
+            chunk = await file.read(1024 * 1024)  # 1MB
+            if not chunk:
+                break
+            out.write(chunk)
 
     CURRENT_FILE_PATH = temp_filename
+    print("UPLOAD saved:", CURRENT_FILE_PATH)
 
+    # --- Detect tuning on a short excerpt (fast) ---
     try:
-        detected_tuning = detect_tuning_reference(CURRENT_FILE_PATH)
+        print("TUNING detection start")
+        detected_tuning = detect_tuning_reference(CURRENT_FILE_PATH, duration=30.0, offset=10.0)
         ORIGINAL_TUNING = detected_tuning
-        return {
-            "message": "File uploaded successfully",
-            "tuning": detected_tuning
-        }
+        print("TUNING detection done:", detected_tuning)
+        return {"message": "File uploaded successfully", "tuning": detected_tuning}
     except Exception as e:
-        # If tuning detection fails, still return success but with default tuning
         print(f"Failed to detect tuning: {e}")
         ORIGINAL_TUNING = 440
         return {
             "message": "File uploaded successfully",
             "tuning": 440,
-            "tuning_detection_error": str(e)
+            "tuning_detection_error": str(e),
         }
 
 @app.get("/get-tuning")
@@ -192,7 +195,7 @@ async def get_and_process_audio(req: ProcessRequest):
 
 # NOT API CALL FUNCTIONS:
 
-def detect_tuning_reference(audio_path: str) -> float:
+def detect_tuning_reference(audio_path: str, duration: float = 30.0, offset: float = 10.0) -> float:
     """
     Detect the tuning reference frequency (A4) of an audio file.
     
@@ -203,7 +206,7 @@ def detect_tuning_reference(audio_path: str) -> float:
         Detected A4 frequency in Hz (e.g., 440, 442, etc.)
     """
     # Load audio file
-    y, sr = librosa.load(audio_path, sr=None)
+    y, sr = librosa.load(audio_path, sr=None, duration=duration, offset=offset)
     
     # Use pyin for pitch detection
     f0, voiced_flag, voiced_probs = librosa.pyin(
