@@ -78,7 +78,6 @@ export default function AudioProcessor() {
       const res = await axios.get(`${API}/get-tuning`);
       const { tuning } = res.data;
       setTuning(tuning);
-      getAudio();
       log(`🎵 Got tuning: ${tuning}`);
     } catch (err) {
       log("❌ Get tuning failed");
@@ -98,7 +97,7 @@ export default function AudioProcessor() {
     log(`❌ Invalid target_tuning: ${targetTuning} (Number -> ${t})`);
     return;
   }
-  
+
   log("🎧 Requesting processed audio...");
 
   try {
@@ -106,7 +105,7 @@ export default function AudioProcessor() {
 
     const res = await axios.post(
       `${API}/get-audio`,
-      { target_tuning: Number(targetTuning) },
+      { target_tuning: t },
       { responseType: "blob" }
     );
 
@@ -177,10 +176,10 @@ export default function AudioProcessor() {
 
         <button
           style={{ marginLeft: "20px" }}
-          onClick={getAudio}
-          disabled={processing}
-        >
-          {processing ? "Processing..." : "Process Audio"}
+          onClick={() => getAudio(tuning)}
+        disabled={processing}
+          >
+        {processing ? "Processing..." : "Process Audio"}
         </button>
       </div>
 
