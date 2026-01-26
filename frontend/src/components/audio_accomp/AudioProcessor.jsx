@@ -42,7 +42,7 @@ export default function AudioProcessor() {
     setUploadedAudioBlob(file);
 
     try {
-      const res = await axios.post(`${API}/upload`);
+      const res = await axios.post(`${API}/upload`, form);
 
       log("📡 Backend responded:");
       log(JSON.stringify(res.data, null, 2));
