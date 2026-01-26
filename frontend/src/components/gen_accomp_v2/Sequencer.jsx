@@ -169,7 +169,7 @@ export default function Sequencer({
 }) {
   const [a4Frequency, setA4Frequency] = useState(440);
   const [rootNote, setRootNote] = useState("C");
-  const [octave, setOctave] = useState(4);
+  const [octave, setOctave] = useState(3);
   const [triad, setTriad] = useState("Major");
   const [extension, setExtension] = useState("");
   const [selectedChordIndex, setSelectedChordIndex] = useState(null);
