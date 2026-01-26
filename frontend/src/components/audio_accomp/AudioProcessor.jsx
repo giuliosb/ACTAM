@@ -42,9 +42,7 @@ export default function AudioProcessor() {
     setUploadedAudioBlob(file);
 
     try {
-      const res = await axios.post(`${API}/upload`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.post(`${API}/upload`);
 
       log("📡 Backend responded:");
       log(JSON.stringify(res.data, null, 2));
@@ -105,7 +103,6 @@ export default function AudioProcessor() {
 
       const res = await axios.post(`${API}/get-audio`, requestBody, {
         responseType: "blob",
-        headers: { "Content-Type": "application/json" },
       });
 
       log("⬅️ Received audio Blob");
