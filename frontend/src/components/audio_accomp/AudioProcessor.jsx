@@ -91,6 +91,14 @@ export default function AudioProcessor() {
   // REQUEST PROCESSED AUDIO
   // ----------------------------------
   const getAudio = async (targetTuning = tuning) => {
+    const t = Number(targetTuning);
+
+  // GUARDIA: evita 422 da NaN/undefined/null
+  if (!Number.isFinite(t)) {
+    log(`❌ Invalid target_tuning: ${targetTuning} (Number -> ${t})`);
+    return;
+  }
+  
   log("🎧 Requesting processed audio...");
 
   try {
