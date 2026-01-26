@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
-import Sequencer from "./Sequencer.jsx";
+import { useState, useEffect, useRef } from "react";
+import Sequencer, {
+  getSequencerSnapshot,
+  buildSequenceFromSnapshot,
+} from "./Sequencer.jsx";
 import Player from "./Player.jsx";
 import { DEFAULT_STEPS, createEmptySequence } from "./musicConfig.js";
 
@@ -29,6 +32,8 @@ export default function Accompaniment() {
 
   // nuovo stato globale di play
   const [isPlaying, setIsPlaying] = useState(false);
+  const fileInputRef = useRef(null);
+  const playerRef = useRef(null);
 
   useEffect(() => {
     setSequence((prevSequence) => {
@@ -85,6 +90,136 @@ export default function Accompaniment() {
     setSequence(newSeq);
   };
 
+  const handleSaveState = () => {
+    const playerState =
+      typeof playerRef.current?.getState === "function"
+        ? playerRef.current.getState()
+        : null;
+
+    const sequencerSnapshot = getSequencerSnapshot({
+      sequence,
+      steps,
+    });
+
+    const stateToSave = {
+      player: playerState,
+      sequencer: sequencerSnapshot,
+      accompaniment: {
+        blocks,
+        stepsPerBlock,
+        steps,
+        chords,
+        tracks,
+      },
+      savedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob(
+      [JSON.stringify(stateToSave, null, 2)],
+      { type: "application/json" }
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "accompaniment-state.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+ 
+  const applyLoadedState = (input) => {
+    if (!input || typeof input !== "object") return;
+
+    const savedAccompaniment =
+      input.accompaniment && typeof input.accompaniment === "object"
+        ? input.accompaniment
+        : {};
+
+    const nextBlocks =
+      Number.isFinite(savedAccompaniment.blocks) &&
+      savedAccompaniment.blocks > 0
+        ? savedAccompaniment.blocks
+        : blocks;
+
+    const nextStepsPerBlock =
+      Number.isFinite(savedAccompaniment.stepsPerBlock) &&
+      savedAccompaniment.stepsPerBlock > 0
+        ? savedAccompaniment.stepsPerBlock
+        : stepsPerBlock;
+
+    const nextSteps =
+      Number.isFinite(savedAccompaniment.steps) &&
+      savedAccompaniment.steps > 0
+        ? savedAccompaniment.steps
+        : nextBlocks * nextStepsPerBlock;
+
+    const normalizedSteps =
+      Number.isFinite(nextSteps) && nextSteps > 0 ? nextSteps : steps;
+
+    setBlocks(nextBlocks);
+    setStepsPerBlock(nextStepsPerBlock);
+    if (Number.isFinite(normalizedSteps) && normalizedSteps > 0) {
+      setSteps(normalizedSteps);
+    }
+
+    if (Array.isArray(savedAccompaniment.chords)) {
+      setChords(savedAccompaniment.chords);
+    }
+    if (
+      savedAccompaniment.tracks &&
+      typeof savedAccompaniment.tracks === "object"
+    ) {
+      setTracks(savedAccompaniment.tracks);
+    }
+
+    const reconstructedSequence = buildSequenceFromSnapshot(
+      input.sequencer,
+      normalizedSteps
+    );
+    setSequence(reconstructedSequence);
+
+    if (playerRef.current?.setState) {
+      playerRef.current.setState(input.player);
+    }
+
+    setCurrentStep(-1);
+  };
+
+  const handleLoadState = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleStateFile = (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+
+    const isJson =
+      file.type === "application/json" ||
+      file.name?.toLowerCase().endsWith(".json");
+
+    if (!isJson) {
+      console.warn("Please select a JSON file.");
+      if (event.target) event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const input = JSON.parse(reader.result ?? "{}");
+        applyLoadedState(input);
+      } catch (err) {
+        console.error("Failed to parse accompaniment state", err);
+      }
+    };
+    reader.onerror = () => {
+      console.error("Failed to read accompaniment state file", reader.error);
+    };
+    reader.onloadend = () => {
+      if (event.target) event.target.value = "";
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div style={{ padding: "20px" }}>
       <h1>Music Sequencer</h1>
@@ -124,6 +259,24 @@ export default function Accompaniment() {
         </select>
       </div>
 
+      <div style={{ marginBottom: "12px" }}>
+        <button onClick={handleSaveState} disabled={isPlaying} >Save current state</button>
+        <button
+          onClick={handleLoadState}
+          disabled={isPlaying}
+          style={{ marginLeft: "12px" }}
+        >
+          Load state
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json,application/json"
+          onChange={handleStateFile}
+          style={{ display: "none" }}
+        />
+      </div>
+
       <Sequencer
         sequence={sequence}
         onSequenceChange={setSequence}
@@ -141,6 +294,7 @@ export default function Accompaniment() {
       />
 
       <Player
+        ref={playerRef}
         sequence={sequence}
         tracks={tracks}
         chords={chords}

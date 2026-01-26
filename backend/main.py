@@ -11,14 +11,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Audio Processor API")
 
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://TUO-PROGETTO.vercel.app",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Global variable to track the currently uploaded file
 CURRENT_FILE_PATH = None
