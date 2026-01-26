@@ -77,9 +77,7 @@ export default function AudioProcessor() {
     log("🎧 Requesting tuning...");
 
     try {
-      const res = await axios.get(`${API}/get-tuning`, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.get(`${API}/get-tuning`);
       const { tuning } = res.data;
       setTuning(tuning);
       getAudio();
