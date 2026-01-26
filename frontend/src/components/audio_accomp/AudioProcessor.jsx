@@ -59,7 +59,7 @@ export default function AudioProcessor() {
       setTuning(tuning);
       setOGTuning(tuning);
       log(`🎵 Detected tuning: ${tuning}`);
-      getAudio()
+      await getAudio(tuning);
     } catch (err) {
       log("❌ Upload failed");
       log(err.toString());
@@ -90,39 +90,38 @@ export default function AudioProcessor() {
   // ----------------------------------
   // REQUEST PROCESSED AUDIO
   // ----------------------------------
-  const getAudio = async () => {
-    log("🎧 Requesting processed audio...");
+  const getAudio = async (targetTuning = tuning) => {
+  log("🎧 Requesting processed audio...");
 
-    try {
-      const requestBody = {
-        //stretch_rate: Number(stretchRate),
-        target_tuning: Number(tuning)
-      };
+  try {
+    setProcessing(true);
 
-      setProcessing(true);
+    const res = await axios.post(
+      `${API}/get-audio`,
+      { target_tuning: Number(targetTuning) },
+      { responseType: "blob" }
+    );
 
-      const res = await axios.post(`${API}/get-audio`, requestBody, {
-        responseType: "blob",
-      });
+    log("⬅️ Received audio Blob");
 
-      log("⬅️ Received audio Blob");
+    const blob = res.data;
+    const url = URL.createObjectURL(blob);
 
-      const blob = res.data;
-      const url = URL.createObjectURL(blob);
-
-      setProcessedAudioBlob(blob);
-      setProcessedAudioURL(url);
-
-    } catch (err) {
-      log("❌ Failed to fetch processed audio");
-      log(err.toString());
-      if (!err.toString().endsWith("404")) {
-        alert("Error receiving audio");
-      }
-    } finally {
-      setProcessing(false);
+    setProcessedAudioBlob(blob);
+    setProcessedAudioURL(url);
+  } catch (err) {
+    log("❌ Failed to fetch processed audio");
+    if (err.response) {
+      log(`Status: ${err.response.status}`);
+      log(`Data: ${JSON.stringify(err.response.data)}`);
+    } else {
+      log(err.message);
     }
-  };
+  } finally {
+    setProcessing(false);
+  }
+};
+
 
   useEffect(() => {
     getTuning();
