@@ -59,7 +59,9 @@ export default function AudioProcessor() {
       setTuning(tuning);
       setOGTuning(tuning);
       log(`🎵 Detected tuning: ${tuning}`);
-      await getAudio(tuning);
+      const t = await getTuning();
+      if (Number.isFinite(t)) await getAudio(t);
+
     } catch (err) {
       log("❌ Upload failed");
       log(err.toString());
@@ -72,19 +74,22 @@ export default function AudioProcessor() {
   // ----------------------------------
 
   const getTuning = async () => {
-    log("🎧 Requesting tuning...");
+  log("🎧 Requesting tuning...");
 
-    try {
-      const res = await axios.get(`${API}/get-tuning`);
-      const { tuning } = res.data;
-      setTuning(tuning);
-      log(`🎵 Got tuning: ${tuning}`);
-    } catch (err) {
-      log("❌ Get tuning failed");
-      log(err.toString());
-      alert("Get tuning failed");
-    }
-  };
+  try {
+    const res = await axios.get(`${API}/get-tuning`);
+    const t = Number(res.data.tuning);
+    setTuning(t);
+    log(`🎵 Got tuning: ${t}`);
+    return t;
+  } catch (err) {
+    log("❌ Get tuning failed");
+    log(err.toString());
+    alert("Get tuning failed");
+    return null;
+  }
+};
+
   
   // ----------------------------------
   // REQUEST PROCESSED AUDIO
