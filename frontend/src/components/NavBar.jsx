@@ -5,15 +5,6 @@ import Switch from "./general_components/Switch.jsx";
 export default function NavBar({ onSelect, currentCard }) {
   const switchTarget = currentCard === "generated" ? "audio" : "generated";
 
-  const handleKeySelect =
-    (target) =>
-    (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onSelect(target);
-      }
-    };
-
   return (
     <nav
       style={{
