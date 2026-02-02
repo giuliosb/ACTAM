@@ -17,6 +17,9 @@ import Drumshynt, {
   DRUM_SOUND_OPTIONS,
 } from "./Drumshynt.jsx";
 
+import Slider from "../general_components/Slider.jsx";
+import Knob from "../general_components/Knob.jsx";
+
 const HUMANIZE_MAX_DELAY = 0.03; // seconds of max note spread inside a chord
 
 const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
@@ -184,6 +187,7 @@ const Player = forwardRef(function Player(
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [masterVolume, setMasterVolume] = useState(0);
+  const [randomThing, setRandomThing] = useState(0);
   const [chordVolume, setChordVolume] = useState(0); // dB per gli accordi
   const [chordSynthSettings, setChordSynthSettings] = useState(
     DEFAULT_CHORD_SYNTH_SETTINGS
@@ -527,6 +531,122 @@ const Player = forwardRef(function Player(
 
   return (
     <div style={{ marginBottom: "20px" }}>
+      <div style={{ display: "flex", flexDirection: "row", gap: "40px" }}>
+       <Slider
+        value={masterVolume}
+        onChange={(value) => {
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
+        min={-10}
+        max={6}
+        step={1}
+      />
+      <Slider
+        value={masterVolume}
+        onChange={(value) => {
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
+        min={-10}
+        max={6}
+        step={1}
+      />
+      <Slider
+        value={masterVolume}
+        onChange={(value) => {
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
+        min={-10}
+        max={6}
+        step={1}
+      />
+      <Slider
+        value={masterVolume}
+        onChange={(value) => {
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
+        min={-10}
+        max={6}
+        step={1}
+      />
+      <Slider
+        value={masterVolume}
+        onChange={(value) => {
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
+        min={-10}
+        max={6}
+        step={1}
+      />
+      <Slider
+        value={masterVolume}
+        onChange={(value) => {
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
+        min={-10}
+        max={6}
+        step={1}
+      />
+      <Slider
+        value={masterVolume}
+        onChange={(value) => {
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
+        min={-10}
+        max={6}
+        step={1}
+      />
+      <Slider
+        value={masterVolume}
+        onChange={(value) => {
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
+        min={-10}
+        max={6}
+        step={1}
+      />
+      </div>
+      
+      <div style={{ display: "flex", flexDirection: "row" }}>
+        <Knob
+          value={randomThing}
+          onChange={(value) => {
+            setRandomThing(value);
+          }}
+          min={-10} 
+          max={6}
+          step={1}
+          
+        ></Knob>
+        <Knob
+          value={randomThing}
+          onChange={(value) => {
+            setRandomThing(value);
+          }}
+          min={-10} 
+          max={6}
+          step={1}
+          
+        ></Knob>
+        <Knob
+          value={randomThing}
+          onChange={(value) => {
+            setRandomThing(value);
+          }}
+          min={-10} 
+          max={6}
+          step={1}
+          
+        ></Knob>
+      </div>
+
       <Drumshynt
         Tone={Tone}
         targetRef={drumSynthRef}
@@ -567,11 +687,15 @@ const Player = forwardRef(function Player(
           min="-30"
           max="6"
           value={masterVolume}
-          onChange={(e) => setMasterVolume(Number(e.target.value))}
+          onChange={(e) => {
+            const value = Number(e.target.value);
+            console.log(`Master volume changed to ${value} dB`);
+            setMasterVolume(value);
+          }}
           step="1"
           style={{ width: "200px" }}
       />
-      {masterVolume} dB
+        
     </div>
 
     <div style={{ marginTop: "10px" }}>
