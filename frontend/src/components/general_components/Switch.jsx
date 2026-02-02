@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import switchImg from "../../assets/images/switch.png";
-import switchRotatedImg from "../../assets/images/switch_rotated.png";
+import switchRotatedImg from "../../assets/images/switch_rot.png";
 import switchInner from "../../assets/images/switch_inner.png";
-import switchAudio from "../../assets/sound_effects/switch_audio.mp3";
+import switchAudio from "../../assets/sound_effects/switch_audio.wav";
 
 export default function Switch({ horizontal = false, size = 100, onToggle }) {
   const [flipped, setFlipped] = useState(false);
@@ -12,6 +12,7 @@ export default function Switch({ horizontal = false, size = 100, onToggle }) {
     }
     const instance = new Audio(switchAudio);
     instance.preload = "auto";
+    instance.volume = 0.2; // Volume of the switch sound
     return instance;
   }, [switchAudio]);
 
