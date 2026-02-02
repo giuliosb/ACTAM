@@ -45,6 +45,15 @@ h2 {
   letter-spacing: 0.25em;
 }
 
+h3 {
+ text-decoration: none;
+  color: inherit;
+  line-height: 1.4;
+  font-size: 1.3em;
+  font-weight: normal;
+  letter-spacing: 0.25em;
+}
+
 a {
   text-decoration: none;
 

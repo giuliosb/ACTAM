@@ -19,6 +19,7 @@ import Drumshynt, {
 
 import Slider from "../general_components/Slider.jsx";
 import Knob from "../general_components/Knob.jsx";
+import Switch from "../general_components/Switch.jsx";
 
 const HUMANIZE_MAX_DELAY = 0.03; // seconds of max note spread inside a chord
 
@@ -531,6 +532,10 @@ const Player = forwardRef(function Player(
 
   return (
     <div style={{ marginBottom: "20px" }}>
+
+      <Switch horizontal={false}/>
+      <Switch horizontal={true} size={110} />
+
       <div style={{ display: "flex", flexDirection: "row", gap: "40px" }}>
        <Slider
         value={masterVolume}
