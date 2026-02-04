@@ -45,36 +45,7 @@ function App() {
     }
   };
 
-  const renderCard = () => {
-    switch (currentCard) {
-      case "generated":
-        return <Accompaniment />;
-      case "audio":
-        return (
-          <>
-            <AudioProcessor />
-            <button onClick={handleTestBpm} style={{ marginLeft: "10px" }}>Detect BPM</button>
-            {bpmLoading && <span style={{ marginLeft: "10px" }}>Detecting BPM...</span>}
-            {bpm !== null && !bpmLoading && (
-              <span style={{ marginLeft: "10px" }}> BPM: <b>{bpm.toFixed(2)}</b></span>
-            )}
-            {bpmError && <span style={{ color: "red", marginLeft: "10px" }}>{bpmError}</span>}
 
-            <button onClick={handleGetTonality} style={{ marginLeft: "10px" }}>Get Tonality</button>
-            {tonalityLoading && <span style={{ marginLeft: "10px" }}>Detecting tonality...</span>}
-            {tonality && !tonalityLoading && (
-              <span style={{ marginLeft: "10px" }}>
-                Key: <b>{tonality.key}</b> (confidence: {tonality.confidence.toFixed(2)})
-              </span>
-            )}
-            {tonalityError && <span style={{ color: "red", marginLeft: "10px" }}>{tonalityError}</span>}
-          </>
-        );
-      case "menu":
-      default:
-        return <Menu onSelect={setCurrentCard} />;
-    }
-  };
   const getVisibilityStyle = (isVisible) => ({
     display: isVisible ? "block" : "none",
     width: "100%",
@@ -97,10 +68,26 @@ function App() {
           aria-hidden={currentCard !== "audio"}
         >
           <AudioProcessor />
+          <button onClick={handleTestBpm} style={{ marginLeft: "10px" }}>Detect BPM</button>
+            {bpmLoading && <span style={{ marginLeft: "10px" }}>Detecting BPM...</span>}
+            {bpm !== null && !bpmLoading && (
+              <span style={{ marginLeft: "10px" }}> BPM: <b>{bpm.toFixed(2)}</b></span>
+            )}
+            {bpmError && <span style={{ color: "red", marginLeft: "10px" }}>{bpmError}</span>}
+
+            <button onClick={handleGetTonality} style={{ marginLeft: "10px" }}>Get Tonality</button>
+            {tonalityLoading && <span style={{ marginLeft: "10px" }}>Detecting tonality...</span>}
+            {tonality && !tonalityLoading && (
+              <span style={{ marginLeft: "10px" }}>
+                Key: <b>{tonality.key}</b> (confidence: {tonality.confidence.toFixed(2)})
+              </span>
+            )}
+            {tonalityError && <span style={{ color: "red", marginLeft: "10px" }}>{tonalityError}</span>}
         </div>
       </div>
     </div>
   );
 }
+
 
 export default App;

@@ -14,6 +14,9 @@ from typing import Optional
 
 app = FastAPI(title="Audio Processor API")
 
+# TODO: Automatically call detect bpm and getTonality after uploading audio
+# TODO: fix the normalization
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -199,8 +202,9 @@ async def get_and_process_audio(req: ProcessRequest):
 
                 y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
                 # --- Amplitude normalization after pitch shift 
-                if np.max(np.abs(y_shifted)) > 0:
-                    y_shifted = y_shifted / np.max(np.abs(y_shifted)) * np.max(np.abs(y))
+                # TODO: THIS CAUSED THE PROBLEMS
+               # if np.max(np.abs(y_shifted)) > 0:
+               #     y_shifted = y_shifted / np.max(np.abs(y_shifted)) * np.max(np.abs(y))
                 # --- End normalization ---
                 y = y_shifted
 
