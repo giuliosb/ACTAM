@@ -14,9 +14,6 @@ from typing import Optional
 
 app = FastAPI(title="Audio Processor API")
 
-# TODO: Automatically call detect bpm and getTonality after uploading audio
-# TODO: fix the normalization
-
 allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import axios from "axios";
 import AudioVisualizer from "./AudioVisualizer";
 import reactLogo from "../../assets/react.svg";
@@ -14,14 +14,21 @@ export default function AudioProcessor() {
   const [uploading, setUploading] = useState(false);
 
   const [tuning, setTuning] = useState(440);
-  const [original_tuning, setOGTuning] = useState(440);
+  const [original_tuning, setOGTuning] = useState(null);
   const [processing, setProcessing] = useState(false);
 
   const [processedAudioBlob, setProcessedAudioBlob] = useState(null);
   const [processedAudioURL, setProcessedAudioURL] = useState(null);
 
   const [uploadedAudioBlob, setUploadedAudioBlob] = useState(null);
- 
+
+  const [bpm, setBpm] = useState(null);
+  const [bpmLoading, setBpmLoading] = useState(false);
+  const [bpmError, setBpmError] = useState(null);
+
+  const [tonality, setTonality] = useState(null);
+  const [tonalityLoading, setTonalityLoading] = useState(false);
+  const [tonalityError, setTonalityError] = useState(null);
 
   const [logs, setLogs] = useState([]);
 
@@ -63,6 +70,7 @@ export default function AudioProcessor() {
       log(`🎵 Detected tuning: ${tuning}`);
       const t = await getTuning();
       if (Number.isFinite(t)) await getAudio(t);
+      await Promise.all([detectBpm(), detectTonality()]);
 
     } catch (err) {
       log("❌ Upload failed");
@@ -102,6 +110,53 @@ export default function AudioProcessor() {
     return null;
   }
 };
+
+  // ----------------------------------
+  // DETECT BPM
+  // ----------------------------------
+  const detectBpm = async () => {
+    log("🥁 Detecting BPM...");
+    setBpmLoading(true);
+    setBpm(null);
+    setBpmError(null);
+    try {
+      const res = await axios.get(`${API}/getBppmDetector`);
+      const detected = Number(res.data.bpm);
+      setBpm(detected);
+      log(`🥁 BPM detected: ${detected}`);
+      return detected;
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err.message;
+      setBpmError(msg);
+      log(`❌ BPM detect failed: ${msg}`);
+      return null;
+    } finally {
+      setBpmLoading(false);
+    }
+  };
+
+  // ----------------------------------
+  // DETECT TONALITY
+  // ----------------------------------
+  const detectTonality = async () => {
+    log("🎼 Detecting tonality...");
+    setTonalityLoading(true);
+    setTonality(null);
+    setTonalityError(null);
+    try {
+      const res = await axios.get(`${API}/getTonality`);
+      setTonality(res.data);
+      log(`🎼 Tonality detected: ${res.data.key} (conf: ${res.data.confidence})`);
+      return res.data;
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err.message;
+      setTonalityError(msg);
+      log(`❌ Tonality detect failed: ${msg}`);
+      return null;
+    } finally {
+      setTonalityLoading(false);
+    }
+  };
 
   
   // ----------------------------------
@@ -148,10 +203,6 @@ export default function AudioProcessor() {
 };
 
 
-  useEffect(() => {
-    //getTuning();
-  }, []);
-
   // ----------------------------------
   // UI
   // ----------------------------------
@@ -159,9 +210,29 @@ export default function AudioProcessor() {
     <div style={{ marginTop: "40px", padding: "20px", border: "1px solid #ccc" }}>
       <h2>Audio Processor</h2>
 
-      <div style={{ marginTop: "20px" }}>
-        <strong>Original tuning:</strong> {original_tuning} Hz
-      </div>
+      {original_tuning !== null && (
+        <>
+          <div style={{ marginTop: "20px" }}>
+            <strong>Original tuning:</strong> {original_tuning} Hz
+          </div>
+          <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "center" }}>
+            <span>
+              <strong>BPM:</strong>{" "}
+              {bpmLoading ? "Detecting..." : bpm !== null ? bpm.toFixed(2) : "—"}
+            </span>
+            {bpmError && <span style={{ color: "red" }}>{bpmError}</span>}
+            <span>
+              <strong>Tonality:</strong>{" "}
+              {tonalityLoading
+                ? "Detecting..."
+                : tonality
+                ? `${tonality.key} (conf: ${tonality.confidence?.toFixed?.(2) ?? "–"})`
+                : "—"}
+            </span>
+            {tonalityError && <span style={{ color: "red" }}>{tonalityError}</span>}
+          </div>
+        </>
+      )}
 
       {/* Upload section */}
       <div style={{ marginBottom: "20px" }}>
