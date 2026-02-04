@@ -173,79 +173,78 @@ class ProcessRequest(BaseModel):
 async def get_and_process_audio(req: ProcessRequest):
     """
     Process and return the audio file with optional time stretching and pitch shifting.
-    
+
     Args:
-        stretch_rate: Time stretch factor   --- NOT USED ANYMORE
         target_tuning: Target A4 frequency in Hz (0 = no pitch shift, 440, 442, etc.)
-    
+
     Returns:
         Processed audio file
     """
     global CURRENT_FILE_PATH
     global ORIGINAL_TUNING
-    
+
     if CURRENT_FILE_PATH is None:
         raise HTTPException(status_code=404, detail="No file uploaded yet")
 
-    # Check if file exists
     if not os.path.exists(CURRENT_FILE_PATH):
         raise HTTPException(status_code=400, detail="Cannot read file")
-    
+
     try:
-        # Process the audio 
         try:
             # Load audio file
             y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
+            y = y.astype(np.float32, copy=False)
+
+            eps = 1e-9
+            rms_orig = float(np.sqrt(np.mean(y**2) + eps))
 
             #____________Pitch_shift____________
-            
             if req.target_tuning != 0:
-                # Use the global tuning
                 original_tuning = ORIGINAL_TUNING
 
                 # Calculate pitch shift in semitones
-                # Formula: semitones = 12 * log2(target_freq / original_freq)
                 semitones = 12 * np.log2(req.target_tuning / original_tuning)
 
                 # Apply pitch shifting
-
                 y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
-                # --- Amplitude normalization after pitch shift 
-                # TODO: THIS CAUSED THE PROBLEMS
-               # if np.max(np.abs(y_shifted)) > 0:
-               #     y_shifted = y_shifted / np.max(np.abs(y_shifted)) * np.max(np.abs(y))
-                # --- End normalization ---
+                y_shifted = y_shifted.astype(np.float32, copy=False)
+
+                # ---- FIX 1: match RMS (no need to keep y_orig) ----
+                rms_shifted = float(np.sqrt(np.mean(y_shifted**2) + eps))
+                if rms_shifted > eps:
+                    gain = rms_orig / rms_shifted
+                    y_shifted *= gain
+
+                # ---- Safety: prevent clipping + small headroom ----
+                peak = float(np.max(np.abs(y_shifted))) if y_shifted.size else 0.0
+                if peak > 1.0:
+                    y_shifted /= peak
+
+                y_shifted *= 0.98  # ~0.17 dB headroom
+
                 y = y_shifted
 
-                
             #___________Time_stretch____________
-            
-            # if req.stretch_rate != 0:
-                # Apply time stretching
-                # y_stretched = librosa.effects.time_stretch(y, rate=req.stretch_rate)
-                # y = y_stretched
+            # (not used)
 
         except Exception as e:
             raise Exception(f"Error processing the audio: {str(e)}")
 
-
-        temp_flac = tempfile.NamedTemporaryFile(delete=False, suffix='.flac')
+        temp_flac = tempfile.NamedTemporaryFile(delete=False, suffix=".flac")
         flac_path = temp_flac.name
         temp_flac.close()
 
-        sf.write(flac_path, y, sr, format='FLAC')
+        sf.write(flac_path, y, sr, format="FLAC")
 
-
-        
         return FileResponse(
             flac_path,
             media_type="audio/flac",
             filename="processed_audio.flac",
         )
 
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
+
 
 
 # NOT API CALL FUNCTIONS:
