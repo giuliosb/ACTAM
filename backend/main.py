@@ -337,10 +337,10 @@ def apply_pitch_shift(target_tuning: float):
         semitones = 12 * np.log2(target_tuning / og_tuning)
         
         # Load audio file
-        y, sr = librosa.load(CURRENT_FILE_PATH, sr=None)
+        y, sr = librosa.load(CURRENT_FILE_PATH, sr=None, mono=False, dtype=np.float32)
         
         # Apply pitch shifting
-        y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
+        y = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones).astype(np.float32, copy=False)
         
         # Overwrite the current file with pitch-shifted audio
         sf.write(CURRENT_FILE_PATH, y_shifted, sr)

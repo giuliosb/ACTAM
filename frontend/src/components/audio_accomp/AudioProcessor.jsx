@@ -1,14 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import AudioVisualizer from "./AudioVisualizer";
+import reactLogo from "../../assets/react.svg";
 
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 
 export default function AudioProcessor() {
+  const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [uploadResponse, setUploadResponse] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const [tuning, setTuning] = useState(440);
   const [original_tuning, setOGTuning] = useState(440);
@@ -30,18 +33,17 @@ export default function AudioProcessor() {
   // ----------------------------------
   // UPLOAD FILE
   // ----------------------------------
-  const uploadFile = async () => {
-    if (!file) return alert("Select a file first!");
-
+  const uploadFile = async (selectedFile = file) => {
     log("📤 Upload started...");
-    log(`Selected file: ${file.name}`);
+    log(`Selected file: ${selectedFile.name}`);
 
     const form = new FormData();
-    form.append("file", file);
+    form.append("file", selectedFile);
 
-    setUploadedAudioBlob(file);
+    setUploadedAudioBlob(selectedFile);
 
     try {
+      setUploading(true);
       const res = await axios.post(`${API}/upload`, form);
 
       log("📡 Backend responded:");
@@ -66,7 +68,18 @@ export default function AudioProcessor() {
       log("❌ Upload failed");
       log(err.toString());
       alert("Upload failed");
+    } finally {
+      setUploading(false);
     }
+  };
+
+  const handleFileSelected = (e) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    setFile(selected);
+    uploadFile(selected);
+    // allow re-selecting the same file later
+    e.target.value = "";
   };
 
   // ----------------------------------
@@ -153,13 +166,38 @@ export default function AudioProcessor() {
       {/* Upload section */}
       <div style={{ marginBottom: "20px" }}>
         <input
+          ref={fileInputRef}
           type="file"
           accept="audio/*"
-          onChange={(e) => setFile(e.target.files[0])}
+          onChange={handleFileSelected}
+          style={{ display: "none" }}
+          disabled={uploading}
         />
-        <button onClick={uploadFile} style={{ marginLeft: "10px" }}>
-          Upload
+        <button
+          onClick={() => {
+            if (uploading) return;
+            fileInputRef.current?.click();
+          }}
+          style={{ marginLeft: "10px" }}
+          disabled={uploading}
+        >
+          {uploading ? "Uploading..." : "Upload"}
         </button>
+        {file && (
+          <span style={{ marginLeft: "12px" }}>
+            File selezionato: <strong>{file.name}</strong>
+          </span>
+        )}
+        {uploading && (
+          <span style={{ marginLeft: "14px", display: "inline-flex", alignItems: "center" }}>
+            <img
+              src={reactLogo}
+              alt="React loader"
+              style={{ width: "36px", height: "36px", animation: "spin 1s linear infinite" }}
+            />
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+          </span>
+        )}
       </div>
 
       {uploadResponse && (
