@@ -4,9 +4,6 @@
 
 .music-sequencer {
   padding: 20px;
-  font-family: sans-serif;
-  background: #1e1e1e;
-  color: #e0e0e0;
 }
 
 .sequencer-body {
@@ -38,7 +35,6 @@
   padding: 4px 6px;
   background: #2f2f2f;
   border: 1px solid #555;
-  color: #e0e0e0;
   border-radius: 4px;
 }
 

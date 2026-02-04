@@ -136,7 +136,7 @@ export default function AudioProcessor() {
 
 
   useEffect(() => {
-    getTuning();
+    //getTuning();
   }, []);
 
   // ----------------------------------

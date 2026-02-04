@@ -4,7 +4,16 @@ import Sequencer, {
   buildSequenceFromSnapshot,
 } from "./Sequencer.jsx";
 import Player from "./Player.jsx";
-import { DEFAULT_STEPS, createEmptySequence } from "./musicConfig.js";
+import ChordGenerator from "./ChordGenerator.jsx";
+
+import {
+  DEFAULT_STEPS,
+  createEmptySequence,
+  NOTES,
+  TRIADS,
+  EXTENSIONS,
+  DEFAULT_CHORD_TRACK,
+} from "./musicConfig.js";
 
 export default function Accompaniment() {
   // sequence & chords
@@ -34,6 +43,73 @@ export default function Accompaniment() {
   const [isPlaying, setIsPlaying] = useState(false);
   const fileInputRef = useRef(null);
   const playerRef = useRef(null);
+
+
+  const [a4Frequency, setA4Frequency] = useState(440);
+  const [rootNote, setRootNote] = useState("C");
+  const [octave, setOctave] = useState(3);
+  const [triad, setTriad] = useState("Major");
+  const [extension, setExtension] = useState("");
+
+  const noteFrequency = (note, octaveValue) => {
+    const n = NOTES.indexOf(note) + (octaveValue - 4) * 12 - 9;
+    return a4Frequency * Math.pow(2, n / 12);
+  };
+
+  const buildChordNotes = () => {
+    const rootIndex = NOTES.indexOf(rootNote);
+    const baseTriad = TRIADS[triad];
+    const chordIntervals =
+      extension && EXTENSIONS[extension] !== null
+        ? [...baseTriad, EXTENSIONS[extension]]
+        : baseTriad;
+
+    return chordIntervals.map((interval) => {
+      const noteIndex = rootIndex + interval;
+      const noteName = NOTES[noteIndex % 12];
+      const noteOct = octave + Math.floor(noteIndex / 12);
+      return {
+        note: noteName,
+        octave: noteOct,
+        freq: noteFrequency(noteName, noteOct),
+      };
+    });
+  };
+
+  const isDuplicateChord = (root, triadName, extensionName) => {
+    const list = Array.isArray(chords) ? chords : [];
+    return list.some(
+      (ch) =>
+        ch &&
+        ch.root === root &&
+        ch.triad === triadName &&
+        (ch.extension || "") === (extensionName || "")
+    );
+  };
+
+  const addChord = () => {
+    if (isPlaying) return;
+    if (isDuplicateChord(rootNote, triad, extension)) return;
+
+    const notes = buildChordNotes();
+
+    setChords((prev) => [
+      ...(Array.isArray(prev) ? prev : []),
+      { root: rootNote, triad, extension, notes },
+    ]);
+
+    setTracks((prev) => {
+      const safePrev = prev || {};
+      const prevChordsTracks = safePrev.chords || [];
+      if (prevChordsTracks.length === 0) {
+        return {
+          ...safePrev,
+          chords: [{ ...DEFAULT_CHORD_TRACK }],
+        };
+      }
+      return safePrev;
+    });
+  };
 
   useEffect(() => {
     setSequence((prevSequence) => {
@@ -222,7 +298,23 @@ export default function Accompaniment() {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h1>Music Sequencer</h1>
+
+      <ChordGenerator
+        a4Frequency={a4Frequency}
+        setA4Frequency={setA4Frequency}
+        rootNote={rootNote}
+        setRootNote={setRootNote}
+        triad={triad}
+        setTriad={setTriad}
+        extension={extension}
+        setExtension={setExtension}
+        octave={octave}
+        setOctave={setOctave}
+        addChord={addChord}
+        isDuplicateChord={isDuplicateChord}
+        isPlaying={isPlaying}
+      />
+
       <div style={{ marginBottom: "12px" }}>
         <label style={{ marginRight: "10px" }}>Number of blocks:</label>
         <select
@@ -232,7 +324,6 @@ export default function Accompaniment() {
               setSteps(Number(e.target.value) * stepsPerBlock);
           }}
           disabled={isPlaying}
-          style={{ width: "130px" }}
         >
           <option value={'1'}>1</option>
           <option value={'2'}>2</option>
@@ -248,7 +339,6 @@ export default function Accompaniment() {
             setSteps(blocks * Number(e.target.value));
           }}
           disabled={isPlaying}
-          style={{ width: "130px" }}
         >
           <option value={16}>4/4</option>
           <option value={12}>3/4</option>
@@ -277,6 +367,21 @@ export default function Accompaniment() {
         />
       </div>
 
+      {/* 
+        PUT ChordGenerator HERE
+      */}
+      
+      <Player
+        ref={playerRef}
+        sequence={sequence}
+        tracks={tracks}
+        chords={chords}
+        onStep={setCurrentStep}
+        onTracksChange={setTracks}
+        onPlayStateChange={setIsPlaying}  // <-- Player notifica play/stop
+        steps={steps}
+      />
+     
       <Sequencer
         sequence={sequence}
         onSequenceChange={setSequence}
@@ -293,16 +398,7 @@ export default function Accompaniment() {
         stepsPerBlock={stepsPerBlock}
       />
 
-      <Player
-        ref={playerRef}
-        sequence={sequence}
-        tracks={tracks}
-        chords={chords}
-        onStep={setCurrentStep}
-        onTracksChange={setTracks}
-        onPlayStateChange={setIsPlaying}  // <-- Player notifica play/stop
-        steps={steps}
-      />
+     
     </div>
   );
 }

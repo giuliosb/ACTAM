@@ -5,29 +5,43 @@ const BAR_HEIGHT = 12;
 const SLOT_PADDING = 6;
 const TRACK_HEIGHT = 180; // matches .slider-track height
 
-const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-
 export default function Slider({
-  value = 0, // now expects "real output" value (min..max), not 0..100
+  value = 50,
   onChange = () => {},
+  dB = false,
+  center = false, 
   min = -15,
   max = 15,
-  step = 1,
 }) {
   const trackRef = useRef(null);
+  const [pos, setPos] = useState(value); // 0–100
 
-  // Keep the internal state in REAL units (min..max), snapped to step
-  const snap = useCallback(
-    (x) => {
-      const stepped = Math.round(x / step) * step;
-      // avoid -0
-      const cleaned = Object.is(stepped, -0) ? 0 : stepped;
-      return clamp(cleaned, min, max);
-    },
-    [min, max, step]
-  );
+  // --- LOGIC -------------------------------------------------------------
 
-  const [out, setOut] = useState(() => snap(value));
+  const linearToLog = (v) => {
+    const x = v / 100;
+    return Math.pow(x, 2) * 100;
+  };
+  
+  const linearToCenteredLog = (v) => {
+    if (v === 50) return 50;
+  
+    if (v > 50) {
+      // 50 → 100 (log up)
+      const x = (v - 50) / 50;        // 0 → 1
+      return 50 + Math.pow(x, 2) * 50;
+    } else {
+      // 50 → 0 (log down)
+      const x = (50 - v) / 50;        // 0 → 1
+      return 50 - Math.pow(x, 2) * 50;
+    }
+  };
+  
+  const computeOutput = (v) => {
+    if (!dB) return v;
+    return center ? linearToCenteredLog(v) : linearToLog(v);
+  };
+  
 
   const updateFromPointer = useCallback(
     (clientY) => {
@@ -43,21 +57,16 @@ export default function Slider({
       const range = centerMax - centerMin;
 
       // pointer as center, clamped
-      let center = clamp(clientY, centerMin, centerMax);
+      let center = clientY;
+      center = Math.max(centerMin, Math.min(centerMax, center));
 
-      // percent: 100 at top, 0 at bottom
-      const percent = (centerMax - center) / range; // 0..1
+      // map to 0–100 (100 at top, 0 at bottom)
+      const v = ((centerMax - center) / range) * 100;
 
-      // map directly into min..max
-      const rawOut = min + percent * (max - min);
-
-      // snap to real step and clamp
-      const nextOut = snap(rawOut);
-
-      setOut(nextOut);
-      onChange(nextOut);
+      setPos(v);
+      onChange(computeOutput(v));
     },
-    [min, max, snap, onChange]
+    [dB, onChange]
   );
 
   const startDragging = (e) => {
@@ -72,24 +81,16 @@ export default function Slider({
     updateFromPointer(e.clientY);
   };
 
-  // If parent updates value, snap and reflect it
-  useEffect(() => {
-    setOut(snap(value));
-  }, [value, snap]);
+  useEffect(() => setPos(value), [value]);
 
   // --- UI ---------------------------------------------------------------
 
   const gridStyle = {
     display: "grid",
-    gridTemplateColumns: "60px 30px",
+    gridTemplateColumns: "60px 30px", // fixed, compact
     columnGap: "8px",
     alignItems: "center",
   };
-
-  // Convert REAL output (min..max) to percent 0..100 for rendering
-  const percent01 =
-    max === min ? 0 : (out - min) / (max - min); // 0..1
-  const pos = clamp(percent01, 0, 1) * 100; // 0..100
 
   // convert pos (0–100) to px `top` in track coords
   const slotTopTrack = SLOT_PADDING;
@@ -99,12 +100,12 @@ export default function Slider({
   const rangeTrack = centerMaxTrack - centerMinTrack;
 
   const centerTrack = centerMaxTrack - (pos / 100) * rangeTrack;
-  const topPx = centerTrack - BAR_HEIGHT / 2;
+  const topPx = centerTrack - BAR_HEIGHT / 2; // slider-bar's top
 
   return (
     <div>
       <div className="slider-wrapper" style={gridStyle}>
-        {/* ticks */}
+        {/* 2nd COLUMN – ticks */}
         <div className="tick-track">
           <div className="slider-ticks">
             <div></div>
@@ -113,11 +114,23 @@ export default function Slider({
                 <div className="tick-line"></div>
               </div>
             ))}
+
+            {/*  GLOWING VERSION  */}
+            {/* {Array.from({ length: 11 }).map((_, i) => {
+              const tickValue = (10 - i) * 10;        // 100 → 0
+              const isActive = pos >= tickValue;
+
+              return (
+                <div className="tick-row" key={i}>
+                  <div className={`tick-line ${isActive ? "active" : ""}`}></div>
+                </div>
+              );
+            })} */}
             <div></div>
           </div>
         </div>
 
-        {/* slider */}
+        {/* 3rd COLUMN – slider */}
         <div
           className="slider-track"
           ref={trackRef}
