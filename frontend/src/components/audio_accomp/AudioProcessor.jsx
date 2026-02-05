@@ -25,6 +25,7 @@ export default function AudioProcessor() {
   const [bpm, setBpm] = useState(null);
   const [bpmLoading, setBpmLoading] = useState(false);
   const [bpmError, setBpmError] = useState(null);
+  const [targetBpm, setTargetBpm] = useState(null);
 
   const [tonality, setTonality] = useState(null);
   const [tonalityLoading, setTonalityLoading] = useState(false);
@@ -123,6 +124,8 @@ export default function AudioProcessor() {
       const res = await axios.get(`${API}/getBppmDetector`);
       const detected = Number(res.data.bpm);
       setBpm(detected);
+      // default target to detected bpm for 1x playback
+      setTargetBpm((prev) => (prev === null ? detected : prev));
       log(`🥁 BPM detected: ${detected}`);
       return detected;
     } catch (err) {
@@ -230,6 +233,17 @@ export default function AudioProcessor() {
                 : "—"}
             </span>
             {tonalityError && <span style={{ color: "red" }}>{tonalityError}</span>}
+            <span>
+              <strong>Target BPM:</strong>{" "}
+              <input
+                type="number"
+                value={targetBpm ?? ""}
+                onChange={(e) => setTargetBpm(Number(e.target.value))}
+                style={{ width: "90px" }}
+                min="20"
+                max="300"
+              />
+            </span>
           </div>
         </>
       )}
@@ -307,7 +321,10 @@ export default function AudioProcessor() {
           {processedAudioBlob && (
             <div style={{ marginTop: "20px" }}>
               <h3>Processed Audio Waveform</h3>
-              <AudioVisualizer audioFile={processedAudioBlob}/>
+              <AudioVisualizer
+                audioFile={processedAudioBlob}
+                playbackSpeed={bpm && targetBpm ? targetBpm / bpm : 1}
+              />
             </div>
           )}
 

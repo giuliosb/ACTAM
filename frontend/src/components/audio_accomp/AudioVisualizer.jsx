@@ -3,7 +3,7 @@ import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js'
 
-export default function AudioVisualizer({ audioFile }) {
+export default function AudioVisualizer({ audioFile, playbackSpeed = 1 }) {
   const containerRef = useRef(null);
   const wavesurferRef = useRef(null);
   const regionRef = useRef(null);
@@ -13,7 +13,6 @@ export default function AudioVisualizer({ audioFile }) {
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
 
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [loopEnabled, setLoopEnabled] = useState(true);
 
   const loopEnabledRef = useRef(loopEnabled);
@@ -176,19 +175,6 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
         <span>
           Start: {startTime.toFixed(2)}s • End: {endTime.toFixed(2)}s
         </span>
-      </div>
-      {/* ---------------- SPEED CONTROL ---------------- */}
-      <div style={{ marginTop: "10px" }}>
-        <label>Playback speed: </label>
-        <input
-          type="number"
-          step="0.05"
-          min="0.2"
-          max="3"
-          value={playbackSpeed}
-          onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-          style={{ width: "80px", marginLeft: "10px" }}
-        />
       </div>
        {/* LOOP CHECKBOX */}
       <div style={{ marginTop: "10px" }}>
