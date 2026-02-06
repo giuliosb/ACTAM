@@ -3,17 +3,35 @@ import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js'
 
-export default function AudioVisualizer({ audioFile }) {
+export default function AudioVisualizer({ audioFile, playbackSpeed = 1 }) {
   const containerRef = useRef(null);
   const wavesurferRef = useRef(null);
   const regionRef = useRef(null);
   const regionsPluginRef = useRef(null);
 
+  // Helper: destroy a WaveSurfer instance and swallow AbortError (raised when aborting pending loads)
+  const safeDestroy = (ws) => {
+    if (!ws) return;
+    try {
+      const maybePromise = ws.destroy();
+      if (maybePromise?.catch) {
+        maybePromise.catch((err) => {
+          if (err?.name !== "AbortError") {
+            console.error("WaveSurfer destroy error:", err);
+          }
+        });
+      }
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("WaveSurfer destroy error:", err);
+      }
+    }
+  };
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
 
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [loopEnabled, setLoopEnabled] = useState(true);
 
   const loopEnabledRef = useRef(loopEnabled);
@@ -28,7 +46,7 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
 
     // cleanup previous instance
     if (wavesurferRef.current) {
-      wavesurferRef.current.destroy();
+      safeDestroy(wavesurferRef.current);
       wavesurferRef.current = null;
       regionRef.current = null;
       regionsPluginRef.current = null;
@@ -59,8 +77,22 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     wavesurferRef.current = ws;
     regionsPluginRef.current = regionsPlugin;
 
+    ws.on("error", (err) => {
+      if (err?.name !== "AbortError") {
+        console.error("WaveSurfer error:", err);
+      }
+    });
+
     const url = URL.createObjectURL(audioFile);
-    ws.load(url);
+    (async () => {
+      try {
+        await ws.load(url);
+      } catch (err) {
+        if (err?.name !== "AbortError") {
+          console.error("WaveSurfer load error:", err);
+        }
+      }
+    })();
 
     ws.on("ready", () => {
       const duration = ws.getDuration();
@@ -122,14 +154,8 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     ws.on("pause", () => setIsPlaying(false));
 
     return () => {
+      safeDestroy(ws);
       URL.revokeObjectURL(url);
-     try {
-    ws.destroy();
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("WaveSurfer destroy error:", err);
-      }
-    }
     };
   }, [audioFile]);
 
@@ -176,19 +202,6 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
         <span>
           Start: {startTime.toFixed(2)}s • End: {endTime.toFixed(2)}s
         </span>
-      </div>
-      {/* ---------------- SPEED CONTROL ---------------- */}
-      <div style={{ marginTop: "10px" }}>
-        <label>Playback speed: </label>
-        <input
-          type="number"
-          step="0.05"
-          min="0.2"
-          max="3"
-          value={playbackSpeed}
-          onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-          style={{ width: "80px", marginLeft: "10px" }}
-        />
       </div>
        {/* LOOP CHECKBOX */}
       <div style={{ marginTop: "10px" }}>
