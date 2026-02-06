@@ -9,6 +9,25 @@ export default function AudioVisualizer({ audioFile, playbackSpeed = 1 }) {
   const regionRef = useRef(null);
   const regionsPluginRef = useRef(null);
 
+  // Helper: destroy a WaveSurfer instance and swallow AbortError (raised when aborting pending loads)
+  const safeDestroy = (ws) => {
+    if (!ws) return;
+    try {
+      const maybePromise = ws.destroy();
+      if (maybePromise?.catch) {
+        maybePromise.catch((err) => {
+          if (err?.name !== "AbortError") {
+            console.error("WaveSurfer destroy error:", err);
+          }
+        });
+      }
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("WaveSurfer destroy error:", err);
+      }
+    }
+  };
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
@@ -27,7 +46,7 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
 
     // cleanup previous instance
     if (wavesurferRef.current) {
-      wavesurferRef.current.destroy();
+      safeDestroy(wavesurferRef.current);
       wavesurferRef.current = null;
       regionRef.current = null;
       regionsPluginRef.current = null;
@@ -58,8 +77,22 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     wavesurferRef.current = ws;
     regionsPluginRef.current = regionsPlugin;
 
+    ws.on("error", (err) => {
+      if (err?.name !== "AbortError") {
+        console.error("WaveSurfer error:", err);
+      }
+    });
+
     const url = URL.createObjectURL(audioFile);
-    ws.load(url);
+    (async () => {
+      try {
+        await ws.load(url);
+      } catch (err) {
+        if (err?.name !== "AbortError") {
+          console.error("WaveSurfer load error:", err);
+        }
+      }
+    })();
 
     ws.on("ready", () => {
       const duration = ws.getDuration();
@@ -121,14 +154,8 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     ws.on("pause", () => setIsPlaying(false));
 
     return () => {
+      safeDestroy(ws);
       URL.revokeObjectURL(url);
-     try {
-    ws.destroy();
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("WaveSurfer destroy error:", err);
-      }
-    }
     };
   }, [audioFile]);
 

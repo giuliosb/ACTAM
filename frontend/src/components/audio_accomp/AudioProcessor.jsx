@@ -42,6 +42,10 @@ export default function AudioProcessor() {
   // UPLOAD FILE
   // ----------------------------------
   const uploadFile = async (selectedFile = file) => {
+    if (!selectedFile) {
+      log("❌ No file provided for upload");
+      return;
+    }
     log("📤 Upload started...");
     log(`Selected file: ${selectedFile.name}`);
 

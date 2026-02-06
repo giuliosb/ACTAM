@@ -154,9 +154,13 @@ def clear_temp():
     """Delete the current temporary file."""
     global CURRENT_FILE_PATH
     if CURRENT_FILE_PATH and os.path.exists(CURRENT_FILE_PATH):
-        os.remove(CURRENT_FILE_PATH)
-        CURRENT_FILE_PATH = None
-        return {"message": "Temporary file cleared"}
+        try:
+            os.remove(CURRENT_FILE_PATH)
+            CURRENT_FILE_PATH = None
+            return {"message": "Temporary file cleared"}
+        except OSError as e:
+            # Return controlled error instead of leaking internal exception
+            raise HTTPException(status_code=500, detail=f"Failed to delete temp file: {e}")
     return {"message": "No file to clear"}
 
 
@@ -256,58 +260,63 @@ def detect_tuning_reference(audio_path: str, duration: float = 30.0, offset: flo
     Returns:
         Detected A4 frequency in Hz (e.g., 440, 442, etc.)
     """
-    # Load audio file
-    y, sr = librosa.load(audio_path, sr=None, duration=duration, offset=offset)
-    
-    # Use pyin for pitch detection
-    f0, voiced_flag, voiced_probs = librosa.pyin(
-        y,
-        fmin=librosa.note_to_hz('C2'),  # ~65 Hz
-        fmax=librosa.note_to_hz('C7'),  # ~2093 Hz
-        sr=sr
-    )
-    
-    # Filter out unvoiced segments and NaN values
-    valid_freqs = f0[(voiced_flag) & (~np.isnan(f0))]
-    
-    if len(valid_freqs) == 0:
-        # Default to 440 Hz if no valid frequencies detected
-        return 440.0
-    
-    # For each detected frequency, calculate what A4 would be
-    # Formula: A4 = detected_freq * 2^((69 - midi_note) / 12)
-    # where midi_note = 69 + 12 * log2(detected_freq / A4_reference)
-    
-    a4_estimates = []
-    
-    for freq in valid_freqs:
-        if freq < 20 or freq > 4000:  # Skip unrealistic frequencies
-            continue
+    try:
+        # Load audio file
+        y, sr = librosa.load(audio_path, sr=None, duration=duration, offset=offset)
+        
+        # Use pyin for pitch detection
+        f0, voiced_flag, voiced_probs = librosa.pyin(
+            y,
+            fmin=librosa.note_to_hz('C2'),  # ~65 Hz
+            fmax=librosa.note_to_hz('C7'),  # ~2093 Hz
+            sr=sr
+        )
+        
+        # Filter out unvoiced segments and NaN values
+        valid_freqs = f0[(voiced_flag) & (~np.isnan(f0))]
+        
+        if len(valid_freqs) == 0:
+            # Default to 440 Hz if no valid frequencies detected
+            return 440.0
+        
+        # For each detected frequency, calculate what A4 would be
+        # Formula: A4 = detected_freq * 2^((69 - midi_note) / 12)
+        # where midi_note = 69 + 12 * log2(detected_freq / A4_reference)
+        
+        a4_estimates = []
+        
+        for freq in valid_freqs:
+            if freq < 20 or freq > 4000:  # Skip unrealistic frequencies
+                continue
+                
+            # Convert frequency to MIDI note number assuming A4=440Hz
+            midi_note = 69 + 12 * np.log2(freq / 440.0)
             
-        # Convert frequency to MIDI note number assuming A4=440Hz
-        midi_note = 69 + 12 * np.log2(freq / 440.0)
+            # Round to nearest semitone to identify the note
+            nearest_midi = round(midi_note)
+            
+            # Calculate what A4 frequency would produce this note at this frequency
+            # freq = A4 * 2^((nearest_midi - 69) / 12)
+            # A4 = freq / 2^((nearest_midi - 69) / 12)
+            implied_a4 = freq / (2 ** ((nearest_midi - 69) / 12))
+            
+            # Only keep reasonable A4 estimates (between 430-450 Hz)
+            if 430 <= implied_a4 <= 450:
+                a4_estimates.append(implied_a4)
         
-        # Round to nearest semitone to identify the note
-        nearest_midi = round(midi_note)
+        if len(a4_estimates) == 0:
+            # Default to 440 Hz if no valid estimates
+            return 440.0
         
-        # Calculate what A4 frequency would produce this note at this frequency
-        # freq = A4 * 2^((nearest_midi - 69) / 12)
-        # A4 = freq / 2^((nearest_midi - 69) / 12)
-        implied_a4 = freq / (2 ** ((nearest_midi - 69) / 12))
+        # Use median to avoid outliers
+        detected_a4 = np.median(a4_estimates)
         
-        # Only keep reasonable A4 estimates (between 430-450 Hz)
-        if 430 <= implied_a4 <= 450:
-            a4_estimates.append(implied_a4)
-    
-    if len(a4_estimates) == 0:
-        # Default to 440 Hz if no valid estimates
+        # Round to nearest integer Hz
+        return round(detected_a4)
+    except Exception as e:
+        # Fallback: log and return safe default instead of propagating
+        print(f"Tuning detection error on {audio_path}: {e}")
         return 440.0
-    
-    # Use median to avoid outliers
-    detected_a4 = np.median(a4_estimates)
-    
-    # Round to nearest integer Hz
-    return round(detected_a4)
 
 
 # Not used functions:
@@ -340,7 +349,7 @@ def apply_pitch_shift(target_tuning: float):
         y = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones).astype(np.float32, copy=False)
         
         # Overwrite the current file with pitch-shifted audio
-        sf.write(CURRENT_FILE_PATH, y_shifted, sr)
+        sf.write(CURRENT_FILE_PATH, y, sr)
         
         
         print(f"Pitch shifted from {ORIGINAL_TUNING}Hz to {target_tuning}Hz")
