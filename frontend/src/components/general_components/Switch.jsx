@@ -4,7 +4,7 @@ import switchRotatedImg from "../../assets/images/switch_rot.png";
 import switchInner from "../../assets/images/switch_inner.png";
 import switchAudio from "../../assets/sound_effects/switch_audio.wav";
 
-export default function Switch({ horizontal = false, size = 100, onToggle }) {
+export default function Switch({ horizontal = false, size = 100, onToggle, disabled=false}) {
   const [flipped, setFlipped] = useState(false);
   const innerAudio = useMemo(() => {
     if (!switchAudio) {
@@ -17,6 +17,9 @@ export default function Switch({ horizontal = false, size = 100, onToggle }) {
   }, [switchAudio]);
 
   const handleClick = () => {
+    if (disabled) {
+      return;
+    }
     setFlipped((prev) => !prev);
     if (!innerAudio) {
       return;
@@ -45,7 +48,7 @@ export default function Switch({ horizontal = false, size = 100, onToggle }) {
         height: size,
         position: "relative",
         display: "inline-block",
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         transform: horizontal ? "rotate(-90deg)" : undefined,
         transformOrigin: "center center",
       }}
@@ -83,3 +86,4 @@ export default function Switch({ horizontal = false, size = 100, onToggle }) {
     </div>
   );
 }
+

@@ -81,7 +81,7 @@ export default function Slider({
 
   const gridStyle = {
     display: "grid",
-    gridTemplateColumns: "60px 30px",
+    gridTemplateColumns: "60px 60px",
     columnGap: "8px",
     alignItems: "center",
   };
