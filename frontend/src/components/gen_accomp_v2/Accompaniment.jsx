@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from "react";
+import Slider from "../general_components/Slider.jsx";
+import Switch from "../general_components/Switch.jsx";
 import Sequencer, {
   getSequencerSnapshot,
   buildSequenceFromSnapshot,
 } from "./Sequencer.jsx";
-import Player from "./Player.jsx";
+
+import Player, {
+  CHORD_INSTRUMENTS,
+  DRUM_IDS,
+  DEFAULT_DRUM_SOUND_SELECTION,
+} from "./Player.jsx";
 import ChordGenerator from "./ChordGenerator.jsx";
 
 import {
@@ -14,6 +21,7 @@ import {
   EXTENSIONS,
   DEFAULT_CHORD_TRACK,
 } from "./musicConfig.js";
+import { DEFAULT_CHORD_SYNTH_SETTINGS } from "./ChordSynth.jsx";
 
 export default function Accompaniment() {
   // sequence & chords
@@ -43,6 +51,13 @@ export default function Accompaniment() {
   const [isPlaying, setIsPlaying] = useState(false);
   const fileInputRef = useRef(null);
   const playerRef = useRef(null);
+  const [bpm, setBpm] = useState(120);
+  const [chordSynthSettings, setChordSynthSettings] = useState(() => ({
+    ...DEFAULT_CHORD_SYNTH_SETTINGS,
+  }));
+  const [drumSoundSelection, setDrumSoundSelection] = useState(() => ({
+    ...DEFAULT_DRUM_SOUND_SELECTION,
+  }));
 
 
   const [a4Frequency, setA4Frequency] = useState(440);
@@ -111,6 +126,35 @@ export default function Accompaniment() {
     });
   };
 
+  const handleDrumVolumeChange = (drumId, value) => {
+    const vol = Number(value);
+    setTracks((prev) => {
+      const safePrev = prev || {};
+      const prevDrums = safePrev.drums || {};
+      const prevDrumTrack = prevDrums[drumId] || {};
+
+      return {
+        ...safePrev,
+        drums: {
+          ...prevDrums,
+          [drumId]: {
+            ...prevDrumTrack,
+            volume: vol,
+          },
+        },
+      };
+    });
+  };
+
+  const handleDrumSoundChange = (drumId, soundId) => {
+    setDrumSoundSelection((prev) => ({
+      ...prev,
+      [drumId]: soundId,
+    }));
+
+    playerRef.current?.setDrumSound?.(drumId, soundId);
+  };
+
   useEffect(() => {
     setSequence((prevSequence) => {
       const safePrev = Array.isArray(prevSequence) ? prevSequence : [];
@@ -167,10 +211,27 @@ export default function Accompaniment() {
   };
 
   const handleSaveState = () => {
+    const drumsSnapshot = DRUM_IDS.reduce((acc, drumId) => {
+      const drumTrack = (tracks?.drums || {})[drumId] || {};
+      acc[drumId] = drumTrack.volume ?? 0;
+      return acc;
+    }, {});
+
+    const fallbackPlayerState = {
+      bpm,
+      masterVolume,
+      chordVolume,
+      chordSynthSettings,
+      chordInstrument: chordSynthSettings.instrument,
+      chordInstruments: CHORD_INSTRUMENTS,
+      drumVolumes: drumsSnapshot,
+      isPlaying,
+    };
+
     const playerState =
       typeof playerRef.current?.getState === "function"
         ? playerRef.current.getState()
-        : null;
+        : fallbackPlayerState;
 
     const sequencerSnapshot = getSequencerSnapshot({
       sequence,
@@ -253,11 +314,62 @@ export default function Accompaniment() {
     );
     setSequence(reconstructedSequence);
 
-    if (playerRef.current?.setState) {
-      playerRef.current.setState(input.player);
+    const savedPlayer =
+      input.player && typeof input.player === "object" ? input.player : {};
+
+    if (Number.isFinite(savedPlayer.bpm)) {
+      setBpm(savedPlayer.bpm);
+    }
+    if (Number.isFinite(savedPlayer.masterVolume)) {
+      setMasterVolume(savedPlayer.masterVolume);
+    }
+    if (Number.isFinite(savedPlayer.chordVolume)) {
+      setChordVolume(savedPlayer.chordVolume);
+    }
+    if (savedPlayer.chordSynthSettings && typeof savedPlayer.chordSynthSettings === "object") {
+      setChordSynthSettings((prev) => ({
+        ...prev,
+        ...savedPlayer.chordSynthSettings,
+      }));
+    } else if (savedPlayer.chordInstrument) {
+      setChordSynthSettings((prev) => ({
+        ...prev,
+        instrument: savedPlayer.chordInstrument,
+      }));
+    }
+    if (savedPlayer.drumVolumes && typeof savedPlayer.drumVolumes === "object") {
+      setTracks((prev) => {
+        const safePrev = prev || {};
+        const prevDrums = safePrev.drums || {};
+        const updatedDrums = { ...prevDrums };
+        DRUM_IDS.forEach((drumId) => {
+          const nextVol = savedPlayer.drumVolumes[drumId];
+          if (Number.isFinite(nextVol)) {
+            const prevDrum = updatedDrums[drumId] || {};
+            updatedDrums[drumId] = {
+              ...prevDrum,
+              volume: nextVol,
+            };
+          }
+        });
+        return {
+          ...safePrev,
+          drums: updatedDrums,
+        };
+      });
+    }
+    if (savedPlayer.drumSounds && typeof savedPlayer.drumSounds === "object") {
+      setDrumSoundSelection((prev) => ({
+        ...prev,
+        ...savedPlayer.drumSounds,
+      }));
+      Object.entries(savedPlayer.drumSounds).forEach(([drumId, soundId]) => {
+        playerRef.current?.setDrumSound?.(drumId, soundId);
+      });
     }
 
     setCurrentStep(-1);
+    setIsPlaying(false);
   };
 
   const handleLoadState = () => {
@@ -296,10 +408,205 @@ export default function Accompaniment() {
     reader.readAsText(file);
   };
 
+  const handlePlayToggle = () => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (isPlaying) {
+      player.stop && player.stop();
+    } else {
+      player.play && player.play();
+    }
+  };
+
+  const drumTracks = tracks?.drums || {};
+
   return (
     <div style={{ padding: "20px" }}>
 
-      <ChordGenerator
+      <Player
+        ref={playerRef}
+        sequence={sequence}
+        tracks={tracks}
+        chords={chords}
+        onStep={setCurrentStep}
+        onTracksChange={setTracks}
+        onPlayStateChange={setIsPlaying}  // <-- Player notifica play/stop
+        steps={steps}
+        bpm={bpm}
+        masterVolume={masterVolume}
+        chordVolume={chordVolume}
+        chordSynthSettings={chordSynthSettings}
+        drumSoundSelection={drumSoundSelection}
+      />
+
+      <div
+        style={{
+          margin: "20px 0",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        <div>
+          <h4>Master Volume (dB)</h4>
+          <Slider
+            min={-30}
+            max={6}
+            step={1}
+            value={masterVolume}
+            onChange={(value) => {
+              setMasterVolume(value);
+              console.log(`Master volume changed to ${value} dB`);
+            }}
+          />
+          <span>{masterVolume} dB</span>
+        </div>
+        <div>
+          <h4>Chord Volume (dB)</h4>
+          <Slider
+            min={-30}
+            max={6}
+            step={1}
+            onChange={(value) =>{
+              //console.log(value)
+              setChordVolume(value)
+            } }
+          />
+          <span>{chordVolume} dB</span>
+        </div>
+        <div>
+          <h4>BPM</h4>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <input
+              type="number"
+              min="40"
+              max="240"
+              value={bpm}
+              onChange={(e) => setBpm(Number(e.target.value))}
+              style={{ width: "70px" }}
+            />
+            <input
+              type="range"
+              min="40"
+              max="240"
+              value={bpm}
+              onChange={(e) => setBpm(Number(e.target.value))}
+              style={{ flex: 1 }}
+            />
+          </div>
+        </div>
+        <div>
+          <h4>Chord Synth Instrument</h4>
+          <select
+            value={chordSynthSettings.instrument}
+            onChange={(e) =>
+              setChordSynthSettings((prev) => ({
+                ...prev,
+                instrument: e.target.value,
+              }))
+            }
+          >
+            {CHORD_INSTRUMENTS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <h4>Transport</h4>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <Switch       //TODO: turn of playing when switching visibility
+              size={100}
+              onToggle={handlePlayToggle}
+              disabled={!playerRef.current}
+            />
+            <span>{isPlaying ? "Playing" : "Stopped"}</span>
+          </div>
+        </div>
+        <div>
+          <h4>Drum Volumes (dB)</h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {DRUM_IDS.map((drumId) => {
+              const vol = drumTracks[drumId]?.volume ?? 0;
+              return (
+                <div
+                  key={drumId}
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  <label
+                    htmlFor={`drum-vol-${drumId}`}
+                    style={{ width: "70px", textTransform: "capitalize" }}
+                  >
+                    {drumId}
+                  </label>
+                  <Slider
+                    id={`drum-vol-${drumId}`}
+                    min={-30}
+                    max={6}
+                    step={1}
+                    value={vol}
+                    onChange={(value) =>
+                      handleDrumVolumeChange(drumId, value)
+                    }
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ width: "40px" }}>{vol} dB</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <h4>Drum Sounds</h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {DRUM_IDS.map((drumId) => {
+              const options = DRUM_SOUND_OPTIONS[drumId] || [];
+              const selected =
+                drumSoundSelection[drumId] ??
+                DEFAULT_DRUM_SOUND_SELECTION[drumId] ??
+                options[0]?.id;
+              return (
+                <div
+                  key={drumId}
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  <label
+                    htmlFor={`drum-sound-${drumId}`}
+                    style={{ width: "90px", textTransform: "capitalize" }}
+                  >
+                    {drumId} sound:
+                  </label>
+                  <select
+                    id={`drum-sound-${drumId}`}
+                    value={selected}
+                    onChange={(e) =>
+                      handleDrumSoundChange(drumId, e.target.value)
+                    }
+                    style={{ flex: 1 }}
+                  >
+                    {options.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      {/* 
+        PUT ChordGenerator HERE
+      */}
+       <ChordGenerator
         a4Frequency={a4Frequency}
         setA4Frequency={setA4Frequency}
         rootNote={rootNote}
@@ -314,7 +621,8 @@ export default function Accompaniment() {
         isDuplicateChord={isDuplicateChord}
         isPlaying={isPlaying}
       />
-
+      
+      
       <div style={{ marginBottom: "12px" }}>
         <label style={{ marginRight: "10px" }}>Number of blocks:</label>
         <select
@@ -366,21 +674,6 @@ export default function Accompaniment() {
           style={{ display: "none" }}
         />
       </div>
-
-      {/* 
-        PUT ChordGenerator HERE
-      */}
-      
-      <Player
-        ref={playerRef}
-        sequence={sequence}
-        tracks={tracks}
-        chords={chords}
-        onStep={setCurrentStep}
-        onTracksChange={setTracks}
-        onPlayStateChange={setIsPlaying}  // <-- Player notifica play/stop
-        steps={steps}
-      />
      
       <Sequencer
         sequence={sequence}
