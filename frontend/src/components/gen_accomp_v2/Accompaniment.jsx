@@ -9,6 +9,7 @@ import Sequencer, {
 import Player, {
   CHORD_INSTRUMENTS,
   DRUM_IDS,
+  DRUM_SOUND_OPTIONS,
   DEFAULT_DRUM_SOUND_SELECTION,
 } from "./Player.jsx";
 import ChordGenerator from "./ChordGenerator.jsx";
@@ -52,6 +53,8 @@ export default function Accompaniment() {
   const fileInputRef = useRef(null);
   const playerRef = useRef(null);
   const [bpm, setBpm] = useState(120);
+  const [masterVolume, setMasterVolume] = useState(0);
+  const [chordVolume, setChordVolume] = useState(0);
   const [chordSynthSettings, setChordSynthSettings] = useState(() => ({
     ...DEFAULT_CHORD_SYNTH_SETTINGS,
   }));
