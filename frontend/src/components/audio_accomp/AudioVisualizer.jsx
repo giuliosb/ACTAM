@@ -32,6 +32,9 @@ export default function AudioVisualizer({ audioFile, playbackSpeed = 1 }) {
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
 
+  const [zoom, setZoom] = useState(100);
+  const [isReady, setIsReady] = useState(false);
+
   const [loopEnabled, setLoopEnabled] = useState(true);
 
   const loopEnabledRef = useRef(loopEnabled);
@@ -41,10 +44,30 @@ const random = (min, max) => Math.random() * (max - min) + min
 const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.15)`
 
 
+  const hasLoadedAudio = () => {
+    try {
+      return !!wavesurferRef.current?.getDecodedData();
+    } catch {
+      return false;
+    }
+  };
+
+  const applyZoom = () => {
+    const ws = wavesurferRef.current;
+    if (!ws || !hasLoadedAudio()) return;
+    try {
+      ws.zoom(zoom);
+    } catch (err) {
+      if (err?.message?.includes("No audio loaded")) return;
+      console.error("WaveSurfer zoom error:", err);
+    }
+  };
+
   useEffect(() => {
     if (!audioFile) return;
 
     // cleanup previous instance
+    setIsReady(false);
     if (wavesurferRef.current) {
       safeDestroy(wavesurferRef.current);
       wavesurferRef.current = null;
@@ -60,11 +83,13 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     const ws = WaveSurfer.create({
       container: containerRef.current,
       height: 140,
-      waveColor: 'rgb(200, 0, 200)',
-      progressColor: 'rgb(100, 0, 100)',
+      waveColor: 'rgb(0, 0, 0)',
+      progressColor: 'rgb(68, 64, 68)',
       cursorWidth: 1,
       audioRate: playbackSpeed,
       responsive: true,
+      minPxPerSec: 100,
+      //dragToSeek: true,
       plugins: [regionsPlugin, timelinePlugin],
       // Set a bar width
       barWidth: 2,
@@ -96,6 +121,11 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
 
     ws.on("ready", () => {
       const duration = ws.getDuration();
+
+      //apply zoom
+      applyZoom();
+      setIsReady(true);
+
       // initial selection is the whole audio
       const region = regionsPlugin.addRegion({
         start: 0,
@@ -148,8 +178,6 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
 
     });
 
-    
-
     ws.on("play", () => setIsPlaying(true));
     ws.on("pause", () => setIsPlaying(false));
 
@@ -166,10 +194,19 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     }
   }, [playbackSpeed]);
 
+  // Update loop state
   useEffect(() => {
     loopEnabledRef.current = loopEnabled;
     console.log("Loop changend:", loopEnabled);
   }, [loopEnabled]);
+
+  // Update zoom state
+  useEffect(() => {
+    if (!isReady) return;
+    const ws = wavesurferRef.current;
+    if (!ws) return;
+    ws.zoom(zoom);
+  }, [zoom, isReady]);
 
   const handlePlay = () => {
     const ws = wavesurferRef.current;
@@ -203,6 +240,22 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
           Start: {startTime.toFixed(2)}s • End: {endTime.toFixed(2)}s
         </span>
       </div>
+      {/* Zoom SLIDER */}
+       <div style={{ marginTop: "10px" }}>
+        <label>
+          Zoom:{" "}
+          <input
+            type="range"
+            min="10"
+            max="1000"
+            value={zoom}
+            onChange={(e) => setZoom(e.target.valueAsNumber)}
+          />
+          <span style={{ marginLeft: 8 }}>{zoom}</span>
+        </label>
+      </div>
+
+
        {/* LOOP CHECKBOX */}
       <div style={{ marginTop: "10px" }}>
         <label>

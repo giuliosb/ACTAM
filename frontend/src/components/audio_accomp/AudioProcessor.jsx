@@ -35,7 +35,7 @@ export default function AudioProcessor() {
 
   const log = (msg) => {
     console.log(msg);
-    setLogs((prev) => [...prev, msg]);
+    //setLogs((prev) => [...prev, msg]);
   };
 
   // ----------------------------------
@@ -348,7 +348,7 @@ export default function AudioProcessor() {
       )}
 
       {/* ---------------- LOG PANEL ---------------- */}
-      <div
+      {/* <div
         style={{
           background: "#111",
           color: "#0f0",
@@ -366,7 +366,7 @@ export default function AudioProcessor() {
             <div key={i}>{l}</div>
           ))}
         </pre>
-      </div>
+      </div> */}
     </div>
   );
 }
