@@ -24,7 +24,9 @@ import {
 } from "./musicConfig.js";
 import { DEFAULT_CHORD_SYNTH_SETTINGS } from "./ChordSynth.jsx";
 
-export default function Accompaniment() {
+export default function Accompaniment({currentCard }) {
+  
+
   // sequence & chords
   const [steps, setSteps] = useState(DEFAULT_STEPS);
   const [blocks, setBlocks] = useState(2);
@@ -62,6 +64,15 @@ export default function Accompaniment() {
     ...DEFAULT_DRUM_SOUND_SELECTION,
   }));
 
+  //Abort on card change
+  const isGeneratedCard = useRef(false);
+  useEffect(() => {
+    isGeneratedCard.current = currentCard === "generated";
+    if (isGeneratedCard.current ) setIsPlaying(false);
+    handlePlayToggle()
+  }, [currentCard, setIsPlaying]);
+ 
+    
 
   const [a4Frequency, setA4Frequency] = useState(440);
   const [rootNote, setRootNote] = useState("C");
@@ -525,7 +536,7 @@ export default function Accompaniment() {
         <div>
           <h4>Transport</h4>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <Switch       //TODO: turn of playing when switching visibility
+            <Switch
               size={100}
               onToggle={handlePlayToggle}
               disabled={!playerRef.current}

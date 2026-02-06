@@ -3,8 +3,9 @@ import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js'
 
-export default function AudioVisualizer({ audioFile, playbackSpeed = 1 }) {
+export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpeed = 1 }) {
   const containerRef = useRef(null);
+
   const wavesurferRef = useRef(null);
   const regionRef = useRef(null);
   const regionsPluginRef = useRef(null);
@@ -32,16 +33,24 @@ export default function AudioVisualizer({ audioFile, playbackSpeed = 1 }) {
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
 
-  const [zoom, setZoom] = useState(100);
+  const [zoom, setZoom] = useState(10);
   const [isReady, setIsReady] = useState(false);
 
   const [loopEnabled, setLoopEnabled] = useState(true);
 
   const loopEnabledRef = useRef(loopEnabled);
 
+  //Abort on card change
+  useEffect(() => {
+    if (!enablePlaying) {
+      wavesurferRef.current?.pause();
+      setIsPlaying(false);
+    }
+  }, [enablePlaying, setIsPlaying]);
+
   // Give regions a random color when they are created
-const random = (min, max) => Math.random() * (max - min) + min
-const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.15)`
+  const random = (min, max) => Math.random() * (max - min) + min
+  const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.15)`
 
 
   const hasLoadedAudio = () => {
@@ -88,7 +97,7 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
       cursorWidth: 1,
       audioRate: playbackSpeed,
       responsive: true,
-      minPxPerSec: 100,
+      minPxPerSec: 10,
       //dragToSeek: true,
       plugins: [regionsPlugin, timelinePlugin],
       // Set a bar width
@@ -246,12 +255,12 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
           Zoom:{" "}
           <input
             type="range"
-            min="10"
+            min="1"
             max="1000"
             value={zoom}
             onChange={(e) => setZoom(e.target.valueAsNumber)}
           />
-          <span style={{ marginLeft: 8 }}>{zoom}</span>
+          <span style={{ marginLeft: 8 }}>{zoom} px/sec</span>
         </label>
       </div>
 

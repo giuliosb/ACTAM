@@ -25,13 +25,13 @@ function App() {
           style={getVisibilityStyle(currentCard === "generated")}
           aria-hidden={currentCard !== "generated"}
         >
-          <Accompaniment />
+          <Accompaniment currentCard={currentCard} />
         </div>
         <div
           style={getVisibilityStyle(currentCard === "audio")}
           aria-hidden={currentCard !== "audio"}
         >
-          <AudioProcessor />
+          <AudioProcessor currentCard={currentCard}/>
         </div>
       </div>
     </div>

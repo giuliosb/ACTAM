@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import AudioVisualizer from "./AudioVisualizer";
 import reactLogo from "../../assets/react.svg";
@@ -7,7 +7,9 @@ import reactLogo from "../../assets/react.svg";
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 
-export default function AudioProcessor() {
+export default function AudioProcessor({ currentCard }) {
+  const enablePlaying = currentCard === "audio";
+
   const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [uploadResponse, setUploadResponse] = useState(null);
@@ -326,6 +328,7 @@ export default function AudioProcessor() {
             <div style={{ marginTop: "20px" }}>
               <h3>Processed Audio Waveform</h3>
               <AudioVisualizer
+                enablePlaying={enablePlaying}
                 audioFile={processedAudioBlob}
                 playbackSpeed={bpm && targetBpm ? targetBpm / bpm : 1}
               />
