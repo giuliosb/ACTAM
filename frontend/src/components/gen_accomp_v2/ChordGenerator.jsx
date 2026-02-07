@@ -1,4 +1,5 @@
 import React from "react";
+import './Sequencer.css' 
 import {
   NOTES,
   TRIADS,
@@ -22,9 +23,9 @@ export default function ChordGenerator({
 }) {
   return (
     <div className="generator-panel">
-      <h2>CHORD GENERATOR</h2>
+      <h2>chord generator</h2>
 
-      <div className="gen-row">
+      <div className="gen-row pixelFont">
         <label>A4 (Hz):</label>
         <input
           type="number"

@@ -1,2 +1,121 @@
 
+* {
+	padding:					0;
+	margin:						0;
+	box-sizing:				border-box;
+	}
 
+figure {
+	width:						1200px;
+	height:						1000px;
+	margin:						1em auto;
+	display:					block;
+}
+
+.outerBevel,
+.flatSurface,
+.innerBevel {
+	width:						100%;
+	height:						100%;
+	box-sizing:				border-box;
+	display:					flex;
+	align-items:				stretch;
+	justify-content:		center;
+}
+
+.outerBevel { /* of frame */
+	box-shadow:				4px 6px 12px 0 black;
+	border-width:			5px;
+	border-style:			solid;
+	border-color:			rgb(63, 63, 63) rgb(0, 0, 0) rgb(0, 0, 0) rgb(63, 63, 63);
+}
+
+.flatSurface { /* of frame */
+	border:						22px solid rgb(16, 16, 16);
+}
+
+.innerBevel { /* of frame */
+	border-width:			6px;
+	border-style:			solid;
+	border-color:			rgb(0, 0, 16)	rgb(44,44,44) rgb(44,44,44 ) rgb(0, 0, 16);
+}
+
+.inside {
+  flex: 1;                 /* easiest */
+  /* OR */
+  width: 100%;
+  height: 100%;
+  background-color: rgba(29, 225, 228, 0.688);
+  box-shadow:
+    -5px -5px 10px rgba(95, 194, 207, 0.35), /* top-left highlight */
+     8px  8px 16px rgba(95, 194, 207, 0.61);        /* bottom-right shadow */
+  z-index: 1;
+  color: rgba(21, 72, 73, 0.797);
+}
+
+.border {
+  border: 6px solid rgb(178, 237, 237);
+  padding: 0px 0px 0px 12px;
+  /* top right bottom left */
+}
+/* IMPORTANT: constrain the pseudo-element to this element */
+.noise {
+  position: relative;   /* makes ::before inset:0 stay inside THIS element */
+  isolation: isolate;   /* blend modes (if used later) won't affect outside */
+  overflow: hidden;     /* ensures the noise doesn’t bleed out */
+}
+
+.noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.32'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+.pixelFont {
+ font-family: "Pixelify Sans", sans-serif;
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: 0.03em; /* optional, improves pixel fonts */
+
+  /* improve pixel look */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+.pixelFont2 {
+ font-family: "Home Video", sans-serif;
+  font-weight: 400;
+  font-size: 3rem;
+  letter-spacing: 0.03em; /* optional, improves pixel fonts */
+
+  /* improve pixel look */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+
+
+/* 
+RGB(16, 16, 16) – dominant dark gray
+
+RGB(63, 63, 63) – slightly lighter gray
+
+RGB(0, 0, 0) – near-black / shadow
+
+RGB(0, 0, 16) – very dark blue-tinted shadow */
+
+.map { /* including mat and gold beveled edge of mat */
+	display:					block;
+	clear:						both;
+	height:						100%;
+	width:						100%;
+	padding:					7.5% 7.5% 10% 7.5%; /* Mat width */
+	background-color:	rgb(255,249,224); 	/* Mat color */
+	border-width:			3px;	/* Gold edge of mat */
+	border-style:			solid;
+	border-color:			rgb(207, 166, 0) rgb(207, 166, 0) rgb(145, 110, 0) rgb(145, 110, 0);
+	}

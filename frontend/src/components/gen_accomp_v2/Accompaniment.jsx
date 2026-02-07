@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import "./Accompaniment.css";
 import Slider from "../general_components/Slider.jsx";
 import Switch from "../general_components/Switch.jsx";
 import Sequencer, {
@@ -69,7 +70,9 @@ export default function Accompaniment({currentCard }) {
   useEffect(() => {
     isGeneratedCard.current = currentCard === "generated";
     if (isGeneratedCard.current ) setIsPlaying(false);
-    handlePlayToggle()
+     const player = playerRef.current;
+    if (isPlaying) {
+      player.stop && player.stop();}
   }, [currentCard, setIsPlaying]);
  
     
@@ -620,21 +623,7 @@ export default function Accompaniment({currentCard }) {
       {/* 
         PUT ChordGenerator HERE
       */}
-       <ChordGenerator
-        a4Frequency={a4Frequency}
-        setA4Frequency={setA4Frequency}
-        rootNote={rootNote}
-        setRootNote={setRootNote}
-        triad={triad}
-        setTriad={setTriad}
-        extension={extension}
-        setExtension={setExtension}
-        octave={octave}
-        setOctave={setOctave}
-        addChord={addChord}
-        isDuplicateChord={isDuplicateChord}
-        isPlaying={isPlaying}
-      />
+       
       
       
       <div style={{ marginBottom: "12px" }}>
@@ -689,23 +678,69 @@ export default function Accompaniment({currentCard }) {
         />
       </div>
      
-      <Sequencer
-        sequence={sequence}
-        onSequenceChange={setSequence}
-        chords={chords}
-        onChordsChange={setChords}
-        tracks={tracks}
-        onTracksChange={setTracks}
-        currentStep={currentStep}
-        openTrack={openTrack}
-        setOpenTrack={setOpenTrack}
-        onRemoveChord={removeChord}
-        isPlaying={isPlaying}          // <-- bloccaremo l’editing qui dentro blablablalba
-        steps={steps}
-        stepsPerBlock={stepsPerBlock}
-      />
+     <figure>
+          <div className="outerBevel">
+            <div className="flatSurface">
+              <div className="innerBevel">
+                <div className="inside noise pixelFont " style={{ padding: "2rem"  }}>
+                  <ChordGenerator
+                    a4Frequency={a4Frequency}
+                    setA4Frequency={setA4Frequency}
+                    rootNote={rootNote}
+                    setRootNote={setRootNote}
+                    triad={triad}
+                    setTriad={setTriad}
+                    extension={extension}
+                    setExtension={setExtension}
+                    octave={octave}
+                    setOctave={setOctave}
+                    addChord={addChord}
+                    isDuplicateChord={isDuplicateChord}
+                    isPlaying={isPlaying}
+                  />
 
-     
+
+                  <Sequencer
+                    sequence={sequence}
+                    onSequenceChange={setSequence}
+                    chords={chords}
+                    onChordsChange={setChords}
+                    tracks={tracks}
+                    onTracksChange={setTracks}
+                    currentStep={currentStep}
+                    openTrack={openTrack}
+                    setOpenTrack={setOpenTrack}
+                    onRemoveChord={removeChord}
+                    isPlaying={isPlaying}          // <-- bloccaremo l’editing qui dentro blablablalba
+                    steps={steps}
+                    stepsPerBlock={stepsPerBlock}
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+        </figure>
+      
+
+
+      
+        <figure>
+          <div className="outerBevel">
+            <div className="flatSurface">
+              <div className="innerBevel">
+                <div className="inside noise pixelFont " style={{ padding: "2rem"  }}>
+                  <div className='border '>  let's test this thing...</div>
+                  <br></br>
+                   <div className='border '>load state </div>
+                  <br></br>
+                   <div className='border ' >save state</div>
+                </div>
+              </div>
+            </div>
+            </div>
+        </figure>
+      
+
     </div>
   );
 }

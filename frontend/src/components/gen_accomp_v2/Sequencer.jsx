@@ -274,7 +274,7 @@ export default function Sequencer({
           }}
         >
           {drumId}
-          {!enabled && <span className="mute-label"> (muted)</span>}
+          {/* {!enabled && <span className="mute-label"> (muted)</span>} */}
         </div>
 
         {blockSteps.map((step) => {
@@ -312,7 +312,7 @@ export default function Sequencer({
         }}
       >
         Chords
-        {!chordsEnabled && <span className="mute-label"> (muted)</span>}
+        {/* {!chordsEnabled && <span className="mute-label"> (muted)</span>} */}
       </div>
 
       {blockSteps.map((step) => {
@@ -440,7 +440,7 @@ export default function Sequencer({
                 </span>
                 <button
                   type="button"
-                  style={{ display: isPlaying ? "none" : "block" }}
+                  style={{ display: isPlaying ? "none" : "block", fontWeight: "bold" }}
                   className="chord-library-remove"
                   onClick={(e) => {
                     e.stopPropagation();
