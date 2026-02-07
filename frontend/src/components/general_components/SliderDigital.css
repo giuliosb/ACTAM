@@ -1,0 +1,70 @@
+.slider-wrapper-dig {
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+/* Vertical track with only tick lines (no background fill) */
+.slider-track-dig {
+  --slider-track-width: 40px;
+  --slider-track-height: 180px;
+
+  width: var(--slider-track-width);
+  height: var(--slider-track-height);
+  position: relative;
+  background: transparent;
+}
+
+/* Uniform tick marks (all same length) */
+.slider-track-dig::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  /* A 1px horizontal line repeated down the track */
+  background-image: linear-gradient(
+      to bottom,
+      var(--color-digital-primary) 2px,
+      transparent 2px
+    ),
+    linear-gradient(
+      to bottom,
+      var(--color-digital-primary) 2px,
+      transparent 2px
+    );
+
+  /* spacing between ticks */
+  background-size: 12px 11px;
+  background-repeat: repeat-y;
+  background-position: calc(50% - 12px) top, calc(50% + 12px) top;
+
+  pointer-events: none;
+}
+
+.slider-track-dig::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  background: var(--color-digital-primary);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Minimal thumb/handle (small outlined rectangle) */
+.slider-bar-dig {
+  position: absolute;
+  left: -3px;
+  width: calc(var(--slider-track-width) + 6px);
+  height: 18px;
+  background-color: var(--color-digital-primary);
+  border: 3px solid var(--color-digital-primary);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 2px var(--color-digital-background),
+    inset 0 0 0 4px var(--color-digital-primary);
+  cursor: pointer;
+  z-index: 1;
+}

@@ -6,7 +6,6 @@
   font-style: normal;
 }
 
-
 @font-face {
   font-family: 'Pixelify Sans';
   src: url('./assets/fonts/PixelifySans-SemiBold.ttf') format('truetype');
@@ -32,11 +31,16 @@
   color: #e0e0e0;
   background-color: #202020;
 
+  --color-digital-primary: rgb(21, 72, 73);
+  --color-digital-background: rgba(68, 238, 241, 0.732);
+  --color-digital-light: #abcccff1;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
 
 
 body {
@@ -59,6 +63,7 @@ h2 {
   line-height: 1.4;
   font-weight: normal;
   letter-spacing: 0.25em;
+  padding-bottom: 6px;
 }
 
 h3 {
@@ -102,3 +107,5 @@ a {
   mix-blend-mode: screen;
   z-index: 10;
 }
+
+

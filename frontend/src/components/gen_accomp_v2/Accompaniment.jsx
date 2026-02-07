@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import "./Accompaniment.css";
 import Slider from "../general_components/Slider.jsx";
+import SliderDigital from "../general_components/SliderDigital.jsx";
 import Switch from "../general_components/Switch.jsx";
 import Sequencer, {
   getSequencerSnapshot,
@@ -13,8 +14,6 @@ import Player, {
   DRUM_SOUND_OPTIONS,
   DEFAULT_DRUM_SOUND_SELECTION,
 } from "./Player.jsx";
-import ChordGenerator from "./ChordGenerator.jsx";
-
 import {
   DEFAULT_STEPS,
   createEmptySequence,
@@ -24,8 +23,12 @@ import {
   DEFAULT_CHORD_TRACK,
 } from "./musicConfig.js";
 import { DEFAULT_CHORD_SYNTH_SETTINGS } from "./ChordSynth.jsx";
+import { DEFAULT_DRUM_SYNTH_SETTINGS } from "./Drumshynt.jsx";
+import ChordGenerator from "./ChordGenerator.jsx";
+import ArrowSelect from "../general_components/ArrowSelect.jsx";
 
-export default function Accompaniment({currentCard }) {
+
+export default function Accompaniment({ currentCard }) {
   
 
   // sequence & chords
@@ -519,24 +522,6 @@ export default function Accompaniment({currentCard }) {
           </div>
         </div>
         <div>
-          <h4>Chord Synth Instrument</h4>
-          <select
-            value={chordSynthSettings.instrument}
-            onChange={(e) =>
-              setChordSynthSettings((prev) => ({
-                ...prev,
-                instrument: e.target.value,
-              }))
-            }
-          >
-            {CHORD_INSTRUMENTS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
           <h4>Transport</h4>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <Switch
@@ -581,108 +566,130 @@ export default function Accompaniment({currentCard }) {
           </div>
         </div>
         <div>
-          <h4>Drum Sounds</h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {DRUM_IDS.map((drumId) => {
-              const options = DRUM_SOUND_OPTIONS[drumId] || [];
-              const selected =
-                drumSoundSelection[drumId] ??
-                DEFAULT_DRUM_SOUND_SELECTION[drumId] ??
-                options[0]?.id;
-              return (
-                <div
-                  key={drumId}
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                >
-                  <label
-                    htmlFor={`drum-sound-${drumId}`}
-                    style={{ width: "90px", textTransform: "capitalize" }}
-                  >
-                    {drumId} sound:
-                  </label>
-                  <select
-                    id={`drum-sound-${drumId}`}
-                    value={selected}
-                    onChange={(e) =>
-                      handleDrumSoundChange(drumId, e.target.value)
-                    }
-                    style={{ flex: 1 }}
-                  >
-                    {options.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              );
-            })}
-          </div>
+         
         </div>
       </div>
       {/* 
         PUT ChordGenerator HERE
       */}
-       
       
-      
-      <div style={{ marginBottom: "12px" }}>
-        <label style={{ marginRight: "10px" }}>Number of blocks:</label>
-        <select
-          value={blocks}
-          onChange={(e) => {
-              setBlocks(Number(e.target.value));
-              setSteps(Number(e.target.value) * stepsPerBlock);
-          }}
-          disabled={isPlaying}
-        >
-          <option value={'1'}>1</option>
-          <option value={'2'}>2</option>
-          <option value={'3'}>3</option>
-          <option value={'4'}>4</option>
-        </select>
-
-        <label style={{ marginRight: "10px" }}>Metre:</label>
-        <select
-          value={stepsPerBlock}
-          onChange={(e) => {
-            setStepsPerBlock(Number(e.target.value));
-            setSteps(blocks * Number(e.target.value));
-          }}
-          disabled={isPlaying}
-        >
-          <option value={16}>4/4</option>
-          <option value={12}>3/4</option>
-          <option value={20}>5/4</option>
-          <option value={14}>7/8</option>
-          <option value={18}>9/8</option>
-          <option value={22}>11/8</option>
-        </select>
-      </div>
-
-      <div style={{ marginBottom: "12px" }}>
-        <button onClick={handleSaveState} disabled={isPlaying} >Save current state</button>
-        <button
-          onClick={handleLoadState}
-          disabled={isPlaying}
-          style={{ marginLeft: "12px" }}
-        >
-          Load state
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json,application/json"
-          onChange={handleStateFile}
-          style={{ display: "none" }}
-        />
-      </div>
      
+
+     {/*   DIGITAL PANEL    */}
      <figure>
           <div className="outerBevel">
             <div className="flatSurface">
               <div className="innerBevel">
                 <div className="inside noise pixelFont " style={{ padding: "2rem"  }}>
+                  <div className='drum-sound-panel'>
+                    <h2>sounds</h2>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {DRUM_IDS.map((drumId) => {
+                        const options = DRUM_SOUND_OPTIONS[drumId] || [];
+                        const selected =
+                          drumSoundSelection[drumId] ??
+                          DEFAULT_DRUM_SOUND_SELECTION[drumId] ??
+                          options[0]?.id;
+                        return (
+                          <div
+                            key={drumId}
+                            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                          >
+                            <label
+                              htmlFor={`drum-sound-${drumId}`}
+                              style={{ width: "120px"}}
+                            >
+                              {drumId}:
+                            </label>
+                            
+                           <ArrowSelect
+                              id={`drum-sound-${drumId}`}
+                              options={options}
+                              value={selected}
+                              onChange={(newId) => handleDrumSoundChange(drumId, newId)}
+                              getValue={(o) => o.id}
+                              getLabel={(o) => o.label}
+                            />
+                          </div>
+                        );
+                      })}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <label style={{ width: "120px"}}>
+                              chords:
+                            </label>
+                           <ArrowSelect
+                            options={CHORD_INSTRUMENTS}
+                            value={chordSynthSettings.instrument}
+                            onChange={(newInstrumentId) =>
+                              setChordSynthSettings((prev) => ({
+                                ...prev,
+                                instrument: newInstrumentId,
+                              }))
+                            }
+                            getValue={(o) => o.id}
+                            getLabel={(o) => o.label}
+                          />
+
+                      </div>
+                    </div>
+                  </div>
+                 
+                  <SliderDigital></SliderDigital>
+                  {/* GRID SETTINGS */}
+                   <div style={{ marginBottom: "12px" }}>
+                    <label style={{ marginRight: "10px" }}>Number of blocks:</label>
+                    <select
+                      value={blocks}
+                      onChange={(e) => {
+                          setBlocks(Number(e.target.value));
+                          setSteps(Number(e.target.value) * stepsPerBlock);
+                      }}
+                      disabled={isPlaying}
+                    >
+                      <option value={'1'}>1</option>
+                      <option value={'2'}>2</option>
+                      <option value={'3'}>3</option>
+                      <option value={'4'}>4</option>
+                    </select>
+
+                    <label style={{ marginRight: "10px" }}>Metre:</label>
+                    <select
+                      value={stepsPerBlock}
+                      onChange={(e) => {
+                        setStepsPerBlock(Number(e.target.value));
+                        setSteps(blocks * Number(e.target.value));
+                      }}
+                      disabled={isPlaying}
+                    >
+                      <option value={16}>4/4</option>
+                      <option value={12}>3/4</option>
+                      <option value={20}>5/4</option>
+                      <option value={14}>7/8</option>
+                      <option value={18}>9/8</option>
+                      <option value={22}>11/8</option>
+                    </select>
+                  </div>
+
+
+                  {/* STATE SAVE/LOAD */}
+                   <div style={{ marginBottom: "12px" }}>
+                      <button onClick={handleSaveState} disabled={isPlaying} >Save current state</button>
+                      <button
+                        onClick={handleLoadState}
+                        disabled={isPlaying}
+                        style={{ marginLeft: "12px" }}
+                      >
+                        Load state
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json,application/json"
+                        onChange={handleStateFile}
+                        style={{ display: "none" }}
+                      />
+                    </div>
+
                   <ChordGenerator
                     a4Frequency={a4Frequency}
                     setA4Frequency={setA4Frequency}

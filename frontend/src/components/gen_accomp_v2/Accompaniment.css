@@ -45,12 +45,12 @@ figure {
   /* OR */
   width: 100%;
   height: 100%;
-  background-color: rgba(29, 225, 228, 0.688);
+  background-color: var( --color-digital-background);
   box-shadow:
     -5px -5px 10px rgba(95, 194, 207, 0.35), /* top-left highlight */
      8px  8px 16px rgba(95, 194, 207, 0.61);        /* bottom-right shadow */
   z-index: 1;
-  color: rgba(21, 72, 73, 0.797);
+  color: var(--color-digital-primary);
 }
 
 .border {
@@ -98,24 +98,10 @@ figure {
 }
 
 
-
-/* 
-RGB(16, 16, 16) – dominant dark gray
-
-RGB(63, 63, 63) – slightly lighter gray
-
-RGB(0, 0, 0) – near-black / shadow
-
-RGB(0, 0, 16) – very dark blue-tinted shadow */
-
-.map { /* including mat and gold beveled edge of mat */
-	display:					block;
-	clear:						both;
-	height:						100%;
-	width:						100%;
-	padding:					7.5% 7.5% 10% 7.5%; /* Mat width */
-	background-color:	rgb(255,249,224); 	/* Mat color */
-	border-width:			3px;	/* Gold edge of mat */
-	border-style:			solid;
-	border-color:			rgb(207, 166, 0) rgb(207, 166, 0) rgb(145, 110, 0) rgb(145, 110, 0);
-	}
+.drum-sound-panel {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 3px solid;
+  border-radius: 2px;
+  width: 660px;
+}
