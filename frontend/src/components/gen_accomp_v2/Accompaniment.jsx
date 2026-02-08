@@ -627,7 +627,6 @@ function mapDbTo0to100(db) {
                               }}
                             >
                               <label
-                                htmlFor={`drum-sound-${drumId}`}
                                 style={{ width: "120px" }}
                               >
                                 {drumId}:
