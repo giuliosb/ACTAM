@@ -732,8 +732,8 @@ function mapDbTo0to100(db) {
 
                     {/* START STOP */}
                      <button
-                      disabled={!playerRef.current}
                       className="generator-panel start-button"
+                      onPointerDown={() => playerRef.current?.unlockAudio?.()}
                       onClick={handlePlayToggle}>
                       {isPlaying ? (
                         <svg
