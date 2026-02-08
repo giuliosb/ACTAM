@@ -65,7 +65,7 @@ export const DRUM_SOUND_OPTIONS = {
     },
     {
       id: "openhat-cr78",
-      label: "FBI OPEN UP",
+      label: "FBI OPEN HAT",
       url: "/samples/drums/oh/OH3.wav",
     },
   ],

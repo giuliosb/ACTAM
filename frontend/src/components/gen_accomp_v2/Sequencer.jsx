@@ -311,7 +311,7 @@ export default function Sequencer({
           else setOpenTrack({ type: "chord", index: 0 });
         }}
       >
-        Chords
+        chords
         {/* {!chordsEnabled && <span className="mute-label"> (muted)</span>} */}
       </div>
 
@@ -411,12 +411,11 @@ export default function Sequencer({
         <div className="drum-grid">{blocks.map((block) => renderBlock(block))}</div>
 
         <div className="chord-library">
-          <h3>Chord Library</h3>
+          <h3 style={{ marginBottom: "6px" }}>chord library</h3>
 
           {safeChords.length === 0 && (
             <div className="chord-library-empty">
-              Nessun accordo ancora. Usare il Chord Generator sopra per crearne
-              uno.
+              Add chords to the library
             </div>
           )}
 
@@ -454,11 +453,6 @@ export default function Sequencer({
               </div>
             );
           })}
-
-          <div className="chord-library-hint">
-            Seleziona un accordo e poi clicca su uno step vuoto della riga
-            "Chords" nel sequencer per inserirlo.
-          </div>
         </div>
       </div>
     </div>

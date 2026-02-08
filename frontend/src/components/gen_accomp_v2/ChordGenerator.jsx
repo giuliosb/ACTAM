@@ -27,7 +27,7 @@ export default function ChordGenerator({
 
       <div className="gen-row pixelFont">
         <label>A4 (Hz):</label>
-        <input
+        <input className='pixel-select'
           type="number"
           min="400"
           max="480"
@@ -37,7 +37,7 @@ export default function ChordGenerator({
         />
 
         <label>Root:</label>
-        <select
+        <select className='pixel-select'
           value={rootNote}
           onChange={(e) => setRootNote(e.target.value)}
           disabled={isPlaying}
@@ -48,7 +48,7 @@ export default function ChordGenerator({
         </select>
 
         <label>Triad:</label>
-        <select
+        <select className='pixel-select'
           value={triad}
           onChange={(e) => setTriad(e.target.value)}
           disabled={isPlaying}
@@ -59,7 +59,7 @@ export default function ChordGenerator({
         </select>
 
         <label>Ext:</label>
-        <select
+        <select className='pixel-select'
           value={extension}
           onChange={(e) => setExtension(e.target.value)}
           disabled={isPlaying}
@@ -72,7 +72,7 @@ export default function ChordGenerator({
         </select>
 
         <label>Oct:</label>
-        <select
+        <select className='pixel-select'
           value={octave}
           onChange={(e) => setOctave(Number(e.target.value))}
           disabled={isPlaying}
@@ -82,14 +82,11 @@ export default function ChordGenerator({
           ))}
         </select>
 
-        <button
+        <div className={`add-button ${isPlaying || isDuplicateChord(rootNote, triad, extension) ? "disabled" : ""}`}
           onClick={addChord}
-          disabled={isPlaying || isDuplicateChord(rootNote, triad, extension)}
         >
-          {isDuplicateChord(rootNote, triad, extension)
-            ? "Already added"
-            : "Add"}
-        </button>
+          add
+        </div>
       </div>
     </div>
   );

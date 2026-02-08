@@ -3,7 +3,7 @@
 /* ============================= */
 
 .music-sequencer {
-  padding: 20px;
+  padding: 0px;
 }
 
 .sequencer-body {
@@ -17,9 +17,11 @@
 
 .generator-panel {
   margin-bottom: 20px;
+  align-items: flex-end;
   padding: 10px;
   border: 3px solid;
   border-radius: 2px;
+  height: 140px;
   /* background: #262626; */
 }
 
@@ -171,7 +173,7 @@
 
 .chord-library {
   width: 220px;
-  border-left: 1px solid #444;
+  border-left: 3px solid var(--color-digital-primary);
   padding-left: 8px;
 }
 
@@ -318,4 +320,61 @@
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: geometricPrecision;
+}
+
+.pixel-select {
+  font-family: "Pixelify Sans", sans-serif;
+  letter-spacing: 0.1em;
+  font-size: 1.2rem !important;
+  font-weight: bold;
+  text-align: center;
+  background: transparent;
+  color: var(--color-digital-primary);
+  border: 3px solid var(--color-digital-primary);
+  padding: 0.35rem 1.2rem 0.35rem 0.75rem;
+  min-width: 72px;
+  margin-right: 0.75rem;
+  appearance: none;
+  outline: none;
+  text-transform: none;
+}
+
+.pixel-select:hover{
+  background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  outline: none;
+}
+
+.pixel-select[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+.add-button{
+  display: flex;
+  width: 140px;
+  height: 50px;
+  border: 3px solid;
+  display: flex;
+  align-items: center; /* horizontal centering */
+  justify-content: center; /* vertical centering */
+  cursor:pointer;
+  padding: 3px;
+
+}
+.add-button:hover {
+ background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  border:none;
+}
+
+.disabled{
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.disabled:hover {
+  background: transparent;
+  color: var(--color-digital-primary);
+  border: 3px solid var(--color-digital-primary);
 }

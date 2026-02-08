@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import "./Accompaniment.css";
 import Slider from "../general_components/Slider.jsx";
 import SliderDigital from "../general_components/SliderDigital.jsx";
-import Switch from "../general_components/Switch.jsx";
+import Knob from "../general_components/Knob.jsx";
 import Sequencer, {
   getSequencerSnapshot,
   buildSequenceFromSnapshot,
@@ -26,6 +26,16 @@ import { DEFAULT_CHORD_SYNTH_SETTINGS } from "./ChordSynth.jsx";
 import { DEFAULT_DRUM_SYNTH_SETTINGS } from "./Drumshynt.jsx";
 import ChordGenerator from "./ChordGenerator.jsx";
 import ArrowSelect from "../general_components/ArrowSelect.jsx";
+
+const TIME_SIGNATURES = [
+  { label: "4/4", steps: 16 },
+  { label: "3/4", steps: 12 },
+  { label: "5/4", steps: 20 },
+  { label: "7/8", steps: 14 },
+  { label: "9/8", steps: 18 },
+  { label: "11/8", steps: 22 },
+];
+
 
 
 export default function Accompaniment({ currentCard }) {
@@ -59,7 +69,7 @@ export default function Accompaniment({ currentCard }) {
   const fileInputRef = useRef(null);
   const playerRef = useRef(null);
   const [bpm, setBpm] = useState(120);
-  const [masterVolume, setMasterVolume] = useState(0);
+  const [masterVolume, setMasterVolume] = useState(-1);
   const [chordVolume, setChordVolume] = useState(0);
   const [chordSynthSettings, setChordSynthSettings] = useState(() => ({
     ...DEFAULT_CHORD_SYNTH_SETTINGS,
@@ -90,6 +100,30 @@ export default function Accompaniment({ currentCard }) {
     const n = NOTES.indexOf(note) + (octaveValue - 4) * 12 - 9;
     return a4Frequency * Math.pow(2, n / 12);
   };
+
+
+  function map0to100ToDb(value) {
+  const inMin = 0;
+  const inMax = 100;
+  const outMin = -30;
+  const outMax = 6;
+
+  const clamped = Math.max(inMin, Math.min(inMax, value));
+
+  return outMin + (clamped - inMin) * (outMax - outMin) / (inMax - inMin);
+}
+
+function mapDbTo0to100(db) {
+  const inMin = -30;
+  const inMax = 6;
+  const outMin = 0;
+  const outMax = 100;
+
+  const clamped = Math.max(inMin, Math.min(inMax, db));
+
+  return (clamped - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+}
+
 
   const buildChordNotes = () => {
     const rootIndex = NOTES.indexOf(rootNote);
@@ -442,7 +476,6 @@ export default function Accompaniment({ currentCard }) {
 
   return (
     <div style={{ padding: "20px" }}>
-
       <Player
         ref={playerRef}
         sequence={sequence}
@@ -458,44 +491,81 @@ export default function Accompaniment({ currentCard }) {
         chordSynthSettings={chordSynthSettings}
         drumSoundSelection={drumSoundSelection}
       />
+      <div className="analog-panel">
+        <h3 style={{ marginBottom: "16px" }}>VOLUMES</h3>
 
-      <div
-        style={{
-          margin: "20px 0",
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        <div>
-          <h4>Master Volume (dB)</h4>
-          <Slider
-            min={-30}
-            max={6}
-            step={1}
-            value={masterVolume}
-            onChange={(value) => {
-              setMasterVolume(value);
-              console.log(`Master volume changed to ${value} dB`);
-            }}
-          />
-          <span>{masterVolume} dB</span>
-        </div>
-        <div>
-          <h4>Chord Volume (dB)</h4>
-          <Slider
-            min={-30}
-            max={6}
-            step={1}
-            onChange={(value) =>{
-              //console.log(value)
-              setChordVolume(value)
-            } }
-          />
-          <span>{chordVolume} dB</span>
-        </div>
-        <div>
-          <h4>BPM</h4>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            gap: "32px",
+          }}
+        >
+              <div style={{ textAlign: "center" }}>
+                <Knob
+                   min={-30}
+                   max={6}
+                   step={1}
+                  value={mapDbTo0to100(masterVolume)}
+                  onChange={(knobValue) => {
+                    setMasterVolume(Math.round(map0to100ToDb(knobValue)));
+                    console.log(Math.round(map0to100ToDb(knobValue)));
+                  }}
+                />
+                  
+                <div className="fontt" style={{ marginTop: "8px" }}>MASTER</div>
+              </div>
+                  <div style={{ textAlign: "end" }}>
+                  <Slider
+                    min={-30}
+                    max={6}
+                    step={1}
+                    value={chordVolume}
+                    onChange={(value) => {
+                      setChordVolume(value);
+                    }}
+                  />
+
+                  <div style={{ marginTop: "8px" }}>CHORDS</div>
+                </div>
+                {DRUM_IDS.map((drumId) => {
+                  const vol = drumTracks[drumId]?.volume ?? 0;
+
+                  return (
+                    <div
+                      key={drumId}
+                      style={{ textAlign: "end" }}
+                    >
+                      
+                      <Slider
+                        min={-30}
+                        max={6}
+                        step={1}
+                        value={vol}
+                        onChange={(value) =>
+                          handleDrumVolumeChange(drumId, value)
+                        }
+                      />
+                      <div
+                        style={{
+                          marginTop: "8px",
+                          paddingRight: "10px",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {drumId.toUpperCase()}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+
+
+
+
+{/*  <h4>BPM</h4>
           <div
             style={{
               display: "flex",
@@ -519,59 +589,7 @@ export default function Accompaniment({ currentCard }) {
               onChange={(e) => setBpm(Number(e.target.value))}
               style={{ flex: 1 }}
             />
-          </div>
-        </div>
-        <div>
-          <h4>Transport</h4>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <Switch
-              size={100}
-              onToggle={handlePlayToggle}
-              disabled={!playerRef.current}
-            />
-            <span>{isPlaying ? "Playing" : "Stopped"}</span>
-          </div>
-        </div>
-        <div>
-          <h4>Drum Volumes (dB)</h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {DRUM_IDS.map((drumId) => {
-              const vol = drumTracks[drumId]?.volume ?? 0;
-              return (
-                <div
-                  key={drumId}
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                >
-                  <label
-                    htmlFor={`drum-vol-${drumId}`}
-                    style={{ width: "70px", textTransform: "capitalize" }}
-                  >
-                    {drumId}
-                  </label>
-                  <Slider
-                    id={`drum-vol-${drumId}`}
-                    min={-30}
-                    max={6}
-                    step={1}
-                    value={vol}
-                    onChange={(value) =>
-                      handleDrumVolumeChange(drumId, value)
-                    }
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ width: "40px" }}>{vol} dB</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-         
-        </div>
-      </div>
-      {/* 
-        PUT ChordGenerator HERE
-      */}
+          </div> */}
       
      
 
@@ -581,43 +599,53 @@ export default function Accompaniment({ currentCard }) {
             <div className="flatSurface">
               <div className="innerBevel">
                 <div className="inside noise pixelFont " style={{ padding: "2rem"  }}>
-                  <div className='drum-sound-panel'>
-                    <h2>sounds</h2>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {DRUM_IDS.map((drumId) => {
-                        const options = DRUM_SOUND_OPTIONS[drumId] || [];
-                        const selected =
-                          drumSoundSelection[drumId] ??
-                          DEFAULT_DRUM_SOUND_SELECTION[drumId] ??
-                          options[0]?.id;
-                        return (
-                          <div
-                            key={drumId}
-                            style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                          >
-                            <label
-                              htmlFor={`drum-sound-${drumId}`}
-                              style={{ width: "120px"}}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "stretch",
+                      gap: "32px",
+                      flexWrap: "wrap",
+                      minHeight: "320px",
+                    }}
+                  >
+                    <div className='drum-sound-panel'>
+                      <h2>sounds</h2>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {DRUM_IDS.map((drumId) => {
+                          const options = DRUM_SOUND_OPTIONS[drumId] || [];
+                          const selected =
+                            drumSoundSelection[drumId] ??
+                            DEFAULT_DRUM_SOUND_SELECTION[drumId] ??
+                            options[0]?.id;
+                          return (
+                            <div
+                              key={drumId}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                              }}
                             >
-                              {drumId}:
-                            </label>
-                            
-                           <ArrowSelect
-                              id={`drum-sound-${drumId}`}
-                              options={options}
-                              value={selected}
-                              onChange={(newId) => handleDrumSoundChange(drumId, newId)}
-                              getValue={(o) => o.id}
-                              getLabel={(o) => o.label}
-                            />
-                          </div>
-                        );
-                      })}
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <label style={{ width: "120px"}}>
-                              chords:
-                            </label>
-                           <ArrowSelect
+                              <label
+                                htmlFor={`drum-sound-${drumId}`}
+                                style={{ width: "120px" }}
+                              >
+                                {drumId}:
+                              </label>
+                              <ArrowSelect
+                                id={`drum-sound-${drumId}`}
+                                options={options}
+                                value={selected}
+                                onChange={(newId) => handleDrumSoundChange(drumId, newId)}
+                                getValue={(o) => o.id}
+                                getLabel={(o) => o.label}
+                              />
+                            </div>
+                          );
+                        })}
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <label style={{ width: "120px" }}>chords:</label>
+                          <ArrowSelect
                             options={CHORD_INSTRUMENTS}
                             value={chordSynthSettings.instrument}
                             onChange={(newInstrumentId) =>
@@ -629,16 +657,110 @@ export default function Accompaniment({ currentCard }) {
                             getValue={(o) => o.id}
                             getLabel={(o) => o.label}
                           />
-
+                        </div>
                       </div>
                     </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "140px",
+                        alignSelf: "end",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      <div style={{
+                          padding: "3px",
+                        }}>
+                      <SliderDigital
+                        value={bpm}
+                        min={40}
+                        max={240}
+                        step={1}
+                        onChange={(value) => setBpm(Math.round(value))}
+                      />
+                      </div>
+                      
+                      <div
+                        style={{
+                          marginTop: "20px",
+                          width: "120px",
+                          padding: "3px",
+                        }}
+                      >
+                        BPM: {bpm}
+                      </div>
+                    </div>
+                   {/* STATE SAVE/LOAD */}
+                    <div>
+                      <div
+                        onClick={handleSaveState}
+                        disabled={isPlaying}
+                        className="save-load-button"
+                      >
+                        SAVE
+                      </div>
+                    
+                      <div
+                        onClick={handleLoadState}
+                        disabled={isPlaying}
+                        className="save-load-button"
+                      >
+                        LOAD
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json,application/json"
+                        onChange={handleStateFile}
+                        style={{ display: "none" }}
+                      />
+                      
+                    </div>
+
                   </div>
-                 
-                  <SliderDigital></SliderDigital>
-                  {/* GRID SETTINGS */}
-                   <div style={{ marginBottom: "12px" }}>
+
+                  {/* GRID SETTINGS + START STOP*/}
+                   <div style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",   // ← key
+                      gap: "16px",            // spacing instead of margins
+                      marginBottom: "12px",
+                    }}>
+
+                    {/* START STOP */}
+                     <button
+                      disabled={!playerRef.current}
+                      className="generator-panel start-button"
+                      onClick={handlePlayToggle}>
+                      {isPlaying ? (
+                        <svg
+                          className="pixel-icon icon-pause"
+                          viewBox="0 0 52 64"
+                          role="img"
+                          aria-hidden="true"
+                        >
+                          <rect x="6" y="14" width="10" height="36" />
+                          <rect x="30" y="14" width="10" height="36" />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="pixel-icon icon-play"
+                          viewBox="0 0 72 64"
+                          role="img"
+                          aria-hidden="true"
+                        >
+                          <path d="M12 12 H42 L62 32 L42 52 H12 Z" />
+                        </svg>
+                      )}
+                    </button>
+
                     <label style={{ marginRight: "10px" }}>Number of blocks:</label>
                     <select
+                      className="pixel-select"
                       value={blocks}
                       onChange={(e) => {
                           setBlocks(Number(e.target.value));
@@ -654,6 +776,7 @@ export default function Accompaniment({ currentCard }) {
 
                     <label style={{ marginRight: "10px" }}>Metre:</label>
                     <select
+                      className="pixel-select"
                       value={stepsPerBlock}
                       onChange={(e) => {
                         setStepsPerBlock(Number(e.target.value));
@@ -668,29 +791,11 @@ export default function Accompaniment({ currentCard }) {
                       <option value={18}>9/8</option>
                       <option value={22}>11/8</option>
                     </select>
+                
+
                   </div>
-
-
-                  {/* STATE SAVE/LOAD */}
-                   <div style={{ marginBottom: "12px" }}>
-                      <button onClick={handleSaveState} disabled={isPlaying} >Save current state</button>
-                      <button
-                        onClick={handleLoadState}
-                        disabled={isPlaying}
-                        style={{ marginLeft: "12px" }}
-                      >
-                        Load state
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".json,application/json"
-                        onChange={handleStateFile}
-                        style={{ display: "none" }}
-                      />
-                    </div>
-
-                  <ChordGenerator
+                   
+                    <ChordGenerator
                     a4Frequency={a4Frequency}
                     setA4Frequency={setA4Frequency}
                     rootNote={rootNote}
@@ -704,7 +809,7 @@ export default function Accompaniment({ currentCard }) {
                     addChord={addChord}
                     isDuplicateChord={isDuplicateChord}
                     isPlaying={isPlaying}
-                  />
+                    />
 
 
                   <Sequencer
@@ -726,27 +831,7 @@ export default function Accompaniment({ currentCard }) {
               </div>
             </div>
             </div>
-        </figure>
-      
-
-
-      
-        <figure>
-          <div className="outerBevel">
-            <div className="flatSurface">
-              <div className="innerBevel">
-                <div className="inside noise pixelFont " style={{ padding: "2rem"  }}>
-                  <div className='border '>  let's test this thing...</div>
-                  <br></br>
-                   <div className='border '>load state </div>
-                  <br></br>
-                   <div className='border ' >save state</div>
-                </div>
-              </div>
-            </div>
-            </div>
-        </figure>
-      
+        </figure>    
 
     </div>
   );

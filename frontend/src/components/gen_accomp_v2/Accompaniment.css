@@ -6,10 +6,22 @@
 	}
 
 figure {
-	width:						1200px;
-	height:						1000px;
+	width:						1400px;
+	height:						auto;
 	margin:						1em auto;
 	display:					block;
+  padding: 1rem;
+}
+
+.analog-panel{
+  width:						1400px;
+	height:						auto;
+	margin:						1em auto;
+	display:					block;
+  padding: 1rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
 }
 
 .outerBevel,
@@ -104,4 +116,109 @@ figure {
   border: 3px solid;
   border-radius: 2px;
   width: 660px;
+  height: 330px;
+}
+
+.save-load-button{
+  display: flex;
+  width: 140px;
+  margin-top: 60px;
+  height: 70px;
+  flex-grow: 1;
+  flex-basis: 100%;
+  border: 3px solid;
+  display: flex;
+  align-items: center; /* horizontal centering */
+  justify-content: center; /* vertical centering */
+  cursor:pointer;
+}
+.save-load-button:hover {
+ background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  border: none;
+}
+
+.start-button{
+  font-family: "Pixelify Sans", sans-serif;
+  font-weight: 400;
+  font-weight: normal;
+  letter-spacing: 0.25em;
+  width: 140px;
+  background: none;
+  font-size: 2rem;
+  color: var(--color-digital-primary);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.75rem;
+  padding:0.65rem 0.5rem;
+  cursor:pointer;
+  height: 80px !important; 
+  margin-bottom: 0px !important;
+}
+.start-button:hover {
+  background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  border: none;
+}
+
+.pixel-select {
+  font-family: "Pixelify Sans", sans-serif;
+  letter-spacing: 0.1em;
+  font-size: 1.2rem !important;
+  font-weight: bold;
+  text-align: center;
+  background: transparent;
+  color: var(--color-digital-primary);
+  border: 3px solid var(--color-digital-primary);
+  padding: 0.35rem 1.2rem 0.35rem 0.75rem;
+  min-width: 72px;
+  margin-right: 0.75rem;
+  appearance: none;
+  outline: none;
+  text-transform: none;
+}
+
+.pixel-select[type="number"]::-webkit-outer-spin-button,
+.pixel-select[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pixel-select[type="number"]::-moz-appearance {
+  appearance: textfield;
+}
+
+.pixel-select:hover{
+  background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  outline: none;
+}
+
+.pixel-select[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pixel-icon {
+  padding-top:6px;
+  width: 64px;
+  height: 64px;
+  color: inherit;
+  fill: currentColor;
+  stroke: none;
+  stroke-width: 10;
+  shape-rendering: crispEdges;
+  
+}
+
+.start-button:hover .pixel-icon {
+  border: none;
+}
+
+
+.icon-play path,
+.icon-pause rect {
+  stroke-linejoin: miter;
+  stroke-linecap: square;
 }
