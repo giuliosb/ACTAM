@@ -30,7 +30,8 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 function useToneEngine(bpm, masterVolume) {
   const toneRef = useRef(null);
   const masterCompressor = useRef(null);
-  const [isReady, setIsReady] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isAudioReady, setIsAudioReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +42,6 @@ function useToneEngine(bpm, masterVolume) {
       const Tone = await import("tone");
       if (cancelled) return;
 
-      await Tone.start();
       toneRef.current = Tone;
 
       masterCompressor.current = new Tone.Compressor({
@@ -54,7 +54,7 @@ function useToneEngine(bpm, masterVolume) {
       Tone.Transport.bpm.value = bpm;
       Tone.Destination.volume.value = masterVolume;
 
-      setIsReady(true);
+      setIsLoaded(true);
     })();
 
     return () => {
@@ -68,6 +68,25 @@ function useToneEngine(bpm, masterVolume) {
     };
   }, []);
 
+  const ensureStarted = useCallback(async () => {
+    const Tone = toneRef.current;
+    if (!Tone) return false;
+
+    // Tone.start() sblocca AudioContext
+    await Tone.start();
+
+    setIsAudioReady(true);
+    return true;
+  }, []);
+
+  const unlockAudioSync = useCallback(() => {
+  const Tone = toneRef.current;
+  if (!Tone) return false;
+  Tone.start(); // niente await: chiamata immediata
+  return true;
+}, []);
+
+
   useEffect(() => {
     if (toneRef.current) toneRef.current.Transport.bpm.value = bpm;
   }, [bpm]);
@@ -77,7 +96,7 @@ function useToneEngine(bpm, masterVolume) {
       toneRef.current.Destination.volume.value = masterVolume;
   }, [masterVolume]);
 
-  return { Tone: toneRef.current, isReady };
+  return { Tone: toneRef.current, isLoaded, isAudioReady, ensureStarted, unlockAudioSync };
 }
 
 /* -----------------------------------------------
@@ -229,7 +248,7 @@ const Player = forwardRef(function Player(
     }));
   }, [externalDrumSoundSelection]);
 
-  const { Tone, isReady } = useToneEngine(bpm, masterVolume);
+  const { Tone, isLoaded, isAudioReady, ensureStarted, unlockAudioSync } = useToneEngine(bpm, masterVolume);
   const drumSynthRef = useRef(null);
   const chordSynthRef = useRef(null);
 
@@ -429,11 +448,16 @@ const Player = forwardRef(function Player(
   });
 
   // Start di alto livello: congela sequenza + avvia transport
-  const handleStart = useCallback(() => {
-    if (!isReady) return;
-    prepareSequenceSnapshot();
-    start();
-  }, [isReady, prepareSequenceSnapshot, start]);
+  const handleStart = useCallback(async () => {
+  if (!isLoaded) return;
+
+  const ok = await ensureStarted();
+  if (!ok) return;
+
+  prepareSequenceSnapshot();
+  start();
+}, [isLoaded, ensureStarted, prepareSequenceSnapshot, start]);
+
 
   useImperativeHandle(
     ref,
@@ -459,6 +483,12 @@ const Player = forwardRef(function Player(
           drumSounds: drumSoundSelection,
           isPlaying,
         }),
+
+        unlockAudio: () => {
+        // opzionale: evita chiamate prima del load
+        if (!isLoaded) return false;
+        return unlockAudioSync?.() ?? false;
+        },
         play: handleStart,
         stop,
         setDrumSound: (drumId, soundId) => {
@@ -476,6 +506,8 @@ const Player = forwardRef(function Player(
       stop,
       drumSoundSelection,
       setDrumSoundSelection,
+      isLoaded,
+      unlockAudioSync,
     ]
   );
 
