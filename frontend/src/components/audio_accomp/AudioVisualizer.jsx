@@ -49,8 +49,8 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
   }, [enablePlaying, setIsPlaying]);
 
   // Give regions a random color when they are created
-  const random = (min, max) => Math.random() * (max - min) + min
-  const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.15)`
+  
+  const regionColor = 'rgba(21, 72, 73, 0.15)';
 
 
   const hasLoadedAudio = () => {
@@ -92,16 +92,16 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
     const ws = WaveSurfer.create({
       container: containerRef.current,
       height: 140,
-      waveColor: 'rgb(0, 0, 0)',
-      progressColor: 'rgb(68, 64, 68)',
-      cursorWidth: 1,
+      waveColor: 'rgb(21, 72, 73)',
+      progressColor:'rgb(33, 111, 112)',
+      cursorWidth: 2,
       audioRate: playbackSpeed,
       responsive: true,
       minPxPerSec: 10,
       //dragToSeek: true,
       plugins: [regionsPlugin, timelinePlugin],
       // Set a bar width
-      barWidth: 2,
+      barWidth: 3,
       // Optionally, specify the spacing between bars
       barGap: 1,
       // Rounded edges
@@ -141,15 +141,15 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
         end: duration,
         drag: true,     
         resize: true,     // CAN drag handles
-        color: randomColor(),
+        color: regionColor,
         handleStyle: {
           left: {
             width: "3px",
-            backgroundColor: "rgba(0, 255, 0, 0.9)", // start handle
+            backgroundColor: "rgba(21, 72, 73, 0.9)", // start handle
           },
           right: {
             width: "3px",
-            backgroundColor: "rgba(255, 0, 0, 0.9)", // end handle
+            backgroundColor: "rgba(21, 72, 73, 0.9)", // end handle
           },
         },
       });
@@ -217,11 +217,19 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
     ws.zoom(zoom);
   }, [zoom, isReady]);
 
+  const handlePlayPauseButton = () => {
+    if (isPlaying) {
+      handlePause();
+    } else {
+      handlePlay();
+    }
+  }
   const handlePlay = () => {
     const ws = wavesurferRef.current;
     const region = regionRef.current;
     if (!ws || !region) return;
-    ws.play(region.start);
+    if(loopEnabledRef.current)  ws.play(region.start);
+    else ws.play();
   };
 
   const handlePause = () => {
@@ -232,6 +240,32 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
     <div style={{ marginTop: "20px" }}>
       <div ref={containerRef} style={{ width: "100%" }} />
 
+      {/* PLAY BUTTON */}
+       <button
+            className="start-button-audio"
+            style={{ marginTop: "10px" }}
+            onClick={handlePlayPauseButton}>
+            {isPlaying ? (
+              <svg
+                className="pixel-icon icon-pause"
+                viewBox="0 0 52 64"
+                role="img"
+                aria-hidden="true"
+              >
+                <rect x="6" y="14" width="10" height="36" />
+                <rect x="30" y="14" width="10" height="36" />
+              </svg>
+            ) : (
+              <svg
+                className="pixel-icon icon-play"
+                viewBox="0 0 72 64"
+                role="img"
+                aria-hidden="true"
+              >
+                <path d="M12 12 H42 L62 32 L42 52 H12 Z" />
+              </svg>
+            )}
+          </button>
       <div
         style={{
           marginTop: "10px",
@@ -240,15 +274,12 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
           gap: "10px",
         }}
       >
-        {!isPlaying ? (
-          <button onClick={handlePlay}>Play</button>
-        ) : (
-          <button onClick={handlePause}>Pause</button>
-        )}
         <span>
           Start: {startTime.toFixed(2)}s • End: {endTime.toFixed(2)}s
         </span>
       </div>
+
+
       {/* Zoom SLIDER */}
        <div style={{ marginTop: "10px" }}>
         <label>
@@ -267,15 +298,17 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
 
        {/* LOOP CHECKBOX */}
       <div style={{ marginTop: "10px" }}>
-        <label>
-          <input
+        <input
             type="checkbox"
+            style={{ height: "24px", width: "24px" }}
             checked={loopEnabled}
             onChange={(e) => setLoopEnabled(e.target.checked)}
           />
+        <label style={{ marginLeft: "20px" }}>
           Loop region
         </label>
       </div>
+
     </div>
   );
 }

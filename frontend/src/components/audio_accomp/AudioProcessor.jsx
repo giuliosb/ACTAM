@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import AudioVisualizer from "./AudioVisualizer";
 import reactLogo from "../../assets/react.svg";
-
+import spinner from "../../assets/images/spinner.svg";
+import SliderDigital from "../general_components/SliderDigital";
+import "./Audio.css";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -131,7 +133,8 @@ export default function AudioProcessor({ currentCard }) {
       const detected = Number(res.data.bpm);
       setBpm(detected);
       // default target to detected bpm for 1x playback
-      setTargetBpm((prev) => (prev === null ? detected : prev));
+      const fixedNumber = detected.toFixed(2);
+      setTargetBpm(((prev) => (prev === null ? fixedNumber : prev)));
       log(`🥁 BPM detected: ${detected}`);
       return detected;
     } catch (err) {
@@ -155,7 +158,7 @@ export default function AudioProcessor({ currentCard }) {
     try {
       const res = await axios.get(`${API}/getTonality`);
       setTonality(res.data);
-      log(`🎼 Tonality detected: ${res.data.key} (conf: ${res.data.confidence})`);
+      log(`🎼 Tonality detected: ${res.data.key} (confidence: ${res.data.confidence})`);
       return res.data;
     } catch (err) {
       const msg = err?.response?.data?.detail || err.message;
@@ -216,139 +219,204 @@ export default function AudioProcessor({ currentCard }) {
   // UI
   // ----------------------------------
   return (
-    <div style={{ marginTop: "40px", padding: "20px", border: "1px solid #ccc" }}>
-      <h2>Audio Processor</h2>
+    <div>
+      <figure className="audio-figure">
+          <div className="outerBevel">
+            <div className="flatSurface">
+              <div className="innerBevel">
+                <div className="inside noise pixelFont "  style={{ padding: "2rem", position: "relative" }}>
+                  <div>
+                    <h2>Audio Processor</h2>
+                      {/* Upload section */}
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "row",
+                          alignItems: "center", 
+                          gap: "20px",         
+                          marginTop: "20px",
+                          marginBottom: "20px"
+                        }}
+                      >
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="audio/*"
+                            onChange={handleFileSelected}
+                            style={{ display: "none" }}
+                            disabled={uploading}
+                          />
+                          <div
+                          onClick={() => {
+                              if (uploading) return;
+                              fileInputRef.current?.click();
+                            }}
+                            style={{ marginRight: "10px" , width: "200px"}}
+                            disabled={uploading}
+                          className="digitalbutton"
+                          >
+                            {uploading ? "uploading..." : "upload"}
+                          </div>
+                          {file && (
+                            <span style={{ marginLeft: "12px" }}>
+                            selected file: <strong>{file.name}</strong>
+                            </span>
+                          )}
+                          {uploading && (
+                            <span style={{ marginLeft: "14px", display: "inline-flex", alignItems: "center" }}>
+                              <img
+                                src={spinner}
+                                alt="React loader"
+                                style={{ width: "36px", height: "36px", animation: "spin 2s linear infinite" , color: "var(--color-digital-primary)" }}
+                              />
+                              <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+                            </span>
+                          )}
+                      </div>
+                      {/* Controls */}
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "row",
+                          alignItems: "center", 
+                          gap: "20px",         
+                          marginTop: "20px",
+                          marginBottom: "20px"
+                        }}
+                      >
+                        <label style={{width: "100px", flex: "0 0 auto" }}>A4 (Hz): </label>
+                          <input
+                            style={{ width: "140px", height:"50px" }}
+                            className='pixel-select'
+                            type="number"
+                            step="1"
+                            value={tuning}
+                            onChange={(e) => setTuning(Number(e.target.value))}
+                          />
 
-      {original_tuning !== null && (
-        <>
-          <div style={{ marginTop: "20px" }}>
-            <strong>Original tuning:</strong> {original_tuning} Hz
-          </div>
-          <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "center" }}>
-            <span>
-              <strong>BPM:</strong>{" "}
-              {bpmLoading ? "Detecting..." : bpm !== null ? bpm.toFixed(2) : "—"}
-            </span>
-            {bpmError && <span style={{ color: "red" }}>{bpmError}</span>}
-            <span>
-              <strong>Tonality:</strong>{" "}
-              {tonalityLoading
-                ? "Detecting..."
-                : tonality
-                ? `${tonality.key} (conf: ${tonality.confidence?.toFixed?.(2) ?? "–"})`
-                : "—"}
-            </span>
-            {tonalityError && <span style={{ color: "red" }}>{tonalityError}</span>}
-            <span>
-              <strong>Target BPM:</strong>{" "}
-              <input
-                type="number"
-                value={targetBpm ?? ""}
-                onChange={(e) => setTargetBpm(Number(e.target.value))}
-                style={{ width: "90px" }}
-                min="20"
-                max="300"
-              />
-            </span>
-          </div>
-        </>
-      )}
+                          <div
+                            style={{ marginLeft: "20px", width: "200px"}}
+                            onClick={() => getAudio(tuning)}
+                            disabled={processing}
+                            className="digitalbutton"
+                            >
+                          {processing ? "processing..." : "process audio"}
+                          </div>
+                      </div>
 
-      {/* Upload section */}
-      <div style={{ marginBottom: "20px" }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="audio/*"
-          onChange={handleFileSelected}
-          style={{ display: "none" }}
-          disabled={uploading}
-        />
-        <button
-          onClick={() => {
-            if (uploading) return;
-            fileInputRef.current?.click();
-          }}
-          style={{ marginLeft: "10px" }}
-          disabled={uploading}
-        >
-          {uploading ? "Uploading..." : "Upload"}
-        </button>
-        {file && (
-          <span style={{ marginLeft: "12px" }}>
-            File selezionato: <strong>{file.name}</strong>
-          </span>
-        )}
-        {uploading && (
-          <span style={{ marginLeft: "14px", display: "inline-flex", alignItems: "center" }}>
-            <img
-              src={reactLogo}
-              alt="React loader"
-              style={{ width: "36px", height: "36px", animation: "spin 1s linear infinite" }}
-            />
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-          </span>
-        )}
-      </div>
+                     {original_tuning !== null && (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 220px", // left text grows, right fixed for slider
+                            columnGap: "60px",
+                            alignItems: "start",
+                            marginTop: "20px",
+                          }}
+                        >
+                          {/* LEFT: analysis text */}
+                          <div>
+                            <div style={{ marginTop: "0px" }}>
+                              <strong>original tuning:</strong> {original_tuning} Hz
+                            </div>
 
-      {uploadResponse && (
-        <pre>{JSON.stringify(uploadResponse, null, 2)}</pre>
-      )}
+                            <div
+                              style={{
+                                marginTop: "12px",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "30px",
+                                alignItems: "center",
+                              }}
+                            >
+                              <span>
+                                <strong>original BPM:</strong>{" "}
+                                {bpmLoading ? "detecting..." : bpm !== null ? bpm.toFixed(2) : "—"}
+                              </span>
+                              {bpmError && <span style={{ color: "red" }}>{bpmError}</span>}
 
-      <hr />
+                              <span>
+                                <strong>tonality:</strong>{" "}
+                                {tonalityLoading
+                                  ? "detecting..."
+                                  : tonality
+                                  ? `${tonality.key} (confidence: ${tonality.confidence?.toFixed?.(2) ?? "–"})`
+                                  : "—"}
+                              </span>
+                              {tonalityError && <span style={{ color: "red" }}>{tonalityError}</span>}
+                            </div>
+                          </div>
+                        
+                        </div>
+                        
+                      )}
+                       {original_tuning !== null && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "140px",        // 🔼 controls how high it sits
+                            right: "80px",       // ⬅ distance from right edge
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: "16px",
+                          }}
+                        >
+                          <SliderDigital
+                            value={targetBpm}
+                            min={20}
+                            max={300}
+                            step={1}
+                            onChange={(value) => setTargetBpm(value)}
+                          />
 
-      {/* Controls */}
-      <div style={{ marginTop: "20px" }}>
-       
-        <label style={{ marginLeft: "20px" }}>Tuning (Hz): </label>
-        <input
-          type="number"
-          step="1"
-          value={tuning}
-          onChange={(e) => setTuning(Number(e.target.value))}
-        />
+                          <div style={{ width: "160px", textAlign: "center" }}>
+                            BPM: {targetBpm}
+                          </div>
+                        </div>
+                        
+                      )}
 
-        <button
-          style={{ marginLeft: "20px" }}
-          onClick={() => getAudio(tuning)}
-        disabled={processing}
-          >
-        {processing ? "Processing..." : "Process Audio"}
-        </button>
-      </div>
 
-      {/* ---------------- PROCESSED AUDIO PLAYER ---------------- */}
-      {processedAudioURL && (
-        <div style={{ marginTop: "30px", padding: "15px", border: "1px solid #aaa" }}>
-          <h3>Processed Audio</h3>
+                      {/* ---------------- PROCESSED AUDIO PLAYER ---------------- */}
+                      {processedAudioURL && (
+                        <div style={{ marginTop: "30px", padding: "15px"}}>
+                          {processedAudioBlob && (
+                            <div style={{ marginTop: "20px" }}>
+                              <h3>Processed Audio Waveform</h3>
+                              <AudioVisualizer
+                                enablePlaying={enablePlaying}
+                                audioFile={processedAudioBlob}
+                                playbackSpeed={bpm && targetBpm ? targetBpm / bpm : 1}
+                              />
+                            </div>
+                          )}
 
-          <audio controls src={processedAudioURL} />
+                          {/* Download button */}
+                          {/* <button
+                            style={{ marginTop: "10px" }}
+                            onClick={() => {
+                              const a = document.createElement("a");
+                              a.href = processedAudioURL;
+                              a.download = "processed_audio.flac";
+                              a.click();
+                            }}
+                          >
+                            Download Processed Audio
+                          </button> */}
+                        </div>
+                      )}
 
-          {processedAudioBlob && (
-            <div style={{ marginTop: "20px" }}>
-              <h3>Processed Audio Waveform</h3>
-              <AudioVisualizer
-                enablePlaying={enablePlaying}
-                audioFile={processedAudioBlob}
-                playbackSpeed={bpm && targetBpm ? targetBpm / bpm : 1}
-              />
+
+
+                  </div>
+              </div>
             </div>
-          )}
-
-          {/* Download button */}
-          {/* <button
-            style={{ marginTop: "10px" }}
-            onClick={() => {
-              const a = document.createElement("a");
-              a.href = processedAudioURL;
-              a.download = "processed_audio.flac";
-              a.click();
-            }}
-          >
-            Download Processed Audio
-          </button> */}
+          </div>
         </div>
-      )}
+      </figure>
+
+      
 
       {/* ---------------- LOG PANEL ---------------- */}
       {/* <div

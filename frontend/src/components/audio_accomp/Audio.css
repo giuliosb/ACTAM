@@ -1,0 +1,126 @@
+figure {
+	width:						1400px;
+	height:						auto;
+	margin:						1em auto;
+	display:					block;
+  	padding: 1rem;
+}
+
+.analog-panel{
+  width:						1400px;
+	height:						auto;
+	margin:						1em auto;
+	display:					block;
+  padding: 1rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.outerBevel,
+.flatSurface,
+.innerBevel {
+	width:						100%;
+	height:						100%;
+	box-sizing:				border-box;
+	display:					flex;
+	align-items:				stretch;
+	justify-content:		center;
+}
+
+.outerBevel { /* of frame */
+	box-shadow:				4px 6px 12px 0 black;
+	border-width:			5px;
+	border-style:			solid;
+	border-color:			rgb(63, 63, 63) rgb(0, 0, 0) rgb(0, 0, 0) rgb(63, 63, 63);
+}
+
+.flatSurface { /* of frame */
+	border:						22px solid rgb(16, 16, 16);
+}
+
+.innerBevel { /* of frame */
+	border-width:			6px;
+	border-style:			solid;
+	border-color:			rgb(0, 0, 16)	rgb(44,44,44) rgb(44,44,44 ) rgb(0, 0, 16);
+}
+
+.inside {
+  flex: 1;                 /* easiest */
+  /* OR */
+  width: 100%;
+  height: 100%;
+  background-color: var( --color-digital-background);
+  box-shadow:
+    -5px -5px 10px rgba(95, 194, 207, 0.35), /* top-left highlight */
+     8px  8px 16px rgba(95, 194, 207, 0.61);        /* bottom-right shadow */
+  z-index: 1;
+  color: var(--color-digital-primary);
+}
+
+
+.horizontal {
+  transform: rotate(90deg);      /* or -90deg */
+  transform-origin: center;
+}
+
+.digitalbutton {
+  display: flex;
+  height: 50px;
+  padding: 0 24px;        /* control width via padding */
+  border: 3px solid;
+
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  /* KEY: prevent flex stretching */
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.digitalbutton:hover {
+ background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  border: none;
+}
+
+
+
+.start-button-audio{
+  font-family: "Pixelify Sans", sans-serif;
+  font-weight: 400;
+  border: 3px solid var(--color-digital-primary);
+  font-weight: normal;
+  letter-spacing: 0.25em;
+  width: 140px;
+  background: none;
+  font-size: 2rem;
+  color: var(--color-digital-primary);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.75rem;
+  padding:0.65rem 0.5rem;
+  cursor:pointer;
+  height: 80px !important; 
+  margin-bottom: 0px !important;
+}
+.start-button-audio:hover {
+  background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  border: none;
+}
+
+
+
+
+.start-button-audio:hover .pixel-icon {
+  border: none;
+}
+
+
+input[type="checkbox"] {
+  accent-color: var(--color-digital-light);
+}

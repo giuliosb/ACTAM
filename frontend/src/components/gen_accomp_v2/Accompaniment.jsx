@@ -699,7 +699,7 @@ function mapDbTo0to100(db) {
                         disabled={isPlaying}
                         className="save-load-button"
                       >
-                        SAVE
+                        save
                       </div>
                     
                       <div
@@ -707,7 +707,7 @@ function mapDbTo0to100(db) {
                         disabled={isPlaying}
                         className="save-load-button"
                       >
-                        LOAD
+                        load
                       </div>
                       <input
                         ref={fileInputRef}
