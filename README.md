@@ -2,12 +2,18 @@
 
 cd backend
 
-python -m venv venv # DO THIS ONLY FIRST TIME
+# 0. step
+# DO THIS ONLY FIRST TIME
+python -m venv venv 
 
-source venv/bin/activate   # Windows: venv\Scripts\activate
+# 1. step
+# Windows: venv\Scripts\activate
+source venv/bin/activate   
 
+# 2. step
 pip install -r requirements.txt
 
+# Final step
 uvicorn main:app --reload 
 
 # Install Node.js to your pc (MacOS):
@@ -24,7 +30,7 @@ npm -v # Should print "11.6.2".
 
 # Install Node.js to your pc (Windows):
 
-powershell -c "irm https://community.chocolatey.org/install.ps1|iex"
+powershell -c "irm https://community.chocolatey.org /install.ps1|iex"
 
 choco install nodejs --version="24.11.1"
 

@@ -3,32 +3,82 @@ import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/dist/plugins/regions.esm.js";
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js'
 
-export default function AudioVisualizer({ audioFile }) {
+export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpeed = 1 }) {
   const containerRef = useRef(null);
+
   const wavesurferRef = useRef(null);
   const regionRef = useRef(null);
   const regionsPluginRef = useRef(null);
+
+  // Helper: destroy a WaveSurfer instance and swallow AbortError (raised when aborting pending loads)
+  const safeDestroy = (ws) => {
+    if (!ws) return;
+    try {
+      const maybePromise = ws.destroy();
+      if (maybePromise?.catch) {
+        maybePromise.catch((err) => {
+          if (err?.name !== "AbortError") {
+            console.error("WaveSurfer destroy error:", err);
+          }
+        });
+      }
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("WaveSurfer destroy error:", err);
+      }
+    }
+  };
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
 
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [zoom, setZoom] = useState(10);
+  const [isReady, setIsReady] = useState(false);
+
   const [loopEnabled, setLoopEnabled] = useState(true);
 
   const loopEnabledRef = useRef(loopEnabled);
 
-  // Give regions a random color when they are created
-const random = (min, max) => Math.random() * (max - min) + min
-const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.15)`
+  //Abort on card change
+  useEffect(() => {
+    if (!enablePlaying) {
+      wavesurferRef.current?.pause();
+      setIsPlaying(false);
+    }
+  }, [enablePlaying, setIsPlaying]);
 
+  // Give regions a random color when they are created
+  
+  const regionColor = 'rgba(21, 72, 73, 0.15)';
+
+
+  const hasLoadedAudio = () => {
+    try {
+      return !!wavesurferRef.current?.getDecodedData();
+    } catch {
+      return false;
+    }
+  };
+
+  const applyZoom = () => {
+    const ws = wavesurferRef.current;
+    if (!ws || !hasLoadedAudio()) return;
+    try {
+      ws.zoom(zoom);
+    } catch (err) {
+      if (err?.message?.includes("No audio loaded")) return;
+      console.error("WaveSurfer zoom error:", err);
+    }
+  };
 
   useEffect(() => {
     if (!audioFile) return;
 
     // cleanup previous instance
+    setIsReady(false);
     if (wavesurferRef.current) {
-      wavesurferRef.current.destroy();
+      safeDestroy(wavesurferRef.current);
       wavesurferRef.current = null;
       regionRef.current = null;
       regionsPluginRef.current = null;
@@ -42,14 +92,16 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     const ws = WaveSurfer.create({
       container: containerRef.current,
       height: 140,
-      waveColor: 'rgb(200, 0, 200)',
-      progressColor: 'rgb(100, 0, 100)',
-      cursorWidth: 1,
+      waveColor: 'rgb(21, 72, 73)',
+      progressColor:'rgb(33, 111, 112)',
+      cursorWidth: 2,
       audioRate: playbackSpeed,
       responsive: true,
+      minPxPerSec: 10,
+      //dragToSeek: true,
       plugins: [regionsPlugin, timelinePlugin],
       // Set a bar width
-      barWidth: 2,
+      barWidth: 3,
       // Optionally, specify the spacing between bars
       barGap: 1,
       // Rounded edges
@@ -59,26 +111,45 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     wavesurferRef.current = ws;
     regionsPluginRef.current = regionsPlugin;
 
+    ws.on("error", (err) => {
+      if (err?.name !== "AbortError") {
+        console.error("WaveSurfer error:", err);
+      }
+    });
+
     const url = URL.createObjectURL(audioFile);
-    ws.load(url);
+    (async () => {
+      try {
+        await ws.load(url);
+      } catch (err) {
+        if (err?.name !== "AbortError") {
+          console.error("WaveSurfer load error:", err);
+        }
+      }
+    })();
 
     ws.on("ready", () => {
       const duration = ws.getDuration();
+
+      //apply zoom
+      applyZoom();
+      setIsReady(true);
+
       // initial selection is the whole audio
       const region = regionsPlugin.addRegion({
         start: 0,
         end: duration,
         drag: true,     
         resize: true,     // CAN drag handles
-        color: randomColor(),
+        color: regionColor,
         handleStyle: {
           left: {
             width: "3px",
-            backgroundColor: "rgba(0, 255, 0, 0.9)", // start handle
+            backgroundColor: "rgba(21, 72, 73, 0.9)", // start handle
           },
           right: {
             width: "3px",
-            backgroundColor: "rgba(255, 0, 0, 0.9)", // end handle
+            backgroundColor: "rgba(21, 72, 73, 0.9)", // end handle
           },
         },
       });
@@ -116,20 +187,12 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
 
     });
 
-    
-
     ws.on("play", () => setIsPlaying(true));
     ws.on("pause", () => setIsPlaying(false));
 
     return () => {
+      safeDestroy(ws);
       URL.revokeObjectURL(url);
-     try {
-    ws.destroy();
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("WaveSurfer destroy error:", err);
-      }
-    }
     };
   }, [audioFile]);
 
@@ -140,16 +203,33 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     }
   }, [playbackSpeed]);
 
+  // Update loop state
   useEffect(() => {
     loopEnabledRef.current = loopEnabled;
     console.log("Loop changend:", loopEnabled);
   }, [loopEnabled]);
 
+  // Update zoom state
+  useEffect(() => {
+    if (!isReady) return;
+    const ws = wavesurferRef.current;
+    if (!ws) return;
+    ws.zoom(zoom);
+  }, [zoom, isReady]);
+
+  const handlePlayPauseButton = () => {
+    if (isPlaying) {
+      handlePause();
+    } else {
+      handlePlay();
+    }
+  }
   const handlePlay = () => {
     const ws = wavesurferRef.current;
     const region = regionRef.current;
     if (!ws || !region) return;
-    ws.play(region.start);
+    if(loopEnabledRef.current)  ws.play(region.start);
+    else ws.play();
   };
 
   const handlePause = () => {
@@ -160,6 +240,32 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
     <div style={{ marginTop: "20px" }}>
       <div ref={containerRef} style={{ width: "100%" }} />
 
+      {/* PLAY BUTTON */}
+       <button
+            className="start-button-audio"
+            style={{ marginTop: "10px" }}
+            onClick={handlePlayPauseButton}>
+            {isPlaying ? (
+              <svg
+                className="pixel-icon icon-pause"
+                viewBox="0 0 52 64"
+                role="img"
+                aria-hidden="true"
+              >
+                <rect x="6" y="14" width="10" height="36" />
+                <rect x="30" y="14" width="10" height="36" />
+              </svg>
+            ) : (
+              <svg
+                className="pixel-icon icon-play"
+                viewBox="0 0 72 64"
+                role="img"
+                aria-hidden="true"
+              >
+                <path d="M12 12 H42 L62 32 L42 52 H12 Z" />
+              </svg>
+            )}
+          </button>
       <div
         style={{
           marginTop: "10px",
@@ -168,39 +274,41 @@ const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0
           gap: "10px",
         }}
       >
-        {!isPlaying ? (
-          <button onClick={handlePlay}>Play</button>
-        ) : (
-          <button onClick={handlePause}>Pause</button>
-        )}
         <span>
           Start: {startTime.toFixed(2)}s • End: {endTime.toFixed(2)}s
         </span>
       </div>
-      {/* ---------------- SPEED CONTROL ---------------- */}
-      <div style={{ marginTop: "10px" }}>
-        <label>Playback speed: </label>
-        <input
-          type="number"
-          step="0.05"
-          min="0.2"
-          max="3"
-          value={playbackSpeed}
-          onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-          style={{ width: "80px", marginLeft: "10px" }}
-        />
+
+
+      {/* Zoom SLIDER */}
+       <div style={{ marginTop: "10px" }}>
+        <label>
+          Zoom:{" "}
+          <input
+            type="range"
+            min="1"
+            max="1000"
+            value={zoom}
+            onChange={(e) => setZoom(e.target.valueAsNumber)}
+          />
+          <span style={{ marginLeft: 8 }}>{zoom} px/sec</span>
+        </label>
       </div>
+
+
        {/* LOOP CHECKBOX */}
       <div style={{ marginTop: "10px" }}>
-        <label>
-          <input
+        <input
             type="checkbox"
+            style={{ height: "24px", width: "24px" }}
             checked={loopEnabled}
             onChange={(e) => setLoopEnabled(e.target.checked)}
           />
+        <label style={{ marginLeft: "20px" }}>
           Loop region
         </label>
       </div>
+
     </div>
   );
 }

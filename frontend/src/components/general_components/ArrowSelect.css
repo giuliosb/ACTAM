@@ -1,0 +1,41 @@
+
+.middle {
+  border: 3px solid var(--color-digital-primary);
+  width: 400px;
+  padding:5px;
+  height: 40px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.buttonPixelFont {
+ font-family: "Pixelify Sans", sans-serif;
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: 0.03em; /* optional, improves pixel fonts */
+  color: var(--color-digital-primary);
+  font-weight: bold;
+  /* improve pixel look */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+
+.button {
+  background: none;
+  border: 3px solid var(--color-digital-primary);
+  border-radius: 2px;
+  height: 40px;
+  width: 40px;
+  cursor: pointer;
+}
+
+.button:hover, .button:active {
+  background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  border: none;
+}

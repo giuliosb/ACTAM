@@ -61,7 +61,7 @@ export default function Knob({ value = 0, onChange }) {
     if (delta < -180) delta += 360;
 
     // drag sensitivity → lower = smoother
-    const sensitivity = 0.65;
+    const sensitivity = 0.84;
     const newAngle = currentAngle + delta * sensitivity;
 
 

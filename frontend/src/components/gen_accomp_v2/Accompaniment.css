@@ -1,8 +1,224 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+
+* {
+	padding:					0;
+	margin:						0;
+	box-sizing:				border-box;
+	}
+
+figure {
+	width:						1400px;
+	height:						auto;
+	margin:						1em auto;
+	display:					block;
+  padding: 1rem;
+}
+
+.analog-panel{
+  width:						1400px;
+	height:						auto;
+	margin:						1em auto;
+	display:					block;
+  padding: 1rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.outerBevel,
+.flatSurface,
+.innerBevel {
+	width:						100%;
+	height:						100%;
+	box-sizing:				border-box;
+	display:					flex;
+	align-items:				stretch;
+	justify-content:		center;
+}
+
+.outerBevel { /* of frame */
+	box-shadow:				4px 6px 12px 0 black;
+	border-width:			5px;
+	border-style:			solid;
+	border-color:			rgb(63, 63, 63) rgb(0, 0, 0) rgb(0, 0, 0) rgb(63, 63, 63);
+}
+
+.flatSurface { /* of frame */
+	border:						22px solid rgb(16, 16, 16);
+}
+
+.innerBevel { /* of frame */
+	border-width:			6px;
+	border-style:			solid;
+	border-color:			rgb(0, 0, 16)	rgb(44,44,44) rgb(44,44,44 ) rgb(0, 0, 16);
+}
+
+.inside {
+  flex: 1;                 /* easiest */
+  /* OR */
+  width: 100%;
+  height: 100%;
+  background-color: var( --color-digital-background);
+  box-shadow:
+    -5px -5px 10px rgba(95, 194, 207, 0.35), /* top-left highlight */
+     8px  8px 16px rgba(95, 194, 207, 0.61);        /* bottom-right shadow */
+  z-index: 1;
+  color: var(--color-digital-primary);
+}
+
+.border {
+  border: 6px solid rgb(178, 237, 237);
+  padding: 0px 0px 0px 12px;
+  /* top right bottom left */
+}
+/* IMPORTANT: constrain the pseudo-element to this element */
+.noise {
+  position: relative;   /* makes ::before inset:0 stay inside THIS element */
+  isolation: isolate;   /* blend modes (if used later) won't affect outside */
+  overflow: hidden;     /* ensures the noise doesn’t bleed out */
+}
+
+.noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.32'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+.pixelFont {
+ font-family: "Pixelify Sans", sans-serif;
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: 0.03em; /* optional, improves pixel fonts */
+
+  /* improve pixel look */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+.pixelFont2 {
+ font-family: "Home Video", sans-serif;
+  font-weight: 400;
+  font-size: 3rem;
+  letter-spacing: 0.03em; /* optional, improves pixel fonts */
+
+  /* improve pixel look */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
 }
 
 
+.drum-sound-panel {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 3px solid;
+  border-radius: 2px;
+  width: 660px;
+  height: 330px;
+}
+
+.save-load-button{
+  display: flex;
+  width: 140px;
+  margin-top: 60px;
+  height: 70px;
+  flex-grow: 1;
+  flex-basis: 100%;
+  border: 3px solid;
+  display: flex;
+  align-items: center; /* horizontal centering */
+  justify-content: center; /* vertical centering */
+  cursor:pointer;
+}
+.save-load-button:hover {
+ background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  border: none;
+}
+
+.start-button{
+  font-family: "Pixelify Sans", sans-serif;
+  font-weight: 400;
+  font-weight: normal;
+  letter-spacing: 0.25em;
+  width: 140px;
+  background: none;
+  font-size: 2rem;
+  color: var(--color-digital-primary);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.75rem;
+  padding:0.65rem 0.5rem;
+  cursor:pointer;
+  height: 80px !important; 
+  margin-bottom: 0px !important;
+}
+.start-button:hover {
+  background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  border: none;
+}
+
+.pixel-select {
+  font-family: "Pixelify Sans", sans-serif;
+  letter-spacing: 0.1em;
+  font-size: 1.2rem !important;
+  font-weight: bold;
+  text-align: center;
+  background: transparent;
+  color: var(--color-digital-primary);
+  border: 3px solid var(--color-digital-primary);
+  padding: 0.35rem 1.2rem 0.35rem 0.75rem;
+  min-width: 72px;
+  margin-right: 0.75rem;
+  appearance: none;
+  outline: none;
+  text-transform: none;
+}
+
+.pixel-select[type="number"]::-webkit-outer-spin-button,
+.pixel-select[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pixel-select[type="number"]::-moz-appearance {
+  appearance: textfield;
+}
+
+.pixel-select:hover{
+  background: var(--color-digital-primary);
+  color: var(--color-digital-background);
+  outline: none;
+}
+
+.pixel-select[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pixel-icon {
+  padding-top:6px;
+  width: 64px;
+  height: 64px;
+  color: inherit;
+  fill: currentColor;
+  stroke: none;
+  stroke-width: 10;
+  shape-rendering: crispEdges;
+  
+}
+
+.start-button:hover .pixel-icon {
+  border: none;
+}
+
+
+.icon-play path,
+.icon-pause rect {
+  stroke-linejoin: miter;
+  stroke-linecap: square;
+}

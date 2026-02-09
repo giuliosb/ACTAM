@@ -17,9 +17,10 @@ import Drumshynt, {
   DRUM_SOUND_OPTIONS,
 } from "./Drumshynt.jsx";
 
+
 const HUMANIZE_MAX_DELAY = 0.03; // seconds of max note spread inside a chord
 
-const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
+export const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -29,7 +30,8 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 function useToneEngine(bpm, masterVolume) {
   const toneRef = useRef(null);
   const masterCompressor = useRef(null);
-  const [isReady, setIsReady] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isAudioReady, setIsAudioReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +42,6 @@ function useToneEngine(bpm, masterVolume) {
       const Tone = await import("tone");
       if (cancelled) return;
 
-      await Tone.start();
       toneRef.current = Tone;
 
       masterCompressor.current = new Tone.Compressor({
@@ -53,7 +54,7 @@ function useToneEngine(bpm, masterVolume) {
       Tone.Transport.bpm.value = bpm;
       Tone.Destination.volume.value = masterVolume;
 
-      setIsReady(true);
+      setIsLoaded(true);
     })();
 
     return () => {
@@ -67,6 +68,25 @@ function useToneEngine(bpm, masterVolume) {
     };
   }, []);
 
+  const ensureStarted = useCallback(async () => {
+    const Tone = toneRef.current;
+    if (!Tone) return false;
+
+    // Tone.start() sblocca AudioContext
+    await Tone.start();
+
+    setIsAudioReady(true);
+    return true;
+  }, []);
+
+  const unlockAudioSync = useCallback(() => {
+  const Tone = toneRef.current;
+  if (!Tone) return false;
+  Tone.start(); // niente await: chiamata immediata
+  return true;
+}, []);
+
+
   useEffect(() => {
     if (toneRef.current) toneRef.current.Transport.bpm.value = bpm;
   }, [bpm]);
@@ -76,7 +96,7 @@ function useToneEngine(bpm, masterVolume) {
       toneRef.current.Destination.volume.value = masterVolume;
   }, [masterVolume]);
 
-  return { Tone: toneRef.current, isReady };
+  return { Tone: toneRef.current, isLoaded, isAudioReady, ensureStarted, unlockAudioSync };
 }
 
 /* -----------------------------------------------
@@ -178,16 +198,15 @@ const Player = forwardRef(function Player(
     onTracksChange,
     onPlayStateChange,
     steps = DEFAULT_STEPS,
+    bpm = 120,
+    masterVolume = 0,
+    chordVolume = 0,
+    chordSynthSettings = DEFAULT_CHORD_SYNTH_SETTINGS,
+    drumSoundSelection: externalDrumSoundSelection,
   },
   ref
 ) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [bpm, setBpm] = useState(120);
-  const [masterVolume, setMasterVolume] = useState(0);
-  const [chordVolume, setChordVolume] = useState(0); // dB per gli accordi
-  const [chordSynthSettings, setChordSynthSettings] = useState(
-    DEFAULT_CHORD_SYNTH_SETTINGS
-  );
   const [drumSynthSettings, setDrumSynthSettings] = useState(() => ({
     ...DEFAULT_DRUM_SYNTH_SETTINGS,
     soundSelection: { ...DEFAULT_DRUM_SOUND_SELECTION },
@@ -204,7 +223,32 @@ const Player = forwardRef(function Player(
     [onPlayStateChange]
   );
 
-  const { Tone, isReady } = useToneEngine(bpm, masterVolume);
+  const setDrumSoundSelection = useCallback((drumId, soundId) => {
+    setDrumSynthSettings((prev) => {
+      const prevSelection =
+        prev?.soundSelection || DEFAULT_DRUM_SOUND_SELECTION;
+      return {
+        ...prev,
+        soundSelection: {
+          ...prevSelection,
+          [drumId]: soundId,
+        },
+      };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!externalDrumSoundSelection) return;
+    setDrumSynthSettings((prev) => ({
+      ...prev,
+      soundSelection: {
+        ...prev.soundSelection,
+        ...externalDrumSoundSelection,
+      },
+    }));
+  }, [externalDrumSoundSelection]);
+
+  const { Tone, isLoaded, isAudioReady, ensureStarted, unlockAudioSync } = useToneEngine(bpm, masterVolume);
   const drumSynthRef = useRef(null);
   const chordSynthRef = useRef(null);
 
@@ -235,123 +279,8 @@ const Player = forwardRef(function Player(
     chordsRef.current = Array.isArray(chords) ? chords : [];
   }, [sequence, chords]);
 
-  const updateSynthSetting = useCallback(
-    (key, value) => {
-      if (isPlaying) return;
-      setChordSynthSettings((prev) => ({
-        ...prev,
-        [key]: value,
-      }));
-    },
-    [isPlaying]
-  );
-
-  const updateDrumSound = useCallback(
-    (drumId, soundId) => {
-      if (isPlaying) return;
-      setDrumSynthSettings((prev) => {
-        const prevSelection =
-          prev?.soundSelection || DEFAULT_DRUM_SOUND_SELECTION;
-        return {
-          ...prev,
-          soundSelection: {
-            ...prevSelection,
-            [drumId]: soundId,
-          },
-        };
-      });
-    },
-    [isPlaying]
-  );
-
-  const drumSoundSelection = {
-    ...DEFAULT_DRUM_SOUND_SELECTION,
-    ...(drumSynthSettings.soundSelection || {}),
-  };
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      getState: () => ({
-        bpm,
-        masterVolume,
-        chordVolume,
-        chordSynthSettings,
-        chordInstrument: chordSynthSettings.instrument,
-        drumSounds: {
-          kick: drumSoundSelection.kick,
-          snare: drumSoundSelection.snare,
-          hihat: drumSoundSelection.hihat,
-          openhat: drumSoundSelection.openhat,
-        },
-      }),
-      setState: ({
-        bpm: incomingBpm,
-        masterVolume: incomingMaster,
-        chordVolume: incomingChordVolume,
-        chordSynthSettings: incomingChordSynth,
-        chordInstrument: incomingChordInstrument,
-        drumSounds: incomingDrumSounds,
-      } = {}) => {
-        if (typeof incomingBpm === "number") setBpm(incomingBpm);
-        if (typeof incomingMaster === "number")
-          setMasterVolume(incomingMaster);
-        if (typeof incomingChordVolume === "number")
-          setChordVolume(incomingChordVolume);
-        if (
-          incomingChordSynth &&
-          typeof incomingChordSynth === "object"
-        ) {
-          setChordSynthSettings((prev) => ({
-            ...prev,
-            ...incomingChordSynth,
-          }));
-        }
-        if (incomingChordInstrument) {
-          updateSynthSetting("instrument", incomingChordInstrument);
-        }
-        if (incomingDrumSounds && typeof incomingDrumSounds === "object") {
-          DRUM_IDS.forEach((drumId) => {
-            const nextSound = incomingDrumSounds[drumId];
-            if (nextSound) {
-              updateDrumSound(drumId, nextSound);
-            }
-          });
-        }
-      },
-    }),
-    [
-      bpm,
-      masterVolume,
-      chordVolume,
-      chordSynthSettings,
-      drumSoundSelection,
-      updateDrumSound,
-      updateSynthSetting,
-    ]
-  );
-
-  const handleDrumVolumeChange = (drumId, value) => {
-    if (!onTracksChange) return;
-    const vol = Number(value);
-
-    onTracksChange((prev) => {
-      const safePrev = prev || {};
-      const prevDrums = safePrev.drums || {};
-      const prevDrumTrack = prevDrums[drumId] || {};
-
-      return {
-        ...safePrev,
-        drums: {
-          ...prevDrums,
-          [drumId]: {
-            ...prevDrumTrack,
-            volume: vol,
-          },
-        },
-      };
-    });
-  };
+  const drumSoundSelection =
+    drumSynthSettings.soundSelection || DEFAULT_DRUM_SOUND_SELECTION;
 
   /* -----------------------------------------------
      Chords (synth unico, con volume globale)
@@ -519,14 +448,71 @@ const Player = forwardRef(function Player(
   });
 
   // Start di alto livello: congela sequenza + avvia transport
-  const handleStart = useCallback(() => {
-    if (!isReady) return;
-    prepareSequenceSnapshot();
-    start();
-  }, [isReady, prepareSequenceSnapshot, start]);
+  const handleStart = useCallback(async () => {
+  if (!isLoaded) return;
+
+  const ok = await ensureStarted();
+  if (!ok) return;
+
+  prepareSequenceSnapshot();
+  start();
+}, [isLoaded, ensureStarted, prepareSequenceSnapshot, start]);
+
+
+  useImperativeHandle(
+    ref,
+    () => {
+      const createDrumVolumeSnapshot = () => {
+        const drums = tracksRef.current?.drums || {};
+        return DRUM_IDS.reduce((acc, drumId) => {
+          const entry = drums[drumId] || {};
+          acc[drumId] = entry.volume ?? 0;
+          return acc;
+        }, {});
+      };
+
+      return {
+        getState: () => ({
+          bpm,
+          masterVolume,
+          chordVolume,
+          chordSynthSettings,
+          chordInstrument: chordSynthSettings.instrument,
+          chordInstruments: CHORD_INSTRUMENTS,
+          drumVolumes: createDrumVolumeSnapshot(),
+          drumSounds: drumSoundSelection,
+          isPlaying,
+        }),
+
+        unlockAudio: () => {
+        // opzionale: evita chiamate prima del load
+        if (!isLoaded) return false;
+        return unlockAudioSync?.() ?? false;
+        },
+        play: handleStart,
+        stop,
+        setDrumSound: (drumId, soundId) => {
+          setDrumSoundSelection(drumId, soundId);
+        },
+      };
+    },
+    [
+      bpm,
+      masterVolume,
+      chordVolume,
+      chordSynthSettings,
+      isPlaying,
+      handleStart,
+      stop,
+      drumSoundSelection,
+      setDrumSoundSelection,
+      isLoaded,
+      unlockAudioSync,
+    ]
+  );
 
   return (
-    <div style={{ marginBottom: "20px" }}>
+    <div>
       <Drumshynt
         Tone={Tone}
         targetRef={drumSynthRef}
@@ -537,273 +523,9 @@ const Player = forwardRef(function Player(
         targetRef={chordSynthRef}
         settings={chordSynthSettings}
       />
-      <button onClick={isPlaying ? stop : handleStart} disabled={!isReady}>
-        {isPlaying ? "Stop" : "Play"}
-      </button>
-
-      <label style={{ marginLeft: "20px" }}>BPM:</label>
-      <input
-        type="number"
-        min="40"
-        max="240"
-        value={bpm}
-        onChange={(e) => setBpm(Number(e.target.value))}
-        style={{ width: "60px", margin: "0 10px" }}
-      />
-
-      <input
-        type="range"
-        min="40"
-        max="240"
-        value={bpm}
-        onChange={(e) => setBpm(Number(e.target.value))}
-        style={{ width: "200px" }}
-      />
-
-      <div style={{ marginTop: "10px" }}>
-        <label>Master Vol (dB): </label>
-        <input
-          type="range"
-          min="-30"
-          max="6"
-          value={masterVolume}
-          onChange={(e) => setMasterVolume(Number(e.target.value))}
-          step="1"
-          style={{ width: "200px" }}
-      />
-      {masterVolume} dB
-    </div>
-
-    <div style={{ marginTop: "10px" }}>
-      <h4>Drum Sounds</h4>
-      {DRUM_IDS.map((drumId) => {
-        const selected =
-          drumSynthSettings.soundSelection?.[drumId] ??
-          DEFAULT_DRUM_SOUND_SELECTION[drumId];
-        const options = DRUM_SOUND_OPTIONS[drumId] || [];
-
-        return (
-          <div key={drumId} style={{ marginBottom: "6px" }}>
-            <label
-              htmlFor={`drum-sound-${drumId}`}
-              style={{
-                width: "90px",
-                display: "inline-block",
-                textTransform: "capitalize",
-              }}
-            >
-              {drumId} sound:
-            </label>
-            <select
-              id={`drum-sound-${drumId}`}
-              value={selected}
-              onChange={(e) => updateDrumSound(drumId, e.target.value)}
-              disabled={isPlaying}
-              style={{ marginLeft: "6px" }}
-            >
-              {options.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        );
-      })}
-    </div>
-
-    <div style={{ marginTop: "10px" }}>
-      <h4>Drum Volumes (dB)</h4>
-      {DRUM_IDS.map((drumId) => {
-        const drumTracks = tracks?.drums || {};
-        const vol = drumTracks[drumId]?.volume ?? 0;
-
-          return (
-            <div key={drumId} style={{ marginBottom: "6px" }}>
-              <label
-                style={{
-                  width: "60px",
-                  display: "inline-block",
-                  textTransform: "capitalize",
-                }}
-              >
-                {drumId}:
-              </label>
-              <input
-                type="range"
-                min="-30"
-                max="6"
-                step="1"
-                value={vol}
-                onChange={(e) =>
-                  handleDrumVolumeChange(drumId, e.target.value)
-                }
-                style={{ width: "200px" }}
-              />
-              <span style={{ marginLeft: "8px" }}>{vol} dB</span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ marginTop: "10px" }}>
-        <h4>Chord Volume (dB)</h4>
-        <input
-          type="range"
-          min="-30"
-          max="6"
-          step="1"
-          value={chordVolume}
-          onChange={(e) => setChordVolume(Number(e.target.value))}
-          style={{ width: "200px" }}
-        />
-        <span style={{ marginLeft: "8px" }}>{chordVolume} dB</span>
-      </div>
-      <div style={{ marginTop: "10px" }}>
-        <h4>Chord Synth</h4>
-        <label htmlFor="chord-instrument">Instrument: </label>
-        <select
-          id="chord-instrument"
-          value={chordSynthSettings.instrument}
-          onChange={(e) => updateSynthSetting("instrument", e.target.value)}
-          disabled={isPlaying}
-          style={{ marginLeft: "10px" }}
-        >
-          {CHORD_INSTRUMENTS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        <div style={{ marginTop: "10px" }}>
-          <label style={{ display: "inline-block", width: "80px" }}>
-            Attack
-          </label>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.01"
-            disabled={isPlaying}
-            value={chordSynthSettings.attack}
-            onChange={(e) =>
-              updateSynthSetting("attack", Number(e.target.value))
-            }
-            style={{ width: "200px" }}
-          />
-          <span style={{ marginLeft: "8px" }}>
-            {chordSynthSettings.attack.toFixed(2)}s
-          </span>
-        </div>
-
-        <div style={{ marginTop: "6px" }}>
-          <label style={{ display: "inline-block", width: "80px" }}>
-            Decay
-          </label>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.01"
-            disabled={isPlaying}
-            value={chordSynthSettings.decay}
-            onChange={(e) =>
-              updateSynthSetting("decay", Number(e.target.value))
-            }
-            style={{ width: "200px" }}
-          />
-          <span style={{ marginLeft: "8px" }}>
-            {chordSynthSettings.decay.toFixed(2)}s
-          </span>
-        </div>
-
-        <div style={{ marginTop: "6px" }}>
-          <label style={{ display: "inline-block", width: "80px" }}>
-            Sustain
-          </label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            disabled={isPlaying}
-            value={chordSynthSettings.sustain}
-            onChange={(e) =>
-              updateSynthSetting("sustain", Number(e.target.value))
-            }
-            style={{ width: "200px" }}
-          />
-          <span style={{ marginLeft: "8px" }}>
-            {chordSynthSettings.sustain.toFixed(2)}
-          </span>
-        </div>
-
-        <div style={{ marginTop: "6px" }}>
-          <label style={{ display: "inline-block", width: "80px" }}>
-            Release
-          </label>
-          <input
-            type="range"
-            min="0"
-            max="4"
-            step="0.05"
-            disabled={isPlaying}
-            value={chordSynthSettings.release}
-            onChange={(e) =>
-              updateSynthSetting("release", Number(e.target.value))
-            }
-            style={{ width: "200px" }}
-          />
-          <span style={{ marginLeft: "8px" }}>
-            {chordSynthSettings.release.toFixed(2)}s
-          </span>
-        </div>
-
-        <div style={{ marginTop: "6px" }}>
-          <label style={{ display: "inline-block", width: "80px" }}>
-            Filter
-          </label>
-          <input
-            type="range"
-            min="200"
-            max="8000"
-            step="50"
-            disabled={isPlaying}
-            value={chordSynthSettings.filterCutoff}
-            onChange={(e) =>
-              updateSynthSetting("filterCutoff", Number(e.target.value))
-            }
-            style={{ width: "200px" }}
-          />
-          <span style={{ marginLeft: "8px" }}>
-            {Math.round(chordSynthSettings.filterCutoff)} Hz
-          </span>
-        </div>
-
-        <div style={{ marginTop: "6px" }}>
-          <label style={{ display: "inline-block", width: "80px" }}>
-            Reverb
-          </label>
-          <input
-            type="range"
-            min="0.1"
-            max="10"
-            step="0.1"
-            disabled={isPlaying}
-            value={chordSynthSettings.reverbDecay}
-            onChange={(e) =>
-              updateSynthSetting("reverbDecay", Number(e.target.value))
-            }
-            style={{ width: "200px" }}
-          />
-          <span style={{ marginLeft: "8px" }}>
-            {chordSynthSettings.reverbDecay.toFixed(1)}s
-          </span>
-        </div>
-      </div>
     </div>
   );
 });
 
 export default Player;
+export { CHORD_INSTRUMENTS, DRUM_SOUND_OPTIONS, DEFAULT_DRUM_SOUND_SELECTION };
