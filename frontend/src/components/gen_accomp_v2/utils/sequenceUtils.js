@@ -1,5 +1,5 @@
 // sequenceUtils.js
-import { DEFAULT_STEPS } from "./musicConfig";
+import { DEFAULT_STEPS, DRUM_IDS } from "./musicConfig";
 
 const ensureSteps = (steps) =>
   Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
@@ -282,4 +282,149 @@ export function applyChordDeletionToSequence(sequence, removedIndex) {
   }
 
   return newSeq;
+}
+
+/**
+ * Creates a serializable snapshot of the current sequencer state.
+ *
+ * This function converts the internal sequence structure into a simpler format
+ * that can be saved, copied, exported, or restored later.
+ *
+ * Internal sequence format:
+ * - sequence[stepIndex] is an array of events for that step.
+ * - Each event can be a drum event or a chord event.
+ *
+ * Snapshot format:
+ * - One object per step.
+ * - `drums` stores one boolean value for each drum track.
+ * - `chords` stores simplified chord-event data.
+ *
+ * @param {Object} params
+ * @param {Array[]} params.sequence
+ * The full sequencer event array. Each index represents one sequencer step.
+ *
+ * @param {number} params.steps
+ * Number of steps that should be included in the snapshot.
+ *
+ * @returns {Array<Object>}
+ * Serializable array containing one entry per sequencer step.
+ */
+export function getSequencerSnapshot({ sequence, steps = DEFAULT_STEPS }) {
+  
+  /**
+  * Defensive version of the incoming sequence.
+  *
+  * If the caller passes invalid sequence data, this falls back to an empty array
+  * so the snapshot builder can continue without throwing runtime errors.
+  */
+  const safeSequence = Array.isArray(sequence) ? sequence : [];
+  
+  /**
+  * Validated number of steps to export.
+  *
+  * If `steps` is not a positive finite number, DEFAULT_STEPS is used instead.
+  * This prevents invalid array lengths when building the snapshot.
+  */
+  const stepCount =
+    Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
+
+  return Array.from({ length: stepCount }, (_, stepIndex) => {
+    
+    /**
+    * Events stored at the current step.
+    *
+    * If the current step does not contain a valid event array, it is treated as
+    * empty. This keeps the export logic safe even when sequence data is partial.
+    */
+    const events = Array.isArray(safeSequence[stepIndex])
+      ? safeSequence[stepIndex]
+      : [];
+    
+    /**
+    * Drum activation map for the current step.
+    *
+    * For every known drum id, this checks whether the current step contains a
+    * matching drum event.
+    *
+    * Example result:
+    * {
+    *   kick: true,
+    *   snare: false,
+    *   hihat: true,
+    *   openhat: false
+    * }
+    */
+    const drums = DRUM_IDS.reduce((acc, drumId) => {
+      acc[drumId] = events.some(
+        (ev) => ev.type === "drum" && ev.drum === drumId
+      );
+      return acc;
+    }, {});
+    
+    /**
+    * Chord events for the current step.
+    *
+    * Only chord-related fields required for reconstruction are exported:
+    * - id: original chord event id
+    * - chordIndex: index of the chord inside the chord library
+    * - start: whether this event is the beginning of a chord
+    * - sustain: sustain length, only stored on chord-start events
+    */
+    const chords = events
+      .filter((ev) => ev.type === "chord")
+      .map((ev) => ({
+        id: ev.id,
+        chordIndex: Number.isFinite(ev.chordIndex) ? ev.chordIndex : null,
+        start: Boolean(ev.start),
+        sustain:
+          ev.start && Number.isFinite(ev.sustain) ? ev.sustain : undefined,
+      }));
+
+    return {
+      step: stepIndex,
+      drums,
+      chords,
+    };
+  });
+}
+
+export function buildSequenceFromSnapshot(snapshot, steps = DEFAULT_STEPS) {
+  const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
+  const stepCount =
+    Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
+
+  return Array.from({ length: stepCount }, (_, stepIndex) => {
+    const entry = safeSnapshot[stepIndex] || {};
+    const drums = entry.drums || {};
+    const chordRows = Array.isArray(entry.chords) ? entry.chords : [];
+
+    const events = [];
+
+    for (const drumId of DRUM_IDS) {
+      if (drums[drumId]) {
+        events.push({
+          id: `drum-${stepIndex}-${drumId}-${Math.random().toString(36)}`,
+          type: "drum",
+          drum: drumId,
+        });
+      }
+    }
+
+    for (const chord of chordRows) {
+      if (!chord || typeof chord !== "object") continue;
+      const { id, chordIndex, start, sustain } = chord;
+      const chordEvent = {
+        id: id ?? Math.random(),
+        type: "chord",
+        chordIndex: Number.isFinite(chordIndex) ? chordIndex : null,
+        start: Boolean(start),
+      };
+      if (chordEvent.start && Number.isFinite(sustain)) {
+        chordEvent.sustain = sustain;
+      }
+      events.push(chordEvent);
+    }
+
+    return events;
+  });
 }
