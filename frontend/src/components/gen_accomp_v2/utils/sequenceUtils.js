@@ -388,18 +388,58 @@ export function getSequencerSnapshot({ sequence, steps = DEFAULT_STEPS }) {
   });
 }
 
+/**
+ * Rebuilds the internal sequencer event structure from a saved snapshot.
+ *
+ * This performs the inverse operation of `getSequencerSnapshot`.
+ * It receives simplified step data and reconstructs the event arrays used by
+ * the sequencer UI and playback logic.
+ *
+ * @param {Array<Object>} snapshot
+ * Previously exported sequencer snapshot.
+ *
+ * @param {number} steps
+ * Number of sequencer steps to rebuild.
+ *
+ * @returns {Array[]}
+ * Internal sequence array. Each index contains the events for that step.
+ */
 export function buildSequenceFromSnapshot(snapshot, steps = DEFAULT_STEPS) {
+  /**
+  * Defensive version of the incoming snapshot.
+  *
+  * Invalid snapshot data is treated as an empty array so the reconstruction
+  * process remains safe.
+  */
   const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
   const stepCount =
     Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
 
   return Array.from({ length: stepCount }, (_, stepIndex) => {
+    /**
+    * Snapshot data for the current step.
+    *
+    * If the snapshot does not contain data for this step, an empty object is used.
+    */
     const entry = safeSnapshot[stepIndex] || {};
     const drums = entry.drums || {};
     const chordRows = Array.isArray(entry.chords) ? entry.chords : [];
 
+    /**
+    * Internal event list reconstructed for the current step.
+    *
+    * Drum events and chord events are pushed into this array, then returned as
+    * the value for sequence[stepIndex].
+    */
     const events = [];
-
+    
+    /**
+    * Rebuild drum events for this step.
+    *
+    * A drum event is created for each drum id whose snapshot value is true.
+    * The generated id only needs to be unique enough for rendering and event
+    * distinction inside the sequencer.
+    */
     for (const drumId of DRUM_IDS) {
       if (drums[drumId]) {
         events.push({
@@ -410,9 +450,26 @@ export function buildSequenceFromSnapshot(snapshot, steps = DEFAULT_STEPS) {
       }
     }
 
+    /**
+    * Rebuild chord events for this step.
+    *
+    * Invalid chord snapshot entries are ignored. Valid entries are converted back
+    * into the internal chord-event format expected by the sequencer.
+    */
     for (const chord of chordRows) {
       if (!chord || typeof chord !== "object") continue;
       const { id, chordIndex, start, sustain } = chord;
+      
+      /**
+      * Internal chord event reconstructed from snapshot data.
+      *
+      * Variables:
+      * - id: original event id if available; otherwise a fallback id is generated.
+      * - type: always "chord" for chord events.
+      * - chordIndex: index into the chord library, or null if invalid.
+      * - start: true if this event is the beginning of a chord.
+      * - sustain: optional sustain length, only valid on chord-start events.
+      */
       const chordEvent = {
         id: id ?? Math.random(),
         type: "chord",

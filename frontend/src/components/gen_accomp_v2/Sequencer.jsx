@@ -17,7 +17,22 @@ import {
 } from "./utils/sequenceUtils";
 import { getChordVisuals } from "./utils/chordVisuals";
 
-
+/**
+ * Main sequencer UI component.
+ *
+ * Responsibilities:
+ * - Renders the drum grid and chord grid.
+ * - Allows users to add/remove drum events.
+ * - Allows users to add/remove chord events.
+ * - Allows chord sustain editing.
+ * - Allows track opening and muting.
+ * - Renders the chord library and manages selected chord state.
+ *
+ * Data model:
+ * - `sequence` contains step-based musical events.
+ * - `tracks` contains track-level settings such as enabled/muted state.
+ * - `chords` contains the chord library used by chord events.
+ */
 export default function Sequencer({
   sequence,
   onSequenceChange,
@@ -33,9 +48,29 @@ export default function Sequencer({
   steps = DEFAULT_STEPS,
   stepsPerBlock = DEFAULT_STEPS_PER_BLOCK,
 }) {
+  /**
+  * Index of the currently selected chord in the chord library.
+  *
+  * null means no chord is selected.
+  * When a chord is selected, clicking an empty chord step inserts that chord.
+  */
   const [selectedChordIndex, setSelectedChordIndex] = useState(null);
 
+  /**
+  * Defensive sequence value used by the renderer.
+  *
+  * The UI expects `sequence` to be an array. If invalid data is received,
+  * this fallback prevents `.map`, indexing, and event lookup operations from
+  * throwing errors.
+  */
   const safeSequence = Array.isArray(sequence) ? sequence : [];
+  
+  /**
+  * Defensive chord-library value used by the renderer.
+  *
+  * The chord grid stores only `chordIndex` values, so this array is used to
+  * look up the visible chord name and CSS visual metadata.
+  */
   const safeChords = Array.isArray(chords) ? chords : [];
 
   const updateSequence = (updater) =>
