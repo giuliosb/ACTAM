@@ -39,3 +39,22 @@ export const DEFAULT_CHORD_TRACK = {
 // Utility per creare una sequenza vuota
 export const createEmptySequence = (steps = DEFAULT_STEPS) =>
   Array.from({ length: steps }, () => []);
+
+// utils/sequencerConstants.js
+
+/**
+ * Ordered list of drum tracks rendered by the sequencer.
+ *
+ * This order controls:
+ * - row order in the grid
+ * - snapshot export structure
+ * - snapshot rebuild behavior
+ */
+export const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
+
+/**
+ * Number of steps rendered in each visual block of the grid.
+ *
+ * This is a layout constant, not a musical timing rule.
+ */
+export const DEFAULT_STEPS_PER_BLOCK = 22;

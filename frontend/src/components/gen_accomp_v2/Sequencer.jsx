@@ -3,6 +3,8 @@ import "./Sequencer.css";
 import {
   DEFAULT_STEPS,
   DEFAULT_CHORD_TRACK,
+  DRUM_IDS,
+  DEFAULT_STEPS_PER_BLOCK,
 } from "./utils/musicConfig";
 import {
   toggleDrumEvent,
@@ -11,66 +13,7 @@ import {
   removeChordEvent,
   clearChordSustainFromStep,
 } from "./utils/sequenceUtils";
-
-const ROOT_CLASS_MAP = {
-  C: "c",
-  G: "g",
-  D: "d",
-  A: "a",
-  E: "e",
-  B: "b",
-  "F#": "fsharp",
-  "C#": "csharp",
-  "D#": "dsharp",
-  "G#": "gsharp",
-  "A#": "asharp",
-  Db: "db",
-  Eb: "eb",
-  Ab: "ab",
-  Bb: "bb",
-  F: "f",
-};
-
-const TRIAD_CLASS_MAP = {
-  Major: "major",
-  Minor: "minor",
-  "Dim (-)": "dim",
-  "Aug (+)" : "aug",
-};
-const TRIAD_LABEL_MAP = {
-  "Dim (-)": "-",
-  "Aug (+)": "+",
-}
-const EXT_LABEL_MAP = {
-  "": "",
-  "6": "6",
-  "7": "7",
-  m7: "m7",
-  Maj7: "Δ7",
-  "9": "9",
-  "11": "11",
-  "13": "13",
-  Add9: "add9",
-  Sus2: "sus2",
-  Sus4: "sus4",
-};
-
-const DEFAULT_STEPS_PER_BLOCK = 22; // If we want something other than 4/4, this should be changed
-
-const getChordVisuals = (chord) => {
-  if (!chord) return {};
-  const rootClass = ROOT_CLASS_MAP[chord.root] || "";
-  const triadClass = TRIAD_CLASS_MAP[chord.triad] || "";
-  const triadPrefix = TRIAD_LABEL_MAP[chord.triad] || "";
-  const extSuffix =
-    EXT_LABEL_MAP[chord.extension] ?? chord.extension ?? "";
-  const extLabel = `${triadPrefix}${extSuffix}`;
- 
-  return { rootClass, triadClass, extLabel };
-};
-
-const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
-
+import { getChordVisuals } from "./utils/chordVisuals";
 
 
 export function getSequencerSnapshot({ sequence, steps = DEFAULT_STEPS }) {
@@ -169,7 +112,7 @@ export default function Sequencer({
   const safeSequence = Array.isArray(sequence) ? sequence : [];
   const safeChords = Array.isArray(chords) ? chords : [];
 
-  const update = (updater) =>
+  const updateSequence = (updater) =>
     onSequenceChange((prevSequence) => {
       if (isPlaying) return prevSequence;
       const prevSafe = Array.isArray(prevSequence) ? prevSequence : [];
@@ -179,24 +122,24 @@ export default function Sequencer({
 
   const toggleDrum = (step, drumId) => {
     if (isPlaying) return;
-    update((prev) => toggleDrumEvent(prev, step, drumId));
+    updateSequence((prev) => toggleDrumEvent(prev, step, drumId));
   };
 
   const addChordAt = (step, chordIndex) => {
     if (isPlaying) return;
-    update((prev) => addChordEvent(prev, step, chordIndex));
+    updateSequence((prev) => addChordEvent(prev, step, chordIndex));
   };
 
   const changeSustain = (stepIndex, chordIndex, delta) => {
     if (isPlaying) return;
-    update((prev) =>
+    updateSequence((prev) =>
       changeChordSustain(prev, stepIndex, chordIndex, delta, steps)
     );
   };
 
   const removeChordAt = (step, chordIndex) => {
     if (isPlaying) return;
-    update((prev) => removeChordEvent(prev, step, chordIndex, steps));
+    updateSequence((prev) => removeChordEvent(prev, step, chordIndex, steps));
   };
 
   const toggleDrumTrackEnabled = (drumId) => {
@@ -356,7 +299,7 @@ export default function Sequencer({
               else {
                 if (selectedChordIndex === null) return;
 
-                update((prev) => {
+                updateSequence((prev) => {
                   const trimmed = clearChordSustainFromStep(
                     prev,
                     step,
