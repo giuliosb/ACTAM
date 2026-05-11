@@ -3,14 +3,14 @@ import "./Sequencer.css";
 import {
   DEFAULT_STEPS,
   DEFAULT_CHORD_TRACK,
-} from "./musicConfig";
+} from "./utils/musicConfig";
 import {
   toggleDrumEvent,
   addChordEvent,
   changeChordSustain,
   removeChordEvent,
   clearChordSustainFromStep,
-} from "./sequenceUtils";
+} from "./utils/sequenceUtils";
 
 const ROOT_CLASS_MAP = {
   C: "c",

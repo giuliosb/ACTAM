@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { DEFAULT_STEPS } from "./musicConfig";
+import { DEFAULT_STEPS } from "./utils/musicConfig.js";
 import ChordSynth, {
   CHORD_INSTRUMENTS,
   DEFAULT_CHORD_SYNTH_SETTINGS,

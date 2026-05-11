@@ -22,7 +22,7 @@ import {
   TRIADS,
   EXTENSIONS,
   DEFAULT_CHORD_TRACK,
-} from "./musicConfig.js";
+} from "./utils/musicConfig.js";
 import { DEFAULT_CHORD_SYNTH_SETTINGS } from "./ChordSynth.jsx";
 import ChordGenerator from "./ChordGenerator.jsx";
 import ArrowSelect from "../general_components/ArrowSelect.jsx";
