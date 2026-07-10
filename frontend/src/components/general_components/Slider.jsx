@@ -14,9 +14,11 @@ export default function Slider({
   max = 15,
   step = 1,
 }) {
+  //TODO what is this
   const trackRef = useRef(null);
 
   // Keep the internal state in REAL units (min..max), snapped to step
+  // TODO explain
   const snap = useCallback(
     (x) => {
       const stepped = Math.round(x / step) * step;
@@ -26,9 +28,10 @@ export default function Slider({
     },
     [min, max, step]
   );
-
+  //TODO what is this
   const [out, setOut] = useState(() => snap(value));
 
+  //TODO what is this
   const updateFromPointer = useCallback(
     (clientY) => {
       const rect = trackRef.current.getBoundingClientRect();
@@ -60,6 +63,7 @@ export default function Slider({
     [min, max, snap, onChange]
   );
 
+  //TODO what is this
   const startDragging = (e) => {
     e.preventDefault();
     const move = (ev) => updateFromPointer(ev.clientY);
@@ -73,6 +77,7 @@ export default function Slider({
   };
 
   // If parent updates value, snap and reflect it
+  // TODO what is this
   useEffect(() => {
     setOut(snap(value));
   }, [value, snap]);
@@ -92,14 +97,14 @@ export default function Slider({
   const pos = clamp(percent01, 0, 1) * 100; // 0..100
 
   // convert pos (0–100) to px `top` in track coords
-  const slotTopTrack = SLOT_PADDING;
-  const slotBottomTrack = TRACK_HEIGHT - SLOT_PADDING;
-  const centerMinTrack = slotTopTrack + BAR_HEIGHT / 2;
-  const centerMaxTrack = slotBottomTrack - BAR_HEIGHT / 2;
-  const rangeTrack = centerMaxTrack - centerMinTrack;
+  const slotTopTrack = SLOT_PADDING;                              // TODO
+  const slotBottomTrack = TRACK_HEIGHT - SLOT_PADDING;            // TODO
+  const centerMinTrack = slotTopTrack + BAR_HEIGHT / 2;           // TODO
+  const centerMaxTrack = slotBottomTrack - BAR_HEIGHT / 2;         // TODO
+  const rangeTrack = centerMaxTrack - centerMinTrack;             // TODO
 
-  const centerTrack = centerMaxTrack - (pos / 100) * rangeTrack;
-  const topPx = centerTrack - BAR_HEIGHT / 2;
+  const centerTrack = centerMaxTrack - (pos / 100) * rangeTrack;    // TODO
+  const topPx = centerTrack - BAR_HEIGHT / 2;                      // TODO        
 
   return (
     <div>

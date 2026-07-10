@@ -6,6 +6,7 @@ import switchAudio from "../../assets/sound_effects/switch_audio.wav";
 
 export default function Switch({ horizontal = false, size = 100, onToggle, disabled=false}) {
   const [flipped, setFlipped] = useState(false);
+  // TODO useMemo is what 
   const innerAudio = useMemo(() => {
     if (!switchAudio) {
       return null;
@@ -25,12 +26,13 @@ export default function Switch({ horizontal = false, size = 100, onToggle, disab
       return;
     }
     innerAudio.currentTime = 0;
+    // TODO what 'catch' does
     innerAudio.play().catch(() => {});
     if (onToggle) {
       onToggle();
     }
   };
-
+// TODO how useEffect() works, what it is
   useEffect(() => {
     return () => {
       innerAudio?.pause();
@@ -46,7 +48,9 @@ export default function Switch({ horizontal = false, size = 100, onToggle, disab
       style={{
         width: size,
         height: size,
+        // TODO relative position is what
         position: "relative",
+        // TODO inline block is what
         display: "inline-block",
         cursor: disabled ? "not-allowed" : "pointer",
         transform: horizontal ? "rotate(-90deg)" : undefined,
@@ -59,6 +63,7 @@ export default function Switch({ horizontal = false, size = 100, onToggle, disab
         style={{ width: "100%", height: "100%", display: "block" }}
       />
       <div
+      // TODO how this works
         style={{
           position: "absolute",
           top: horizontal ? "50%" : "48%",
@@ -66,6 +71,7 @@ export default function Switch({ horizontal = false, size = 100, onToggle, disab
           width: "59%",
           height: "65%",
           transform: `translate(-50%, -50%) rotate(${flipped ? 180 : 0}deg)`,
+          // TODO pointerevents?
           pointerEvents: "none",
           display: "flex",
           alignItems: "center",

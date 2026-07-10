@@ -10,6 +10,7 @@ import Accompaniment from "./components/gen_accomp_v2/Accompaniment";
 function App() {
   const [currentCard, setCurrentCard] = useState("generated"); // generated | audio
 
+  // TODO how this works?: there is currentcard? - 1 component , we switch the card
   const getVisibilityStyle = (isVisible) => ({
     display: isVisible ? "block" : "none",
     width: "100%",

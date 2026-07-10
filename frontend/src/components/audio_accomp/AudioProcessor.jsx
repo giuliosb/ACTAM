@@ -1,20 +1,18 @@
-import { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import { useState, useRef } from "react";
+import axios from "axios";          //TODO what is axios
 import AudioVisualizer from "./AudioVisualizer";
-import reactLogo from "../../assets/react.svg";
 import spinner from "../../assets/images/spinner.svg";
 import SliderDigital from "../general_components/SliderDigital";
 import "./Audio.css";
 
-const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"; //TODO: what is meta.env
 
 export default function AudioProcessor({ currentCard }) {
   const enablePlaying = currentCard === "audio";
 
   const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
-  const [uploadResponse, setUploadResponse] = useState(null);
+
   const [uploading, setUploading] = useState(false);
 
   const [tuning, setTuning] = useState(440);
@@ -22,9 +20,7 @@ export default function AudioProcessor({ currentCard }) {
   const [processing, setProcessing] = useState(false);
 
   const [processedAudioBlob, setProcessedAudioBlob] = useState(null);
-  const [processedAudioURL, setProcessedAudioURL] = useState(null);
 
-  const [uploadedAudioBlob, setUploadedAudioBlob] = useState(null);
 
   const [bpm, setBpm] = useState(null);
   const [bpmLoading, setBpmLoading] = useState(false);
@@ -35,11 +31,9 @@ export default function AudioProcessor({ currentCard }) {
   const [tonalityLoading, setTonalityLoading] = useState(false);
   const [tonalityError, setTonalityError] = useState(null);
 
-  const [logs, setLogs] = useState([]);
 
   const log = (msg) => {
     console.log(msg);
-    //setLogs((prev) => [...prev, msg]);
   };
 
   // ----------------------------------
@@ -47,42 +41,33 @@ export default function AudioProcessor({ currentCard }) {
   // ----------------------------------
   const uploadFile = async (selectedFile = file) => {
     if (!selectedFile) {
-      log("❌ No file provided for upload");
+      log("No file provided for upload");
       return;
     }
-    log("📤 Upload started...");
+    log("Upload started...");
     log(`Selected file: ${selectedFile.name}`);
 
-    const form = new FormData();
+    const form = new FormData();        //TODO what is FormData object
     form.append("file", selectedFile);
-
-    setUploadedAudioBlob(selectedFile);
 
     try {
       setUploading(true);
       const res = await axios.post(`${API}/upload`, form);
 
-      log("📡 Backend responded:");
+      log("Backend responded:");
       log(JSON.stringify(res.data, null, 2));
 
       const { message, tuning, tuning_detection_error } = res.data;
 
-      setUploadResponse({
-        message,
-        tuning,
-        error: tuning_detection_error || null,
-      });
-
-
       setTuning(tuning);
       setOGTuning(tuning);
-      log(`🎵 Detected tuning: ${tuning}`);
-      const t = await getTuning();
+      log(`Detected tuning: ${tuning}`);          
+      const t = await getTuning();                  //TODO why is tuning requested after already receiving tuning (and setting with SetTuning())
       if (Number.isFinite(t)) await getAudio(t);
       await Promise.all([detectBpm(), detectTonality()]);
 
     } catch (err) {
-      log("❌ Upload failed");
+      log("Upload failed");
       log(err.toString());
       alert("Upload failed");
     } finally {
@@ -95,7 +80,7 @@ export default function AudioProcessor({ currentCard }) {
     if (!selected) return;
     setFile(selected);
     uploadFile(selected);
-    // allow re-selecting the same file later
+    // allow re-selecting the same file later  //TODO what is this
     e.target.value = "";
   };
 
@@ -104,27 +89,27 @@ export default function AudioProcessor({ currentCard }) {
   // ----------------------------------
 
   const getTuning = async () => {
-  log("🎧 Requesting tuning...");
+    log("Requesting tuning...");
 
-  try {
-    const res = await axios.get(`${API}/get-tuning`);
-    const t = Number(res.data.tuning);
-    setTuning(t);
-    log(`🎵 Got tuning: ${t}`);
-    return t;
-  } catch (err) {
-    log("❌ Get tuning failed");
-    log(err.toString());
-    alert("Get tuning failed");
-    return null;
-  }
+    try {
+      const res = await axios.get(`${API}/get-tuning`);
+      const t = Number(res.data.tuning);
+      setTuning(t);
+      log(`Received tuning: ${t}`);
+      return t;
+    } catch (err) {
+      log("Get tuning failed");
+      log(err.toString());
+      alert("Get tuning failed");
+      return null;
+    }
 };
 
   // ----------------------------------
   // DETECT BPM
   // ----------------------------------
   const detectBpm = async () => {
-    log("🥁 Detecting BPM...");
+    log("Detecting BPM...");
     setBpmLoading(true);
     setBpm(null);
     setBpmError(null);
@@ -133,14 +118,14 @@ export default function AudioProcessor({ currentCard }) {
       const detected = Number(res.data.bpm);
       setBpm(detected);
       // default target to detected bpm for 1x playback
-      const fixedNumber = detected.toFixed(2);
+      const fixedNumber = detected.toFixed(2);       //TODO what is toFixed()
       setTargetBpm(((prev) => (prev === null ? fixedNumber : prev)));
-      log(`🥁 BPM detected: ${detected}`);
+      log(`BPM detected: ${detected}`);
       return detected;
     } catch (err) {
       const msg = err?.response?.data?.detail || err.message;
       setBpmError(msg);
-      log(`❌ BPM detect failed: ${msg}`);
+      log(`BPM detect failed: ${msg}`);
       return null;
     } finally {
       setBpmLoading(false);
@@ -151,19 +136,19 @@ export default function AudioProcessor({ currentCard }) {
   // DETECT TONALITY
   // ----------------------------------
   const detectTonality = async () => {
-    log("🎼 Detecting tonality...");
+    log("Detecting tonality...");
     setTonalityLoading(true);
     setTonality(null);
     setTonalityError(null);
     try {
       const res = await axios.get(`${API}/getTonality`);
       setTonality(res.data);
-      log(`🎼 Tonality detected: ${res.data.key} (confidence: ${res.data.confidence})`);
+      log(`Tonality detected: ${res.data.key} (confidence: ${res.data.confidence})`);
       return res.data;
     } catch (err) {
       const msg = err?.response?.data?.detail || err.message;
       setTonalityError(msg);
-      log(`❌ Tonality detect failed: ${msg}`);
+      log(`Tonality detect failed: ${msg}`);
       return null;
     } finally {
       setTonalityLoading(false);
@@ -177,13 +162,13 @@ export default function AudioProcessor({ currentCard }) {
   const getAudio = async (targetTuning = tuning) => {
     const t = Number(targetTuning);
 
-  // GUARDIA: evita 422 da NaN/undefined/null
+  // GUARDIA: evita 422 da NaN/undefined/null     //TODO what this comment means, what this block does
   if (!Number.isFinite(t)) {
-    log(`❌ Invalid target_tuning: ${targetTuning} (Number -> ${t})`);
+    log(`Invalid target_tuning: ${targetTuning} (Number -> ${t})`);
     return;
   }
 
-  log("🎧 Requesting processed audio...");
+  log("Requesting processed audio...");
 
   try {
     setProcessing(true);
@@ -194,15 +179,12 @@ export default function AudioProcessor({ currentCard }) {
       { responseType: "blob" }
     );
 
-    log("⬅️ Received audio Blob");
+    log("Received audio Blob");
 
-    const blob = res.data;
-    const url = URL.createObjectURL(blob);
+  setProcessedAudioBlob(res.data);
 
-    setProcessedAudioBlob(blob);
-    setProcessedAudioURL(url);
   } catch (err) {
-    log("❌ Failed to fetch processed audio");
+    log("Failed to fetch processed audio");
     if (err.response) {
       log(`Status: ${err.response.status}`);
       log(`Data: ${JSON.stringify(err.response.data)}`);
@@ -228,16 +210,7 @@ export default function AudioProcessor({ currentCard }) {
                   <div>
                     <h2>Audio Processor</h2>
                       {/* Upload section */}
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "row",
-                          alignItems: "center", 
-                          gap: "20px",         
-                          marginTop: "20px",
-                          marginBottom: "20px"
-                        }}
-                      >
+                      <div className="audio-row">
                           <input
                             ref={fileInputRef}
                             type="file"
@@ -253,7 +226,7 @@ export default function AudioProcessor({ currentCard }) {
                             }}
                             style={{ marginRight: "10px" , width: "200px"}}
                             disabled={uploading}
-                          className="digitalbutton"
+                            className="digitalbutton"
                           >
                             {uploading ? "uploading..." : "upload"}
                           </div>
@@ -264,12 +237,7 @@ export default function AudioProcessor({ currentCard }) {
                           )}
                           {uploading && (
                             <span style={{ marginLeft: "14px", display: "inline-flex", alignItems: "center" }}>
-                              <img
-                                src={spinner}
-                                alt="React loader"
-                                style={{ width: "36px", height: "36px", animation: "spin 2s linear infinite" , color: "var(--color-digital-primary)" }}
-                              />
-                              <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+                              <img src={spinner} alt="React loader" className="spinner" />  
                             </span>
                           )}
                       </div>
@@ -308,7 +276,7 @@ export default function AudioProcessor({ currentCard }) {
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "1fr 220px", // left text grows, right fixed for slider
+                            gridTemplateColumns: "1fr 220px", // left text grows, right fixed for slider  //TODO what is 1fr
                             columnGap: "60px",
                             alignItems: "start",
                             marginTop: "20px",
@@ -354,8 +322,8 @@ export default function AudioProcessor({ currentCard }) {
                         <div
                           style={{
                             position: "absolute",
-                            top: "140px",        // 🔼 controls how high it sits
-                            right: "80px",       // ⬅ distance from right edge
+                            top: "140px", 
+                            right: "80px",     
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
@@ -379,31 +347,16 @@ export default function AudioProcessor({ currentCard }) {
 
 
                       {/* ---------------- PROCESSED AUDIO PLAYER ---------------- */}
-                      {processedAudioURL && (
-                        <div style={{ marginTop: "30px", padding: "15px"}}>
-                          {processedAudioBlob && (
-                            <div style={{ marginTop: "20px" }}>
-                              <h3>Processed Audio Waveform</h3>
-                              <AudioVisualizer
-                                enablePlaying={enablePlaying}
-                                audioFile={processedAudioBlob}
-                                playbackSpeed={bpm && targetBpm ? targetBpm / bpm : 1}
-                              />
-                            </div>
-                          )}
-
-                          {/* Download button */}
-                          {/* <button
-                            style={{ marginTop: "10px" }}
-                            onClick={() => {
-                              const a = document.createElement("a");
-                              a.href = processedAudioURL;
-                              a.download = "processed_audio.flac";
-                              a.click();
-                            }}
-                          >
-                            Download Processed Audio
-                          </button> */}
+                      {processedAudioBlob && (
+                        <div style={{ marginTop: "30px", padding: "15px" }}>
+                          <div style={{ marginTop: "20px" }}>
+                            <h3>Processed Audio Waveform</h3>
+                            <AudioVisualizer
+                              enablePlaying={enablePlaying}
+                              audioFile={processedAudioBlob}
+                              playbackSpeed={bpm && targetBpm ? targetBpm / bpm : 1}
+                            />
+                          </div>
                         </div>
                       )}
 
@@ -415,29 +368,6 @@ export default function AudioProcessor({ currentCard }) {
           </div>
         </div>
       </figure>
-
-      
-
-      {/* ---------------- LOG PANEL ---------------- */}
-      {/* <div
-        style={{
-          background: "#111",
-          color: "#0f0",
-          padding: "15px",
-          height: "200px",
-          overflowY: "auto",
-          fontFamily: "monospace",
-          borderRadius: "8px",
-          marginTop: "20px",
-        }}
-      >
-        <strong>🔍 Debug Log Panel</strong>
-        <pre style={{ whiteSpace: "pre-wrap", marginTop: "10px" }}>
-          {logs.map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
-        </pre>
-      </div> */}
     </div>
   );
 }

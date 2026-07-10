@@ -771,6 +771,7 @@ function mapDbTo0to100(db) {
                       <option value={'2'}>2</option>
                       <option value={'3'}>3</option>
                       <option value={'4'}>4</option>
+                      <option value={'8'}>8</option>
                     </select>
 
                     <label style={{ marginRight: "10px" }}>Metre:</label>

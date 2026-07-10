@@ -1,10 +1,12 @@
 .slider-wrapper-dig {
   display: flex;
   align-items: center;
+  /* TODO userselect */
   user-select: none;
 }
 
 /* Vertical track with only tick lines (no background fill) */
+/* TODO how this works */
 .slider-track-dig {
   --slider-track-width: 40px;
   --slider-track-height: 180px;
@@ -16,6 +18,7 @@
 }
 
 /* Uniform tick marks (all same length) */
+/* TODO */
 .slider-track-dig::before {
   content: "";
   position: absolute;
@@ -40,7 +43,7 @@
 
   pointer-events: none;
 }
-
+/* TODO */
 .slider-track-dig::after {
   content: "";
   position: absolute;
@@ -52,7 +55,7 @@
   transform: translateX(-50%);
   pointer-events: none;
 }
-
+/* TODO */
 /* Minimal thumb/handle (small outlined rectangle) */
 .slider-bar-dig {
   position: absolute;
