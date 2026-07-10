@@ -4,7 +4,7 @@ import {
   NOTES,
   TRIADS,
   EXTENSIONS,
-} from "./musicConfig";
+} from "./utils/musicConfig";
 
 export default function ChordGenerator({
   a4Frequency,

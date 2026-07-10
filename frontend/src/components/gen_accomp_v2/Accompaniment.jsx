@@ -10,10 +10,11 @@ import Sequencer, {
 
 import Player, {
   CHORD_INSTRUMENTS,
-  DRUM_IDS,
   DRUM_SOUND_OPTIONS,
   DEFAULT_DRUM_SOUND_SELECTION,
 } from "./Player.jsx";
+import { DRUM_IDS } from "./utils/playerPlayback.js";
+
 import {
   DEFAULT_STEPS,
   createEmptySequence,
@@ -21,9 +22,8 @@ import {
   TRIADS,
   EXTENSIONS,
   DEFAULT_CHORD_TRACK,
-} from "./musicConfig.js";
+} from "./utils/musicConfig.js";
 import { DEFAULT_CHORD_SYNTH_SETTINGS } from "./ChordSynth.jsx";
-import { DEFAULT_DRUM_SYNTH_SETTINGS } from "./Drumshynt.jsx";
 import ChordGenerator from "./ChordGenerator.jsx";
 import ArrowSelect from "../general_components/ArrowSelect.jsx";
 
@@ -201,13 +201,11 @@ function mapDbTo0to100(db) {
   };
 
   const handleDrumSoundChange = (drumId, soundId) => {
-    setDrumSoundSelection((prev) => ({
-      ...prev,
-      [drumId]: soundId,
-    }));
-
-    playerRef.current?.setDrumSound?.(drumId, soundId);
-  };
+  setDrumSoundSelection((prev) => ({
+    ...prev,
+    [drumId]: soundId,
+  }));
+};
 
   useEffect(() => {
     setSequence((prevSequence) => {
@@ -414,12 +412,9 @@ function mapDbTo0to100(db) {
     }
     if (savedPlayer.drumSounds && typeof savedPlayer.drumSounds === "object") {
       setDrumSoundSelection((prev) => ({
-        ...prev,
-        ...savedPlayer.drumSounds,
+      ...prev,
+      ...savedPlayer.drumSounds,
       }));
-      Object.entries(savedPlayer.drumSounds).forEach(([drumId, soundId]) => {
-        playerRef.current?.setDrumSound?.(drumId, soundId);
-      });
     }
 
     setCurrentStep(-1);
@@ -482,7 +477,6 @@ function mapDbTo0to100(db) {
         tracks={tracks}
         chords={chords}
         onStep={setCurrentStep}
-        onTracksChange={setTracks}
         onPlayStateChange={setIsPlaying}  // <-- Player notifica play/stop
         steps={steps}
         bpm={bpm}
