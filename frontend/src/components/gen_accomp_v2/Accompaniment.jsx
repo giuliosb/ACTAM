@@ -3,10 +3,11 @@ import "./Accompaniment.css";
 import Slider from "../general_components/Slider.jsx";
 import SliderDigital from "../general_components/SliderDigital.jsx";
 import Knob from "../general_components/Knob.jsx";
-import Sequencer, {
+import Sequencer from "./Sequencer.jsx";
+import {
   getSequencerSnapshot,
   buildSequenceFromSnapshot,
-} from "./Sequencer.jsx";
+} from "./utils/sequenceUtils";
 
 import Player, {
   CHORD_INSTRUMENTS,

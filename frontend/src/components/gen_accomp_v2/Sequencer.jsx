@@ -12,8 +12,6 @@ import {
   changeChordSustain,
   removeChordEvent,
   clearChordSustainFromStep,
-  getSequencerSnapshot,
-  buildSequenceFromSnapshot,
 } from "./utils/sequenceUtils";
 import { getChordVisuals } from "./utils/chordVisuals";
 
