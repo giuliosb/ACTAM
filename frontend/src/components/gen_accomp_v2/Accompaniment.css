@@ -73,7 +73,7 @@ figure {
 /* IMPORTANT: constrain the pseudo-element to this element */
 .noise {
   position: relative;   /* makes ::before inset:0 stay inside THIS element */
-  isolation: isolate;   /* blend modes (if used later) won't affect outside */
+  isolation: isolate;   /* blend modes (if used later) won't affect outside */   /* TODO what is isolation   */     
   overflow: hidden;     /* ensures the noise doesn’t bleed out */
 }
 

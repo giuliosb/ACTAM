@@ -26,9 +26,9 @@ export const EXTENSIONS = {
   "Sus4": 5,
 };
 
-// Default shape for a new chord track //TODO: remove if not used
+// Default shape for a new chord track
 export const DEFAULT_CHORD_TRACK = {
-  instrument: "fm",
+  instrument: "grand-piano",
   volume: -8,
   cutoff: 1500,
   reverbMix: 0.3,
@@ -38,19 +38,9 @@ export const DEFAULT_CHORD_TRACK = {
 
 // Utility per creare una sequenza vuota
 export const createEmptySequence = (steps = DEFAULT_STEPS) =>
-  Array.from({ length: steps }, () => []);
+  Array.from({ length: steps }, () => []);            //TODO array.from is what
 
 // utils/sequencerConstants.js
-
-/**
- * Ordered list of drum tracks rendered by the sequencer.
- *
- * This order controls:
- * - row order in the grid
- * - snapshot export structure
- * - snapshot rebuild behavior
- */
-export const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
 
 /**
  * Number of steps rendered in each visual block of the grid.

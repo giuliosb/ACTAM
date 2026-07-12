@@ -1,6 +1,6 @@
 // sequenceUtils.js
-import { DEFAULT_STEPS, DRUM_IDS } from "./musicConfig";
-
+import { DEFAULT_STEPS } from "./musicConfig";
+import { DRUM_IDS } from "./playerPlayback";
 const ensureSteps = (steps) =>
   Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
 
@@ -15,7 +15,7 @@ export function toggleDrumEvent(sequence, step, drumId) {
   const newSeq = cloneSequence(sequence);
   const events = newSeq[step] || [];
 
-  const exists = events.some(
+  const exists = events.some(                             //TODO what is evets.some
     (ev) => ev.type === "drum" && ev.drum === drumId
   );
 

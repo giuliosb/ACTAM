@@ -3,9 +3,9 @@ import "./Sequencer.css";
 import {
   DEFAULT_STEPS,
   DEFAULT_CHORD_TRACK,
-  DRUM_IDS,
   DEFAULT_STEPS_PER_BLOCK,
 } from "./utils/musicConfig";
+import {DRUM_IDS} from "./utils/playerPlayback";
 import {
   toggleDrumEvent,
   addChordEvent,

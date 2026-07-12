@@ -7,8 +7,9 @@
 
 /**
  * @typedef {Object} Chord
+ * 
  * @property {string} root
- * Musical root of the chord, for example "C", "F#", or "Bb".
+ * Musical root of the chord
  *
  * @property {string} triad
  * Triad quality, for example "Major", "Minor", "Dim (-)", or "Aug (+)".
@@ -122,7 +123,7 @@ const EXT_LABEL_MAP = new Map([
  * @param {Chord | null | undefined} chord
  * Chord object selected from the chord library.
  *
- * @returns {Partial<ChordVisuals>}
+ * @returns {Partial<ChordVisuals>}     //TODO what is this Partial
  * Visual metadata for rendering:
  * - rootClass: root CSS suffix
  * - triadClass: triad CSS suffix

@@ -41,7 +41,6 @@ const TIME_SIGNATURES = [
 
 export default function Accompaniment({ currentCard }) {
   
-
   // sequence & chords
   const [steps, setSteps] = useState(DEFAULT_STEPS);
   const [blocks, setBlocks] = useState(2);
@@ -97,6 +96,7 @@ export default function Accompaniment({ currentCard }) {
   const [triad, setTriad] = useState("Major");
   const [extension, setExtension] = useState("");
 
+  //TODO how this works
   const noteFrequency = (note, octaveValue) => {
     const n = NOTES.indexOf(note) + (octaveValue - 4) * 12 - 9;
     return a4Frequency * Math.pow(2, n / 12);

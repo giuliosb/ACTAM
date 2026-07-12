@@ -48,6 +48,7 @@ const CHORD_SAMPLE_URLS = {
 
 const SAMPLE_BASE_PATH = "/samples/instruments";
 
+//TODO how does this work
 const makeSamplerDefinition = (directory, overrides = {}) => {
   return {
     urls: { ...CHORD_SAMPLE_URLS },
