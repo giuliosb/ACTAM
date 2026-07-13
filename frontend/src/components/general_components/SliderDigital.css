@@ -1,10 +1,12 @@
 .slider-wrapper-dig {
   display: flex;
   align-items: center;
+
   user-select: none;
 }
 
 /* Vertical track with only tick lines (no background fill) */
+
 .slider-track-dig {
   --slider-track-width: 40px;
   --slider-track-height: 180px;
@@ -16,6 +18,7 @@
 }
 
 /* Uniform tick marks (all same length) */
+
 .slider-track-dig::before {
   content: "";
   position: absolute;

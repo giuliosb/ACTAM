@@ -81,7 +81,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* background: #252525; */
 }
 
 .drum-header-cell {
@@ -210,7 +209,7 @@
 .chord-library-item::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: 0;                     
   z-index: 0;
   background-color: var(--chord-color);
   filter: brightness(var(--chord-brightness));
@@ -292,7 +291,7 @@
 
 /* Extension badge for cells */
 .chord-step::after {
-  content: attr(data-ext-label);
+  content: attr(data-ext-label);          
   position: absolute;
   bottom: 2px;
   right: 4px;

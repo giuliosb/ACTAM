@@ -6,6 +6,7 @@ import switchAudio from "../../assets/sound_effects/switch_audio.wav";
 
 export default function Switch({ horizontal = false, size = 100, onToggle, disabled=false}) {
   const [flipped, setFlipped] = useState(false);
+
   const innerAudio = useMemo(() => {
     if (!switchAudio) {
       return null;
@@ -25,6 +26,7 @@ export default function Switch({ horizontal = false, size = 100, onToggle, disab
       return;
     }
     innerAudio.currentTime = 0;
+
     innerAudio.play().catch(() => {});
     if (onToggle) {
       onToggle();
@@ -46,7 +48,9 @@ export default function Switch({ horizontal = false, size = 100, onToggle, disab
       style={{
         width: size,
         height: size,
+   
         position: "relative",
+
         display: "inline-block",
         cursor: disabled ? "not-allowed" : "pointer",
         transform: horizontal ? "rotate(-90deg)" : undefined,
@@ -59,6 +63,7 @@ export default function Switch({ horizontal = false, size = 100, onToggle, disab
         style={{ width: "100%", height: "100%", display: "block" }}
       />
       <div
+
         style={{
           position: "absolute",
           top: horizontal ? "50%" : "48%",

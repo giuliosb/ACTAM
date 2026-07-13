@@ -37,14 +37,14 @@ export default function Knob({ value = 0, onChange }) {
   };
 
   const getAngleFromMouse = (e) => {
-    const rect = knobRef.current.getBoundingClientRect();
+    const rect = knobRef.current.getBoundingClientRect();   
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
     const dx = e.clientX - centerX;
     const dy = e.clientY - centerY;
 
-    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI);    
     angle = angle < 0 ? angle + 360 : angle;
 
     return angle;
@@ -72,15 +72,12 @@ export default function Knob({ value = 0, onChange }) {
         Math.max(START_ANGLE - EXTRA_ZERO_DEG, newAngle)
       );
       
-
     setCurrentAngle(clamped);
     lastAngle.current = angle;
 
     // convert to value
     const valueAngle = Math.max(clamped, START_ANGLE);
     const newValue = ((valueAngle - START_ANGLE) / RANGE) * 100;
-
-
 
     setCurrentValue(newValue);
     onChange?.(newValue);

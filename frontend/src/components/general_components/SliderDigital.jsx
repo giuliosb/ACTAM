@@ -5,6 +5,7 @@ import "./SliderDigital.css";
 const BAR_HEIGHT = 18; // matches .slider-bar-dig height
 const TRACK_HEIGHT = 180; // matches .slider-track-dig height
 
+// TODO why this is needed
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 export default function SliderDigital({
@@ -16,6 +17,7 @@ export default function SliderDigital({
 }) {
   const trackRef = useRef(null);
 
+  // TODO what this does
   const snap = useCallback(
     (x) => {
       const stepped = Math.round(x / step) * step;

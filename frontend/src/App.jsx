@@ -9,7 +9,6 @@ import Accompaniment from "./components/gen_accomp_v2/Accompaniment";
 
 function App() {
   const [currentCard, setCurrentCard] = useState("generated"); // generated | audio
-
   const getVisibilityStyle = (isVisible) => ({
     display: isVisible ? "block" : "none",
     width: "100%",

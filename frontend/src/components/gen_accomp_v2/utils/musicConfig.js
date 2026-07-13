@@ -26,9 +26,9 @@ export const EXTENSIONS = {
   "Sus4": 5,
 };
 
-// Default shape for a new chord track //TODO: remove if not used
+// Default shape for a new chord track
 export const DEFAULT_CHORD_TRACK = {
-  instrument: "fm",
+  instrument: "grand-piano",
   volume: -8,
   cutoff: 1500,
   reverbMix: 0.3,
@@ -38,4 +38,13 @@ export const DEFAULT_CHORD_TRACK = {
 
 // Utility per creare una sequenza vuota
 export const createEmptySequence = (steps = DEFAULT_STEPS) =>
-  Array.from({ length: steps }, () => []);
+  Array.from({ length: steps }, () => []);          
+
+// utils/sequencerConstants.js
+
+/**
+ * Number of steps rendered in each visual block of the grid.
+ *
+ * This is a layout constant, not a musical timing rule.
+ */
+export const DEFAULT_STEPS_PER_BLOCK = 22;

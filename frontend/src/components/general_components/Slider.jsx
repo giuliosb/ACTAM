@@ -14,6 +14,7 @@ export default function Slider({
   max = 15,
   step = 1,
 }) {
+
   const trackRef = useRef(null);
 
   // Keep the internal state in REAL units (min..max), snapped to step
@@ -26,8 +27,9 @@ export default function Slider({
     },
     [min, max, step]
   );
-
+  //output
   const [out, setOut] = useState(() => snap(value));
+
 
   const updateFromPointer = useCallback(
     (clientY) => {
@@ -92,14 +94,14 @@ export default function Slider({
   const pos = clamp(percent01, 0, 1) * 100; // 0..100
 
   // convert pos (0–100) to px `top` in track coords
-  const slotTopTrack = SLOT_PADDING;
-  const slotBottomTrack = TRACK_HEIGHT - SLOT_PADDING;
-  const centerMinTrack = slotTopTrack + BAR_HEIGHT / 2;
-  const centerMaxTrack = slotBottomTrack - BAR_HEIGHT / 2;
-  const rangeTrack = centerMaxTrack - centerMinTrack;
+  const slotTopTrack = SLOT_PADDING;                              
+  const slotBottomTrack = TRACK_HEIGHT - SLOT_PADDING;           
+  const centerMinTrack = slotTopTrack + BAR_HEIGHT / 2;           
+  const centerMaxTrack = slotBottomTrack - BAR_HEIGHT / 2;         
+  const rangeTrack = centerMaxTrack - centerMinTrack;             
 
-  const centerTrack = centerMaxTrack - (pos / 100) * rangeTrack;
-  const topPx = centerTrack - BAR_HEIGHT / 2;
+  const centerTrack = centerMaxTrack - (pos / 100) * rangeTrack;   
+  const topPx = centerTrack - BAR_HEIGHT / 2;                     
 
   return (
     <div>

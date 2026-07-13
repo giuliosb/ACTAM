@@ -3,17 +3,19 @@ import "./Accompaniment.css";
 import Slider from "../general_components/Slider.jsx";
 import SliderDigital from "../general_components/SliderDigital.jsx";
 import Knob from "../general_components/Knob.jsx";
-import Sequencer, {
+import Sequencer from "./Sequencer.jsx";
+import {
   getSequencerSnapshot,
   buildSequenceFromSnapshot,
-} from "./Sequencer.jsx";
+} from "./utils/sequenceUtils";
 
 import Player, {
   CHORD_INSTRUMENTS,
-  DRUM_IDS,
   DRUM_SOUND_OPTIONS,
   DEFAULT_DRUM_SOUND_SELECTION,
 } from "./Player.jsx";
+import { DRUM_IDS } from "./utils/playerPlayback.js";
+
 import {
   DEFAULT_STEPS,
   createEmptySequence,
@@ -21,9 +23,8 @@ import {
   TRIADS,
   EXTENSIONS,
   DEFAULT_CHORD_TRACK,
-} from "./musicConfig.js";
+} from "./utils/musicConfig.js";
 import { DEFAULT_CHORD_SYNTH_SETTINGS } from "./ChordSynth.jsx";
-import { DEFAULT_DRUM_SYNTH_SETTINGS } from "./Drumshynt.jsx";
 import ChordGenerator from "./ChordGenerator.jsx";
 import ArrowSelect from "../general_components/ArrowSelect.jsx";
 
@@ -40,7 +41,6 @@ const TIME_SIGNATURES = [
 
 export default function Accompaniment({ currentCard }) {
   
-
   // sequence & chords
   const [steps, setSteps] = useState(DEFAULT_STEPS);
   const [blocks, setBlocks] = useState(2);
@@ -201,13 +201,11 @@ function mapDbTo0to100(db) {
   };
 
   const handleDrumSoundChange = (drumId, soundId) => {
-    setDrumSoundSelection((prev) => ({
-      ...prev,
-      [drumId]: soundId,
-    }));
-
-    playerRef.current?.setDrumSound?.(drumId, soundId);
-  };
+  setDrumSoundSelection((prev) => ({
+    ...prev,
+    [drumId]: soundId,
+  }));
+};
 
   useEffect(() => {
     setSequence((prevSequence) => {
@@ -414,12 +412,9 @@ function mapDbTo0to100(db) {
     }
     if (savedPlayer.drumSounds && typeof savedPlayer.drumSounds === "object") {
       setDrumSoundSelection((prev) => ({
-        ...prev,
-        ...savedPlayer.drumSounds,
+      ...prev,
+      ...savedPlayer.drumSounds,
       }));
-      Object.entries(savedPlayer.drumSounds).forEach(([drumId, soundId]) => {
-        playerRef.current?.setDrumSound?.(drumId, soundId);
-      });
     }
 
     setCurrentStep(-1);
@@ -482,7 +477,6 @@ function mapDbTo0to100(db) {
         tracks={tracks}
         chords={chords}
         onStep={setCurrentStep}
-        onTracksChange={setTracks}
         onPlayStateChange={setIsPlaying}  // <-- Player notifica play/stop
         steps={steps}
         bpm={bpm}
@@ -771,6 +765,7 @@ function mapDbTo0to100(db) {
                       <option value={'2'}>2</option>
                       <option value={'3'}>3</option>
                       <option value={'4'}>4</option>
+                      <option value={'8'}>8</option>
                     </select>
 
                     <label style={{ marginRight: "10px" }}>Metre:</label>

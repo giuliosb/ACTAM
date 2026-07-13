@@ -19,7 +19,7 @@
   
   .indicator {
     width: 7px;          /* thickness of the line */
-    height: 30px;        /* EXACT hand length like your photo */
+    height: 30px;        
     background: linear-gradient(
         to right,
         #ffb000,
@@ -37,7 +37,7 @@
   }
   
   
-  /* Ticks arc */
+  /* Ticks */
   .ticks {
     position: absolute;
     width: 140px;

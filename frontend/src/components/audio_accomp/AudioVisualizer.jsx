@@ -8,7 +8,7 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
 
   const wavesurferRef = useRef(null);
   const regionRef = useRef(null);
-  const regionsPluginRef = useRef(null);
+
 
   // Helper: destroy a WaveSurfer instance and swallow AbortError (raised when aborting pending loads)
   const safeDestroy = (ws) => {
@@ -40,22 +40,20 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
 
   const loopEnabledRef = useRef(loopEnabled);
 
-  //Abort on card change
+  //Abort playing on card change
   useEffect(() => {
     if (!enablePlaying) {
       wavesurferRef.current?.pause();
       setIsPlaying(false);
     }
   }, [enablePlaying, setIsPlaying]);
-
-  // Give regions a random color when they are created
   
   const regionColor = 'rgba(21, 72, 73, 0.15)';
 
 
   const hasLoadedAudio = () => {
     try {
-      return !!wavesurferRef.current?.getDecodedData();
+      return !!wavesurferRef.current?.getDecodedData(); 
     } catch {
       return false;
     }
@@ -76,12 +74,12 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
     if (!audioFile) return;
 
     // cleanup previous instance
-    setIsReady(false);
+
+    setIsReady(false);              
     if (wavesurferRef.current) {
       safeDestroy(wavesurferRef.current);
       wavesurferRef.current = null;
       regionRef.current = null;
-      regionsPluginRef.current = null;
     }
 
     const regionsPlugin = RegionsPlugin.create({
@@ -109,7 +107,6 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
     });
 
     wavesurferRef.current = ws;
-    regionsPluginRef.current = regionsPlugin;
 
     ws.on("error", (err) => {
       if (err?.name !== "AbortError") {
@@ -217,24 +214,17 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
     ws.zoom(zoom);
   }, [zoom, isReady]);
 
-  const handlePlayPauseButton = () => {
-    if (isPlaying) {
-      handlePause();
-    } else {
-      handlePlay();
-    }
-  }
   const handlePlay = () => {
-    const ws = wavesurferRef.current;
-    const region = regionRef.current;
-    if (!ws || !region) return;
-    if(loopEnabledRef.current)  ws.play(region.start);
-    else ws.play();
-  };
+  const ws = wavesurferRef.current;
+  const region = regionRef.current;
+  if (!ws || !region) return;
 
-  const handlePause = () => {
-    wavesurferRef.current?.pause();
-  };
+  ws.play(loopEnabledRef.current ? region.start : undefined);
+};
+
+const handlePlayPauseButton = () => {
+  isPlaying ? wavesurferRef.current?.pause() : handlePlay();
+};
 
   return (
     <div style={{ marginTop: "20px" }}>
@@ -296,7 +286,7 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
       </div>
 
 
-       {/* LOOP CHECKBOX */}
+      {/* LOOP CHECKBOX */}
       <div style={{ marginTop: "10px" }}>
         <input
             type="checkbox"

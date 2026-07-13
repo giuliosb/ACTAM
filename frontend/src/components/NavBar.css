@@ -33,7 +33,7 @@
 }
 
 .navbar-side.left {
-  justify-content: flex-end;   /* was flex-end */          /* tune this */
+  justify-content: flex-end;        /* tune this */
 }
 
 

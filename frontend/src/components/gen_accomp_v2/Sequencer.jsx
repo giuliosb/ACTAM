@@ -3,152 +3,34 @@ import "./Sequencer.css";
 import {
   DEFAULT_STEPS,
   DEFAULT_CHORD_TRACK,
-} from "./musicConfig";
+  DEFAULT_STEPS_PER_BLOCK,
+} from "./utils/musicConfig";
+import {DRUM_IDS} from "./utils/playerPlayback";
 import {
   toggleDrumEvent,
   addChordEvent,
   changeChordSustain,
   removeChordEvent,
   clearChordSustainFromStep,
-} from "./sequenceUtils";
+} from "./utils/sequenceUtils";
+import { getChordVisuals } from "./utils/chordVisuals";
 
-const ROOT_CLASS_MAP = {
-  C: "c",
-  G: "g",
-  D: "d",
-  A: "a",
-  E: "e",
-  B: "b",
-  "F#": "fsharp",
-  "C#": "csharp",
-  "D#": "dsharp",
-  "G#": "gsharp",
-  "A#": "asharp",
-  Db: "db",
-  Eb: "eb",
-  Ab: "ab",
-  Bb: "bb",
-  F: "f",
-};
-
-const TRIAD_CLASS_MAP = {
-  Major: "major",
-  Minor: "minor",
-  "Dim (-)": "dim",
-  "Aug (+)" : "aug",
-};
-const TRIAD_LABEL_MAP = {
-  "Dim (-)": "-",
-  "Aug (+)": "+",
-}
-const EXT_LABEL_MAP = {
-  "": "",
-  "6": "6",
-  "7": "7",
-  m7: "m7",
-  Maj7: "Δ7",
-  "9": "9",
-  "11": "11",
-  "13": "13",
-  Add9: "add9",
-  Sus2: "sus2",
-  Sus4: "sus4",
-};
-
-const DEFAULT_STEPS_PER_BLOCK = 22; // If we want something other than 4/4, this should be changed
-
-const getChordVisuals = (chord) => {
-  if (!chord) return {};
-  const rootClass = ROOT_CLASS_MAP[chord.root] || "";
-  const triadClass = TRIAD_CLASS_MAP[chord.triad] || "";
-  const triadPrefix = TRIAD_LABEL_MAP[chord.triad] || "";
-  const extSuffix =
-    EXT_LABEL_MAP[chord.extension] ?? chord.extension ?? "";
-  const extLabel = `${triadPrefix}${extSuffix}`;
- 
-  return { rootClass, triadClass, extLabel };
-};
-
-const DRUM_IDS = ["kick", "snare", "hihat", "openhat"];
-
-
-
-export function getSequencerSnapshot({ sequence, steps = DEFAULT_STEPS }) {
-  const safeSequence = Array.isArray(sequence) ? sequence : [];
-  const stepCount =
-    Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
-
-  return Array.from({ length: stepCount }, (_, stepIndex) => {
-    const events = Array.isArray(safeSequence[stepIndex])
-      ? safeSequence[stepIndex]
-      : [];
-
-    const drums = DRUM_IDS.reduce((acc, drumId) => {
-      acc[drumId] = events.some(
-        (ev) => ev.type === "drum" && ev.drum === drumId
-      );
-      return acc;
-    }, {});
-
-    const chords = events
-      .filter((ev) => ev.type === "chord")
-      .map((ev) => ({
-        id: ev.id,
-        chordIndex: Number.isFinite(ev.chordIndex) ? ev.chordIndex : null,
-        start: Boolean(ev.start),
-        sustain:
-          ev.start && Number.isFinite(ev.sustain) ? ev.sustain : undefined,
-      }));
-
-    return {
-      step: stepIndex,
-      drums,
-      chords,
-    };
-  });
-}
-
-export function buildSequenceFromSnapshot(snapshot, steps = DEFAULT_STEPS) {
-  const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
-  const stepCount =
-    Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
-
-  return Array.from({ length: stepCount }, (_, stepIndex) => {
-    const entry = safeSnapshot[stepIndex] || {};
-    const drums = entry.drums || {};
-    const chordRows = Array.isArray(entry.chords) ? entry.chords : [];
-
-    const events = [];
-
-    for (const drumId of DRUM_IDS) {
-      if (drums[drumId]) {
-        events.push({
-          id: `drum-${stepIndex}-${drumId}-${Math.random().toString(36)}`,
-          type: "drum",
-          drum: drumId,
-        });
-      }
-    }
-
-    for (const chord of chordRows) {
-      if (!chord || typeof chord !== "object") continue;
-      const { id, chordIndex, start, sustain } = chord;
-      const chordEvent = {
-        id: id ?? Math.random(),
-        type: "chord",
-        chordIndex: Number.isFinite(chordIndex) ? chordIndex : null,
-        start: Boolean(start),
-      };
-      if (chordEvent.start && Number.isFinite(sustain)) {
-        chordEvent.sustain = sustain;
-      }
-      events.push(chordEvent);
-    }
-
-    return events;
-  });
-}
-
+/**
+ * Main sequencer UI component.
+ *
+ * Responsibilities:
+ * - Renders the drum grid and chord grid.
+ * - Allows users to add/remove drum events.
+ * - Allows users to add/remove chord events.
+ * - Allows chord sustain editing.
+ * - Allows track opening and muting.
+ * - Renders the chord library and manages selected chord state.
+ *
+ * Data model:
+ * - `sequence` contains step-based musical events.
+ * - `tracks` contains track-level settings such as enabled/muted state.
+ * - `chords` contains the chord library used by chord events.
+ */
 export default function Sequencer({
   sequence,
   onSequenceChange,
@@ -164,12 +46,32 @@ export default function Sequencer({
   steps = DEFAULT_STEPS,
   stepsPerBlock = DEFAULT_STEPS_PER_BLOCK,
 }) {
+  /**
+  * Index of the currently selected chord in the chord library.
+  *
+  * null means no chord is selected.
+  * When a chord is selected, clicking an empty chord step inserts that chord.
+  */
   const [selectedChordIndex, setSelectedChordIndex] = useState(null);
 
+  /**
+  * Defensive sequence value used by the renderer.
+  *
+  * The UI expects `sequence` to be an array. If invalid data is received,
+  * this fallback prevents `.map`, indexing, and event lookup operations from
+  * throwing errors.
+  */
   const safeSequence = Array.isArray(sequence) ? sequence : [];
+  
+  /**
+  * Defensive chord-library value used by the renderer.
+  *
+  * The chord grid stores only `chordIndex` values, so this array is used to
+  * look up the visible chord name and CSS visual metadata.
+  */
   const safeChords = Array.isArray(chords) ? chords : [];
 
-  const update = (updater) =>
+  const updateSequence = (updater) =>
     onSequenceChange((prevSequence) => {
       if (isPlaying) return prevSequence;
       const prevSafe = Array.isArray(prevSequence) ? prevSequence : [];
@@ -179,24 +81,24 @@ export default function Sequencer({
 
   const toggleDrum = (step, drumId) => {
     if (isPlaying) return;
-    update((prev) => toggleDrumEvent(prev, step, drumId));
+    updateSequence((prev) => toggleDrumEvent(prev, step, drumId));
   };
 
   const addChordAt = (step, chordIndex) => {
     if (isPlaying) return;
-    update((prev) => addChordEvent(prev, step, chordIndex));
+    updateSequence((prev) => addChordEvent(prev, step, chordIndex));
   };
 
   const changeSustain = (stepIndex, chordIndex, delta) => {
     if (isPlaying) return;
-    update((prev) =>
+    updateSequence((prev) =>
       changeChordSustain(prev, stepIndex, chordIndex, delta, steps)
     );
   };
 
   const removeChordAt = (step, chordIndex) => {
     if (isPlaying) return;
-    update((prev) => removeChordEvent(prev, step, chordIndex, steps));
+    updateSequence((prev) => removeChordEvent(prev, step, chordIndex, steps));
   };
 
   const toggleDrumTrackEnabled = (drumId) => {
@@ -356,7 +258,7 @@ export default function Sequencer({
               else {
                 if (selectedChordIndex === null) return;
 
-                update((prev) => {
+                updateSequence((prev) => {
                   const trimmed = clearChordSustainFromStep(
                     prev,
                     step,

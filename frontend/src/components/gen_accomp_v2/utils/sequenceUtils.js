@@ -1,6 +1,6 @@
 // sequenceUtils.js
 import { DEFAULT_STEPS } from "./musicConfig";
-
+import { DRUM_IDS } from "./playerPlayback";
 const ensureSteps = (steps) =>
   Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
 
@@ -15,7 +15,7 @@ export function toggleDrumEvent(sequence, step, drumId) {
   const newSeq = cloneSequence(sequence);
   const events = newSeq[step] || [];
 
-  const exists = events.some(
+  const exists = events.some(                             
     (ev) => ev.type === "drum" && ev.drum === drumId
   );
 
@@ -57,6 +57,7 @@ export function changeChordSustain(
   delta,
   steps = DEFAULT_STEPS
 ) {
+  console.log("changeChordSustain");
   const newSeq = cloneSequence(sequence);
   const maxSteps = ensureSteps(steps);
 
@@ -87,6 +88,7 @@ export function changeChordSustain(
     if (!hasSustain) break;
     currentLen++;
   }
+
 
   // 2️. Compute the NEW length (with min/max bounds)
   let newLen = currentLen + delta;
@@ -150,6 +152,7 @@ export function clearChordSustainFromStep(
   chordId,
   steps = DEFAULT_STEPS
 ) {
+  console.log("clearChordSustain");
   const newSeq = cloneSequence(sequence);
   const maxSteps = ensureSteps(steps);
 
@@ -282,4 +285,206 @@ export function applyChordDeletionToSequence(sequence, removedIndex) {
   }
 
   return newSeq;
+}
+
+/**
+ * Creates a serializable snapshot of the current sequencer state.
+ *
+ * This function converts the internal sequence structure into a simpler format
+ * that can be saved, copied, exported, or restored later.
+ *
+ * Internal sequence format:
+ * - sequence[stepIndex] is an array of events for that step.
+ * - Each event can be a drum event or a chord event.
+ *
+ * Snapshot format:
+ * - One object per step.
+ * - `drums` stores one boolean value for each drum track.
+ * - `chords` stores simplified chord-event data.
+ *
+ * @param {Object} params
+ * @param {Array[]} params.sequence
+ * The full sequencer event array. Each index represents one sequencer step.
+ *
+ * @param {number} params.steps
+ * Number of steps that should be included in the snapshot.
+ *
+ * @returns {Array<Object>}
+ * Serializable array containing one entry per sequencer step.
+ */
+export function getSequencerSnapshot({ sequence, steps = DEFAULT_STEPS }) {
+  
+  /**
+  * Defensive version of the incoming sequence.
+  *
+  * If the caller passes invalid sequence data, this falls back to an empty array
+  * so the snapshot builder can continue without throwing runtime errors.
+  */
+  const safeSequence = Array.isArray(sequence) ? sequence : [];
+  
+  /**
+  * Validated number of steps to export.
+  *
+  * If `steps` is not a positive finite number, DEFAULT_STEPS is used instead.
+  * This prevents invalid array lengths when building the snapshot.
+  */
+  const stepCount =
+    Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
+
+  return Array.from({ length: stepCount }, (_, stepIndex) => {
+    
+    /**
+    * Events stored at the current step.
+    *
+    * If the current step does not contain a valid event array, it is treated as
+    * empty. This keeps the export logic safe even when sequence data is partial.
+    */
+    const events = Array.isArray(safeSequence[stepIndex])
+      ? safeSequence[stepIndex]
+      : [];
+    
+    /**
+    * Drum activation map for the current step.
+    *
+    * For every known drum id, this checks whether the current step contains a
+    * matching drum event.
+    *
+    * Example result:
+    * {
+    *   kick: true,
+    *   snare: false,
+    *   hihat: true,
+    *   openhat: false
+    * }
+    */
+    const drums = DRUM_IDS.reduce((acc, drumId) => {
+      acc[drumId] = events.some(
+        (ev) => ev.type === "drum" && ev.drum === drumId
+      );
+      return acc;
+    }, {});
+    
+    /**
+    * Chord events for the current step.
+    *
+    * Only chord-related fields required for reconstruction are exported:
+    * - id: original chord event id
+    * - chordIndex: index of the chord inside the chord library
+    * - start: whether this event is the beginning of a chord
+    * - sustain: sustain length, only stored on chord-start events
+    */
+    const chords = events
+      .filter((ev) => ev.type === "chord")
+      .map((ev) => ({
+        id: ev.id,
+        chordIndex: Number.isFinite(ev.chordIndex) ? ev.chordIndex : null,
+        start: Boolean(ev.start),
+        sustain:
+          ev.start && Number.isFinite(ev.sustain) ? ev.sustain : undefined,
+      }));
+
+    return {
+      step: stepIndex,
+      drums,
+      chords,
+    };
+  });
+}
+
+/**
+ * Rebuilds the internal sequencer event structure from a saved snapshot.
+ *
+ * This performs the inverse operation of `getSequencerSnapshot`.
+ * It receives simplified step data and reconstructs the event arrays used by
+ * the sequencer UI and playback logic.
+ *
+ * @param {Array<Object>} snapshot
+ * Previously exported sequencer snapshot.
+ *
+ * @param {number} steps
+ * Number of sequencer steps to rebuild.
+ *
+ * @returns {Array[]}
+ * Internal sequence array. Each index contains the events for that step.
+ */
+export function buildSequenceFromSnapshot(snapshot, steps = DEFAULT_STEPS) {
+  /**
+  * Defensive version of the incoming snapshot.
+  *
+  * Invalid snapshot data is treated as an empty array so the reconstruction
+  * process remains safe.
+  */
+  const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
+  const stepCount =
+    Number.isFinite(steps) && steps > 0 ? steps : DEFAULT_STEPS;
+
+  return Array.from({ length: stepCount }, (_, stepIndex) => {
+    /**
+    * Snapshot data for the current step.
+    *
+    * If the snapshot does not contain data for this step, an empty object is used.
+    */
+    const entry = safeSnapshot[stepIndex] || {};
+    const drums = entry.drums || {};
+    const chordRows = Array.isArray(entry.chords) ? entry.chords : [];
+
+    /**
+    * Internal event list reconstructed for the current step.
+    *
+    * Drum events and chord events are pushed into this array, then returned as
+    * the value for sequence[stepIndex].
+    */
+    const events = [];
+    
+    /**
+    * Rebuild drum events for this step.
+    *
+    * A drum event is created for each drum id whose snapshot value is true.
+    * The generated id only needs to be unique enough for rendering and event
+    * distinction inside the sequencer.
+    */
+    for (const drumId of DRUM_IDS) {
+      if (drums[drumId]) {
+        events.push({
+          id: `drum-${stepIndex}-${drumId}-${Math.random().toString(36)}`,
+          type: "drum",
+          drum: drumId,
+        });
+      }
+    }
+
+    /**
+    * Rebuild chord events for this step.
+    *
+    * Invalid chord snapshot entries are ignored. Valid entries are converted back
+    * into the internal chord-event format expected by the sequencer.
+    */
+    for (const chord of chordRows) {
+      if (!chord || typeof chord !== "object") continue;
+      const { id, chordIndex, start, sustain } = chord;
+      
+      /**
+      * Internal chord event reconstructed from snapshot data.
+      *
+      * Variables:
+      * - id: original event id if available; otherwise a fallback id is generated.
+      * - type: always "chord" for chord events.
+      * - chordIndex: index into the chord library, or null if invalid.
+      * - start: true if this event is the beginning of a chord.
+      * - sustain: optional sustain length, only valid on chord-start events.
+      */
+      const chordEvent = {
+        id: id ?? Math.random(),
+        type: "chord",
+        chordIndex: Number.isFinite(chordIndex) ? chordIndex : null,
+        start: Boolean(start),
+      };
+      if (chordEvent.start && Number.isFinite(sustain)) {
+        chordEvent.sustain = sustain;
+      }
+      events.push(chordEvent);
+    }
+
+    return events;
+  });
 }
