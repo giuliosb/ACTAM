@@ -23,7 +23,6 @@
 .navbar .indicator {
   flex-shrink: 0;
   white-space: nowrap;
-  /* TODO mi a white-space */
 }
 
 /* left + right groups */

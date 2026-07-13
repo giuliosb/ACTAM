@@ -19,7 +19,7 @@ export function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
   const clearTransportEvent = useCallback(() => {
     if (!Tone || transportEventRef.current === null) return;
 
-    Tone.Transport.clear(transportEventRef.current);      //TODO what is this Transport.clear()
+    Tone.Transport.clear(transportEventRef.current);     
     transportEventRef.current = null;
   }, [Tone]);
 
@@ -27,7 +27,7 @@ export function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
     if (!Tone) return;
 
     Tone.Transport.stop();
-    Tone.Transport.cancel();                  //TODO what is this Transport.cancel()
+    Tone.Transport.cancel();                  
     Tone.Transport.position = "0:0:0";
     stepCounterRef.current = 0;
   }, [Tone]);
@@ -38,7 +38,7 @@ export function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
     clearTransportEvent();
     resetTransport();
 
-    //TODO what is this Transport.scheduleRepeat()
+  
     transportEventRef.current = Tone.Transport.scheduleRepeat((time) => {
       const step = stepCounterRef.current;
 
@@ -55,16 +55,16 @@ export function useTransport(Tone, { steps, onStep, playStep, setIsPlaying }) {
     setupLoop();
     Tone.Transport.start();
     setIsPlaying(true);
-  }, [Tone, setupLoop, setIsPlaying]);        //TODO what are this return values, how does this work
+  }, [Tone, setupLoop, setIsPlaying]);       
 
   const stop = useCallback(() => {
     if (!Tone) return;
 
     resetTransport();
     clearTransportEvent();
-    onStep(-1);           //TODO: Why?
+    onStep(-1);         
     setIsPlaying(false);
-  }, [Tone, resetTransport, clearTransportEvent, onStep, setIsPlaying]);  //TODO what are this return values
+  }, [Tone, resetTransport, clearTransportEvent, onStep, setIsPlaying]);
 
   useEffect(() => {
     return () => {

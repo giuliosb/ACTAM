@@ -1,11 +1,11 @@
 import { useState, useRef } from "react";
-import axios from "axios";          //TODO what is axios
+import axios from "axios";        
 import AudioVisualizer from "./AudioVisualizer";
 import spinner from "../../assets/images/spinner.svg";
 import SliderDigital from "../general_components/SliderDigital";
 import "./Audio.css";
 
-const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"; //TODO: what is meta.env
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 export default function AudioProcessor({ currentCard }) {
   const enablePlaying = currentCard === "audio";
@@ -47,7 +47,7 @@ export default function AudioProcessor({ currentCard }) {
     log("Upload started...");
     log(`Selected file: ${selectedFile.name}`);
 
-    const form = new FormData();        //TODO what is FormData object
+    const form = new FormData();      
     form.append("file", selectedFile);
 
     try {
@@ -62,7 +62,7 @@ export default function AudioProcessor({ currentCard }) {
       setTuning(tuning);
       setOGTuning(tuning);
       log(`Detected tuning: ${tuning}`);          
-      const t = await getTuning();                  //TODO why is tuning requested after already receiving tuning (and setting with SetTuning())
+      const t = await getTuning();                  
       if (Number.isFinite(t)) await getAudio(t);
       await Promise.all([detectBpm(), detectTonality()]);
 
@@ -80,7 +80,7 @@ export default function AudioProcessor({ currentCard }) {
     if (!selected) return;
     setFile(selected);
     uploadFile(selected);
-    // allow re-selecting the same file later  //TODO what is this
+    // allow re-selecting the same file later
     e.target.value = "";
   };
 
@@ -118,7 +118,7 @@ export default function AudioProcessor({ currentCard }) {
       const detected = Number(res.data.bpm);
       setBpm(detected);
       // default target to detected bpm for 1x playback
-      const fixedNumber = detected.toFixed(2);       //TODO what is toFixed()
+      const fixedNumber = detected.toFixed(2);     
       setTargetBpm(((prev) => (prev === null ? fixedNumber : prev)));
       log(`BPM detected: ${detected}`);
       return detected;
@@ -162,7 +162,7 @@ export default function AudioProcessor({ currentCard }) {
   const getAudio = async (targetTuning = tuning) => {
     const t = Number(targetTuning);
 
-  // GUARDIA: evita 422 da NaN/undefined/null     //TODO what this comment means, what this block does
+  // GUARDIA: evita 422 da NaN/undefined/null   
   if (!Number.isFinite(t)) {
     log(`Invalid target_tuning: ${targetTuning} (Number -> ${t})`);
     return;
@@ -276,7 +276,7 @@ export default function AudioProcessor({ currentCard }) {
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "1fr 220px", // left text grows, right fixed for slider  //TODO what is 1fr
+                            gridTemplateColumns: "1fr 220px", // left text grows, right fixed for slider 
                             columnGap: "60px",
                             alignItems: "start",
                             marginTop: "20px",

@@ -38,7 +38,7 @@ export const DEFAULT_CHORD_TRACK = {
 
 // Utility per creare una sequenza vuota
 export const createEmptySequence = (steps = DEFAULT_STEPS) =>
-  Array.from({ length: steps }, () => []);            //TODO array.from is what
+  Array.from({ length: steps }, () => []);          
 
 // utils/sequencerConstants.js
 

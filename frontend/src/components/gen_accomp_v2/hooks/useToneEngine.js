@@ -45,7 +45,6 @@ export function useToneEngine(bpm, masterVolume) {
       cancelled = true;
 
       const Tone = toneRef.current;
-      //TODO what is this part
       if (Tone) {
         Tone.Transport.stop();
         Tone.Transport.cancel();
@@ -64,7 +63,6 @@ export function useToneEngine(bpm, masterVolume) {
     if (toneRef.current) toneRef.current.Destination.volume.value = masterVolume;
   }, [masterVolume]);
 
-  //TODO what is this
   const ensureStarted = useCallback(async () => {
     const Tone = toneRef.current;
     if (!Tone) return false;
@@ -73,7 +71,6 @@ export function useToneEngine(bpm, masterVolume) {
     setIsAudioReady(true);
     return true;
   }, []);
-  //TODO what is this
   const unlockAudioSync = useCallback(() => {
     const Tone = toneRef.current;
     if (!Tone) return false;

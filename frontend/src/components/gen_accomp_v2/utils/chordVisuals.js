@@ -123,7 +123,7 @@ const EXT_LABEL_MAP = new Map([
  * @param {Chord | null | undefined} chord
  * Chord object selected from the chord library.
  *
- * @returns {Partial<ChordVisuals>}     //TODO what is this Partial
+ * @returns {Partial<ChordVisuals>}  
  * Visual metadata for rendering:
  * - rootClass: root CSS suffix
  * - triadClass: triad CSS suffix

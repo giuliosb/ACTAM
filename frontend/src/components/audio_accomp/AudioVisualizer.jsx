@@ -11,7 +11,6 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
 
 
   // Helper: destroy a WaveSurfer instance and swallow AbortError (raised when aborting pending loads)
-  //TODO: why is this necessary
   const safeDestroy = (ws) => {
     if (!ws) return;
     try {
@@ -54,7 +53,7 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
 
   const hasLoadedAudio = () => {
     try {
-      return !!wavesurferRef.current?.getDecodedData();   //TODO: what is getDecodedData()
+      return !!wavesurferRef.current?.getDecodedData(); 
     } catch {
       return false;
     }
@@ -75,7 +74,7 @@ export default function AudioVisualizer({ enablePlaying, audioFile, playbackSpee
     if (!audioFile) return;
 
     // cleanup previous instance
-    //TODO: what is this cleanup, why is it necessary
+
     setIsReady(false);              
     if (wavesurferRef.current) {
       safeDestroy(wavesurferRef.current);

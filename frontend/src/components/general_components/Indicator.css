@@ -15,7 +15,7 @@
     box-shadow 0.3s ease;
 }
 
-/* TODO: what is inset */
+
 .indicatorlight.on {
   background:
     radial-gradient(circle, #ffdd66 0%, #ffbb00 55%, #2f1f05 70%);

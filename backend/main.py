@@ -389,7 +389,7 @@ def pitch_shift_to_tuning(
         n_steps=semitones,
     )
 
-    shifted = shifted.astype(np.float32, copy=False)
+    shifted = shifted.astype(np.float32, copy=False)            #copy=False aviods creating a new array when the type is already float32
 
     return normalize_to_original_rms(shifted, y)
 

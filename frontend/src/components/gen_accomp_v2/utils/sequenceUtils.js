@@ -15,7 +15,7 @@ export function toggleDrumEvent(sequence, step, drumId) {
   const newSeq = cloneSequence(sequence);
   const events = newSeq[step] || [];
 
-  const exists = events.some(                             //TODO what is evets.some
+  const exists = events.some(                             
     (ev) => ev.type === "drum" && ev.drum === drumId
   );
 
@@ -57,6 +57,7 @@ export function changeChordSustain(
   delta,
   steps = DEFAULT_STEPS
 ) {
+  console.log("changeChordSustain");
   const newSeq = cloneSequence(sequence);
   const maxSteps = ensureSteps(steps);
 
@@ -87,6 +88,7 @@ export function changeChordSustain(
     if (!hasSustain) break;
     currentLen++;
   }
+
 
   // 2️. Compute the NEW length (with min/max bounds)
   let newLen = currentLen + delta;
@@ -150,6 +152,7 @@ export function clearChordSustainFromStep(
   chordId,
   steps = DEFAULT_STEPS
 ) {
+  console.log("clearChordSustain");
   const newSeq = cloneSequence(sequence);
   const maxSteps = ensureSteps(steps);
 

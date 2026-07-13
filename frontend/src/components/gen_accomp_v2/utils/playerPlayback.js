@@ -46,7 +46,7 @@ export function triggerDrumNode(node, note, duration, time) {
     if (typeof node.start === "function") {
       node.start(time);
     } else if (typeof node.triggerAttackRelease === "function") {
-      node.triggerAttackRelease(note, duration, time);              //TODO what is this
+      node.triggerAttackRelease(note, duration, time);           
     }
   } catch (error) {
     console.warn("Drum trigger failed", error);
@@ -62,7 +62,7 @@ export function triggerDrumNode(node, note, duration, time) {
 export function getChordFrequencies(notes) {
   return asArray(notes)
     .map((note) => (note && typeof note.freq === "number" && note.freq > 0 ? note.freq : null))
-    .filter(Boolean);                                              //TODO what is thiss .filter
+    .filter(Boolean);                                           
 }
 
 /**
@@ -75,7 +75,7 @@ export function getChordFrequencies(notes) {
 export function getSustainSeconds(sustainFactor, bpm) {
   const safeBpm = Number.isFinite(bpm) && bpm > 0 ? bpm : 120;
   const stepDuration = 60 / safeBpm / 4;
-  const factor = Number.isFinite(sustainFactor) ? sustainFactor : 1;        //TODO what is this factor
+  const factor = Number.isFinite(sustainFactor) ? sustainFactor : 1;      
 
   return Math.max(0.03, factor * stepDuration);
 }

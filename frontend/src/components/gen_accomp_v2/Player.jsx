@@ -106,7 +106,6 @@ const Player = forwardRef(function Player(
   );
 
 
-  //TODO why these useEffects are separated? Why not combine all refs into one useEffect()?
   useEffect(() => {
     tracksRef.current = asObject(tracks);
   }, [tracks]);
